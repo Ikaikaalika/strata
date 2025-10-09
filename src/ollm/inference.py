@@ -3,12 +3,15 @@ import torch
 from transformers import AutoTokenizer, AutoProcessor
 from .utils import Stats, file_get_contents
 from .gds_loader import GDSWeights, MoEWeightsLoader2, Gemma3Loader
-from .kvcache import KVCache
+from .backends import select_backend
 
 class Inference:
 	def __init__(self, model_id, device="cuda:0", logging=True, multimodality=False):
 		self.model_id = model_id
-		self.device = torch.device(device)
+		self.backend_selection = select_backend(device)
+		self.backend = self.backend_selection.backend
+		self.device = self.backend_selection.resolved_device
+		self.device_request = self.backend_selection.device_request
 		self.multimodality = multimodality
 		self.stats = Stats() if logging else None
 
@@ -94,7 +97,7 @@ class Inference:
 			self.model.clean_layers_weights()
 
 		self.model.eval()
-		self.model.to(self.device)
+		self.backend.move_model_to_device(self.model, self.device)
 		self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
 
 	
@@ -112,4 +115,4 @@ class Inference:
 			from .qwen3_next import Qwen3NextDiskCache
 			return Qwen3NextDiskCache(self.model.config, cache_dir=cache_dir, stats=self.stats)
 		else:
-			return KVCache(cache_dir=cache_dir, stats=self.stats) #config=?
+			return self.backend.create_kv_cache(cache_dir=cache_dir, stats=self.stats)

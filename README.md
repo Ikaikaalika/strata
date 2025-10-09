@@ -91,6 +91,18 @@ print(answer)
 ```
 or run sample python script as `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True python example.py` 
 
+### Backend selection
+
+`Inference` now accepts backend-qualified device strings. By default it auto-detects Torch devices (`cuda`, `mps`, or `cpu`). You can force a backend with prefixes such as:
+
+```python
+Inference("llama3-1B-chat", device="torch:cuda:0")
+Inference("llama3-1B-chat", device="torch:mps")
+Inference("llama3-1B-chat", device="mlx")  # experimental, MLX backend stub
+```
+
+The MLX path is currently a placeholder and will raise until MLX support lands; it is present so downstream code can be wired up incrementally.
+
 **More samples**
 - [gemma3-12B image+text ](https://github.com/Mega4alik/ollm/blob/main/example_multimodality.py)
 
