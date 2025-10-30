@@ -1,21 +1,49 @@
+from __future__ import annotations  # Enable string annotations
 import json, os, time, math, re
-import torch
-from torch.utils.dlpack import from_dlpack
-import cupy as cp
-import kvikio
-#from safetensors.torch import safe_open, load_file
 import struct
+from typing import TYPE_CHECKING
+
+# Optional Torch dependencies
+try:
+    import torch
+    from torch.utils.dlpack import from_dlpack
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
+    torch = None
+    from_dlpack = None
+    if not TYPE_CHECKING:
+        # Create dummy torch module for type hints
+        class _DummyTorch:
+            class Tensor: pass
+            bfloat16 = None
+            float16 = None
+        torch = _DummyTorch()
+
+# Optional CUDA dependencies (Linux/NVIDIA only)
+try:
+    import cupy as cp
+    import kvikio
+    CUDA_AVAILABLE = True
+except ImportError:
+    CUDA_AVAILABLE = False
+    cp = None
+    kvikio = None
 
 stats = None
 
-DTYPE_MAP = {
-	"float16": cp.float16,
-	"bfloat16": cp.float16, #cp.dtype('bfloat16'),
-	"float32": cp.float32,
-	"float64": cp.float64,
-	"int8": cp.int8,
-	"int32": cp.int32,
-}
+# DTYPE_MAP only used for CUDA backend (requires cupy)
+if cp is not None:
+    DTYPE_MAP = {
+        "float16": cp.float16,
+        "bfloat16": cp.float16,
+        "float32": cp.float32,
+        "float64": cp.float64,
+        "int8": cp.int8,
+        "int32": cp.int32,
+    }
+else:
+    DTYPE_MAP = {}
 
 class GDSWeights:
 	def __init__(self, path: str, device="cuda:0"):

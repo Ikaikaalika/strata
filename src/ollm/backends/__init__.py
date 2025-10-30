@@ -7,11 +7,9 @@ from .base import (
     register_backend,
     select_backend,
 )
-from .torch_backend import TorchBackend
 from .mlx_backend import MLXBackend
 
 # Register built-in backends
-register_backend(TorchBackend())
 register_backend(MLXBackend())
 
 __all__ = [

@@ -1,4 +1,4 @@
-"""MLX backend skeleton."""
+"""MLX backend implementation for Apple Silicon."""
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -34,10 +34,55 @@ class MLXBackend(Backend):
         raise BackendError(f"Unsupported MLX device specification: {device_request}")
 
     def move_model_to_device(self, model: Any, device: Any) -> Any:
-        raise BackendError("MLX backend does not yet support moving models; implementation pending")
+        """
+        Move model to MLX device.
 
-    def create_kv_cache(self, cache_dir: str, stats: Optional[Any]):
-        raise BackendError("MLX backend KV cache not implemented yet")
+        For MLX, models are already on the appropriate device after loading.
+        This method is mainly for compatibility with the backend API.
+        MLX uses unified memory, so explicit device movement is less critical.
+
+        Args:
+            model: Model instance
+            device: MLX device (mx.gpu or mx.cpu)
+
+        Returns:
+            The model (unchanged, as MLX handles device placement automatically)
+        """
+        if mx is None:
+            raise BackendError("MLX backend is not available")
+
+        # MLX models don't need explicit device movement due to unified memory
+        # The device is set during weight loading
+        # This is a no-op that maintains API compatibility
+        return model
+
+    def create_kv_cache(self, cache_dir: str, stats: Optional[Any], config: Optional[Any] = None, model_id: Optional[str] = None):
+        """
+        Create MLX-compatible KV cache with disk offloading.
+
+        Args:
+            cache_dir: Directory for cache files
+            stats: Stats tracker
+            config: Model config (required)
+            model_id: Model identifier for specialized cache selection
+
+        Returns:
+            MLX KV cache instance
+        """
+        if mx is None:
+            raise BackendError("MLX backend is not available")
+
+        from ..mlx_kvcache import create_mlx_kv_cache
+
+        if config is None:
+            raise BackendError("config is required to create MLX KV cache")
+
+        return create_mlx_kv_cache(
+            model_id=model_id or "default",
+            config=config,
+            cache_dir=cache_dir,
+            stats=stats
+        )
 
     def attention_kernel(self):
         require_mx()

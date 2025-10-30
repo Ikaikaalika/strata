@@ -50,9 +50,9 @@ def online_chunked_grouped_attention_rope_no_mask_mx(
         if not q_head_idxs:
             continue
 
-        k_h = mx.astype(k[:, hkv_idx], mx.float32)
-        v_h = mx.astype(v[:, hkv_idx], mx.float32)
-        q_sub = mx.astype(q[:, q_head_idxs], mx.float32)
+        k_h = k[:, hkv_idx].astype(mx.float32)
+        v_h = v[:, hkv_idx].astype(mx.float32)
+        q_sub = q[:, q_head_idxs].astype(mx.float32)
         Hq_g = q_sub.shape[1]
 
         for q_start in range(0, Lq, q_block_size):
@@ -72,7 +72,7 @@ def online_chunked_grouped_attention_rope_no_mask_mx(
                 v_block = v_h[:, k_start:k_end, :]
 
                 scores = mx.einsum("bhqd,bkd->bhqk", q_block, k_block) * scale
-                local_max = mx.amax(scores, axis=-1)
+                local_max = mx.max(scores, axis=-1)
                 exp_scores = mx.exp(scores - local_max[..., None])
                 sum_exp = mx.sum(exp_scores, axis=-1)
                 weighted_v_chunk = mx.einsum("bhqk,bkd->bhqd", exp_scores, v_block)
@@ -87,18 +87,39 @@ def online_chunked_grouped_attention_rope_no_mask_mx(
                 prev_wv = wv
 
                 s = mx.where(first_mask, sum_exp, alpha * prev_s + beta * sum_exp)
-                s = mx.astype(s, mx.float32)
+                s = s.astype(mx.float32)
 
                 wv = mx.where(
                     first_mask[..., None],
                     weighted_v_chunk,
                     alpha[..., None] * prev_wv + beta[..., None] * weighted_v_chunk,
                 )
-                wv = mx.astype(wv, mx.float32)
+                wv = wv.astype(mx.float32)
                 m = new_m
 
             denom = s[..., None] + eps
-            out_block = mx.astype(wv / denom, dtype)
-            out = out.at[(slice(None), q_head_idxs, slice(q_start, q_end), slice(None))].set(out_block)
+            out_block = (wv / denom).astype(dtype)
+
+            # Update output for this group of query heads using scatter
+            # Create indices for scatter operation
+            for local_head_idx, global_head_idx in enumerate(q_head_idxs):
+                # Extract the slice we want to update
+                before = out[:, :global_head_idx, :, :]
+                after = out[:, global_head_idx+1:, :, :]
+
+                # Build the middle part (the updated head)
+                middle_before = out[:, global_head_idx:global_head_idx+1, :q_start, :]
+                middle_updated = mx.expand_dims(out_block[:, local_head_idx, :, :], axis=1)
+                middle_after = out[:, global_head_idx:global_head_idx+1, q_end:, :]
+                middle = mx.concatenate([middle_before, middle_updated, middle_after], axis=2)
+
+                # Reconstruct the full output
+                parts = []
+                if global_head_idx > 0:
+                    parts.append(before)
+                parts.append(middle)
+                if global_head_idx < Hq - 1:
+                    parts.append(after)
+                out = mx.concatenate(parts, axis=1)
 
     return out

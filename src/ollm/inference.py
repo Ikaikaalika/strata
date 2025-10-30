@@ -1,12 +1,10 @@
 import os, requests, zipfile
-import torch
 from transformers import AutoTokenizer, AutoProcessor
 from .utils import Stats, file_get_contents
-from .gds_loader import GDSWeights, MoEWeightsLoader2, Gemma3Loader
 from .backends import select_backend
 
 class Inference:
-	def __init__(self, model_id, device="cuda:0", logging=True, multimodality=False):
+	def __init__(self, model_id, device=None, logging=True, multimodality=False):
 		self.model_id = model_id
 		self.backend_selection = select_backend(device)
 		self.backend = self.backend_selection.backend
@@ -49,7 +47,17 @@ class Inference:
 	
 	def hf_download(self, model_dir):
 		from huggingface_hub import snapshot_download
-		urls = {"qwen3-next-80B": "Qwen/Qwen3-Next-80B-A3B-Instruct", "gemma3-12B":"google/gemma-3-12b-it"}
+		urls = {
+			"llama3-1B-chat": "meta-llama/Llama-3.2-1B-Instruct",
+			"llama3-3B-chat": "meta-llama/Llama-3.2-3B-Instruct",
+			"llama3-8B-chat": "meta-llama/Llama-3.1-8B-Instruct",
+			"gpt-oss-20B": "openai/gpt-oss-20b",
+			"qwen3-next-80B": "Qwen/Qwen3-Next-80B-A3B-Instruct",
+			"gemma3-12B": "google/gemma-3-12b-it",
+			"deepseek-coder-1.3b": "deepseek-ai/deepseek-coder-1.3b-instruct",
+			"deepseek-coder-6.7b": "deepseek-ai/deepseek-coder-6.7b-instruct",
+			"deepseek-llm-7b": "deepseek-ai/deepseek-llm-7b-chat"
+		}
 		url = urls[self.model_id]
 		print(f"Downloading {url} ...")
 		snapshot_download(
@@ -60,59 +68,186 @@ class Inference:
 
 	
 	def ini_model(self, models_dir="./models/", force_download=False):
-		models_list = ["llama3-1B-chat", "llama3-3B-chat", "llama3-8B-chat", "gpt-oss-20B", "qwen3-next-80B", "gemma3-12B"]
+		models_list = ["llama3-1B-chat", "llama3-3B-chat", "llama3-8B-chat", "gpt-oss-20B", "qwen3-next-80B", "gemma3-12B", "deepseek-coder-1.3b", "deepseek-coder-6.7b", "deepseek-llm-7b"]
 		if self.model_id not in models_list:
 			raise ValueError("Incorrect model id. It must be one of", models_list)
-		
+
 		model_dir = os.path.join(models_dir, self.model_id)
 		if os.path.exists(model_dir)==False or force_download==True:
-			if self.model_id in ["qwen3-next-80B", "gemma3-12B"]:
-				self.hf_download(model_dir)
-			else:
-				self.download_and_unpack(models_dir)
-		
+			# All models now download from HuggingFace
+			self.hf_download(model_dir)
+
 		print("loading model from", model_dir)
-		if self.model_id=="qwen3-next-80B":
-			from . import qwen3_next
-			qwen3_next.loader = MoEWeightsLoader2(model_dir)
-			qwen3_next.stats = self.stats
-			self.model = qwen3_next.MyQwen3NextForCausalLM.from_pretrained(model_dir, torch_dtype=torch.bfloat16, device_map="cpu", attn_implementation="flash_attention_2", low_cpu_mem_usage=True, ignore_mismatched_sizes=True)
-		elif self.model_id=="gemma3-12B":
-			from . import gemma3
-			gemma3.loader = Gemma3Loader(model_dir)
-			gemma3.stats = self.stats
-			automodel = gemma3.MyGemma3ForConditionalGeneration if self.multimodality else gemma3.MyGemma3ForCausalLM
-			self.model = automodel.from_pretrained(model_dir, torch_dtype=torch.bfloat16, device_map="cpu", attn_implementation="flash_attention_2", low_cpu_mem_usage=True, ignore_mismatched_sizes=True)
-			self.processor = AutoProcessor.from_pretrained(model_dir)
-		elif self.model_id=="gpt-oss-20B":
-			from . import gpt_oss
-			gpt_oss.loader = GDSWeights(os.path.join(model_dir, "gds_export"))
-			gpt_oss.stats = self.stats
-			self.model = gpt_oss.MyGptOssForCausalLM.from_pretrained(model_dir, torch_dtype=torch.bfloat16, device_map="cpu", low_cpu_mem_usage=True, ignore_mismatched_sizes=True)
-		else:
-			from . import llama
-			llama.loader = GDSWeights(os.path.join(model_dir, "gds_export"))
-			llama.stats = self.stats			
-			self.model = llama.MyLlamaForCausalLM.from_pretrained(model_dir, torch_dtype=torch.float16, device_map="cpu", attn_implementation="flash_attention_2", low_cpu_mem_usage=True, ignore_mismatched_sizes=True)
-			self.model.clean_layers_weights()
 
-		self.model.eval()
-		self.backend.move_model_to_device(self.model, self.device)
-		self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
+		# Load model using MLX backend
+		self._load_mlx_model(model_dir)
 
-	
-	def offload_layers_to_cpu(self, **args):
-		self.model.offload_layers_to_cpu(**args)
-	
-	def offload_layers_to_gpu_cpu(self, **args):
-		self.model.offload_layers_to_gpu_cpu(**args)
+		# Load tokenizer if not already loaded by mlx_lm
+		if not hasattr(self, '_using_mlx_lm'):
+			self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
+
+	def _load_mlx_model(self, model_dir: str):
+		"""Load model using MLX backend."""
+		from transformers import AutoConfig
+
+		if self.model_id.startswith("llama"):
+			# Use mlx_lm's standard loading for llama models
+			try:
+				from mlx_lm import load
+				print(f"Loading {self.model_id} using mlx_lm...")
+
+				# Map our model IDs to HuggingFace model IDs
+				hf_model_ids = {
+					"llama3-1B-chat": "meta-llama/Llama-3.2-1B-Instruct",
+					"llama3-3B-chat": "meta-llama/Llama-3.2-3B-Instruct",
+					"llama3-8B-chat": "meta-llama/Llama-3.1-8B-Instruct",
+				}
+
+				hf_model_id = hf_model_ids.get(self.model_id)
+				if not hf_model_id:
+					raise ValueError(f"Unknown model ID: {self.model_id}")
+
+				# Load model using mlx_lm
+				self.model, self.tokenizer = load(hf_model_id)
+				self._using_mlx_lm = True
+				print(f"✅ MLX Llama model loaded: {self.model_id}")
+				return
+
+			except ImportError:
+				print("mlx_lm not available, falling back to custom loader")
+			except Exception as e:
+				print(f"Failed to load with mlx_lm: {e}")
+				print("Falling back to custom loader")
+
+			# Fallback to custom loader (for models with gds_export)
+			from . import llama_mlx
+			from .mlx_loader import MLXWeights
+
+			# Load config
+			config = AutoConfig.from_pretrained(model_dir)
+
+			# Initialize MLX loader
+			gds_export_path = os.path.join(model_dir, "gds_export")
+			if not os.path.exists(gds_export_path):
+				raise FileNotFoundError(
+					f"Custom loader requires gds_export directory at {gds_export_path}. "
+					f"Please install mlx_lm: pip install mlx-lm"
+				)
+
+			llama_mlx.loader = MLXWeights(gds_export_path, device=self.device)
+			llama_mlx.stats = self.stats
+
+			# Create MLX model
+			self.model = llama_mlx.MLXLlamaForCausalLM(config)
+
+			# Load embeddings and LM head from safetensors using MLX utils
+			import mlx.core as mx
+			import numpy as np
+
+			# Use MLX's load function which handles all dtypes properly
+			try:
+				from mlx.utils import tree_map
+				# Try loading from safetensors
+				st_file = os.path.join(model_dir, "model.safetensors")
+				if os.path.exists(st_file):
+					weights_dict = mx.load(st_file)
+
+					# Extract specific weights we need
+					if "model.embed_tokens.weight" in weights_dict:
+						self.model.model.embed_tokens_weight = weights_dict["model.embed_tokens.weight"]
+					if "lm_head.weight" in weights_dict:
+						self.model.model.lm_head_weight = weights_dict["lm_head.weight"]
+					if "model.norm.weight" in weights_dict:
+						self.model.model.norm.weight = weights_dict["model.norm.weight"]
+				else:
+					# Try sharded format
+					safetensors_files = [f for f in os.listdir(model_dir) if f.endswith('.safetensors')]
+					if safetensors_files:
+						weights_dict = {}
+						for st_file in safetensors_files:
+							file_weights = mx.load(os.path.join(model_dir, st_file))
+							weights_dict.update(file_weights)
+
+						if "model.embed_tokens.weight" in weights_dict:
+							self.model.model.embed_tokens_weight = weights_dict["model.embed_tokens.weight"]
+						if "lm_head.weight" in weights_dict:
+							self.model.model.lm_head_weight = weights_dict["lm_head.weight"]
+						if "model.norm.weight" in weights_dict:
+							self.model.model.norm.weight = weights_dict["model.norm.weight"]
+					else:
+						raise FileNotFoundError(f"No safetensors files found in {model_dir}")
+			except Exception as e:
+				print(f"Warning: Could not load embeddings from safetensors: {e}")
+				print("Using default initialization")
+
+			print(f"MLX Llama model loaded: {self.model_id}")
+
+		elif self.model_id.startswith("deepseek"):
+			from . import deepseek_mlx
+			from .mlx_loader import MLXMoEWeightsLoader
+
+			# Load config
+			config = AutoConfig.from_pretrained(model_dir)
+
+			# DeepSeek models use safetensors
+			deepseek_mlx.loader = MLXMoEWeightsLoader(model_dir, device=self.device)
+			deepseek_mlx.stats = self.stats
+
+			# Create MLX model
+			self.model = deepseek_mlx.MLXDeepSeekForCausalLM(config)
+
+			# Load embeddings and LM head from safetensors using MLX utils
+			import mlx.core as mx
+			import numpy as np
+
+			# Use MLX's load function which handles all dtypes properly
+			try:
+				from mlx.utils import tree_map
+				# Load all weights from safetensors
+				st_file = os.path.join(model_dir, "model.safetensors")
+				if os.path.exists(st_file):
+					weights_dict = mx.load(st_file)
+
+					# Extract specific weights we need
+					if "model.embed_tokens.weight" in weights_dict:
+						self.model.model.embed_tokens_weight = weights_dict["model.embed_tokens.weight"]
+					if "lm_head.weight" in weights_dict:
+						self.model.model.lm_head_weight = weights_dict["lm_head.weight"]
+					if "model.norm.weight" in weights_dict:
+						self.model.model.norm.weight = weights_dict["model.norm.weight"]
+				else:
+					print(f"Warning: {st_file} not found, using default initialization")
+			except Exception as e:
+				print(f"Warning: Could not load embeddings from safetensors: {e}")
+				print("Using default initialization")
+
+			print(f"MLX DeepSeek model loaded: {self.model_id}")
+
+		elif self.model_id == "qwen3-next-80B":
+			raise NotImplementedError(
+				"Qwen3-Next MLX support not yet implemented."
+			)
+		elif self.model_id == "gemma3-12B":
+			raise NotImplementedError(
+				"Gemma3 MLX support not yet implemented."
+			)
+		elif self.model_id == "gpt-oss-20B":
+			raise NotImplementedError(
+				"GPT-OSS MLX support not yet implemented (requires mxfp4 unpacking)."
+			)
+
 	
 	def DiskCache(self, cache_dir="./kvcache"):
 		if self.model_id in ["gpt-oss-20B"]:
 			print(f"{self.model_id} DiskCache is not supported at the moment. Using default DynamicCache instead")
 			return None
 		elif self.model_id=="qwen3-next-80B":
-			from .qwen3_next import Qwen3NextDiskCache
-			return Qwen3NextDiskCache(self.model.config, cache_dir=cache_dir, stats=self.stats)
+			from .mlx_kvcache import MLXQwen3NextDiskCache
+			return MLXQwen3NextDiskCache(self.model.config, cache_dir=cache_dir, stats=self.stats)
 		else:
-			return self.backend.create_kv_cache(cache_dir=cache_dir, stats=self.stats)
+			return self.backend.create_kv_cache(
+				cache_dir=cache_dir,
+				stats=self.stats,
+				config=self.model.config,
+				model_id=self.model_id
+			)

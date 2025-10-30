@@ -76,28 +76,24 @@ def select_backend(device: Any = None) -> BackendSelection:
 
 def _parse_device_request(device: Any) -> Tuple[str, Optional[str]]:
     if device is None:
-        return "torch", None
+        return "mlx", None
 
     if isinstance(device, str):
         prefix, device_suffix = _split_backend_prefix(device)
         return prefix, device_suffix
 
-    # torch.device compatibility without importing torch explicitly
-    type_name = type(device).__name__
-    module_name = type(device).__module__
-    if type_name == "device" and module_name.startswith("torch"):
-        index = getattr(device, "index", None)
-        device_type = getattr(device, "type", "cpu")
-        device_str = device_type if index is None else f"{device_type}:{index}"
-        return "torch", device_str
-
     raise BackendError(f"Unsupported device specification: {device!r}")
 
 
 def _split_backend_prefix(raw: str) -> Tuple[str, Optional[str]]:
+    # Check if the entire string is a backend name (e.g., "mlx")
     if ":" not in raw:
-        return "torch", raw
+        if raw in _REGISTRY:
+            return raw, None
+        return "mlx", raw
+
+    # Split on colon (e.g., "mlx:gpu")
     prefix, remainder = raw.split(":", 1)
     if prefix in _REGISTRY:
         return prefix, remainder or None
-    return "torch", raw
+    return "mlx", raw

@@ -14,11 +14,18 @@ license = { file="LICENSE" }
 requires-python = ">=3.10"
 dependencies = [
     "numpy",
-    "torch>2.6.0", #tested: 2.8.0
     "transformers>=4.55.0", #tested: 4.55.4, 4.56.1
-    "accelerate",
-    "flash-attn", #tested: 2.7.4.post1
-    "flash-linear-attention"
+    "huggingface-hub",
+    "requests",
+    "mlx>=0.23.0",
+    "mlx-lm>=0.22.0",
+    "safetensors>=0.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
 ]
 
 [project.urls]
