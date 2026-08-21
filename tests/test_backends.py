@@ -1,12 +1,13 @@
 import unittest
 
 try:
-    from ollm.backends import BackendError, select_backend, get_backend
+    from ollm.backends import BackendError, get_backend, list_backends, select_backend
     _BACKEND_IMPORT_ERROR = None
 except ModuleNotFoundError as exc:  # pragma: no cover - dependency guard
     BackendError = None
     select_backend = None
     get_backend = None
+    list_backends = None
     _BACKEND_IMPORT_ERROR = exc
 
 
@@ -46,6 +47,11 @@ class BackendSelectionTest(unittest.TestCase):
         else:
             selection = select_backend("mlx")
             self.assertEqual(selection.backend.name, "mlx")
+
+    def test_builtin_backend_registry_includes_hardware_lanes(self):
+        self.assertEqual(list_backends(), ("ane", "metal", "mlx"))
+        self.assertEqual(get_backend("metal").name, "metal")
+        self.assertEqual(get_backend("ane").name, "ane")
 
     def test_attention_kernel_available(self):
         selection = select_backend("mlx")
