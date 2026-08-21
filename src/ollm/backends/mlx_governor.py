@@ -6,6 +6,8 @@ from typing import Any, Mapping, Optional, Sequence
 
 from ..core.capabilities import RuntimeCapabilities
 from ..core.execution_plan import ExecutionPlan
+from ..core.hardware import ComputeUnit
+from ..core.ir import InferencePhase, OperationKind
 from ..scheduling.dense_pipeline import DenseLayerPipeline
 from ..scheduling.prefetch_scheduler import PrefetchScheduler
 from ..scheduling.residency_manager import ResidencyManager
@@ -28,6 +30,20 @@ def mlx_capabilities() -> RuntimeCapabilities:
     import mlx.core as mx
 
     return RuntimeCapabilities(
+        compute_units=(ComputeUnit.GPU,),
+        supported_phases=(InferencePhase.PREFILL, InferencePhase.DECODE),
+        supported_operations=(
+            OperationKind.EMBEDDING,
+            OperationKind.NORMALIZATION,
+            OperationKind.LINEAR,
+            OperationKind.ROPE,
+            OperationKind.ATTENTION,
+            OperationKind.RESIDUAL,
+            OperationKind.ACTIVATION,
+            OperationKind.MLP,
+            OperationKind.LOGITS,
+        ),
+        supported_dtypes=("float16", "bfloat16", "float32"),
         supports_weight_paging=True,
         supports_async_prefetch=True,
         supports_external_kv_cache=True,
@@ -37,6 +53,7 @@ def mlx_capabilities() -> RuntimeCapabilities:
             hasattr(mx, name)
             for name in ("get_active_memory", "get_peak_memory", "get_cache_memory")
         ),
+        supports_dynamic_shapes=True,
     )
 
 

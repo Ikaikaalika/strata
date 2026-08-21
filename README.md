@@ -93,6 +93,7 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/storage/` | Cold tensor-store and manifest adapters |
 | `src/ollm/scheduling/` | Residency manager, prefetch scheduler, and dense pipeline |
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
+| `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `tests/` | Deterministic offline correctness suite |
 | `animations/prefill_vs_decode.py` | First Manim learning lesson |
 | `STRATA_ENGINEERING_CONTEXT.md` | Architecture, equations, roadmap, and handoff context |
