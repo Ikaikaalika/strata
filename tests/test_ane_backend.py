@@ -11,7 +11,7 @@ from ollm.backends.ane_backend import ANEBackend, ANEProbeError, ANEProbeReport
 from ollm.core.hardware import ComputeUnit
 
 
-def _valid_report() -> dict:
+def _valid_report(*, executed: bool = False) -> dict:
     classes = {
         "_ANEClient": {
             "present": True,
@@ -46,9 +46,51 @@ def _valid_report() -> dict:
             ],
             "class_methods": ["inMemoryModelWithDescriptor:"],
         },
+        "_ANERequest": {
+            "present": True,
+            "instance_methods": [],
+            "class_methods": [
+                "requestWithInputs:inputIndices:outputs:outputIndices:weightsBuffer:perfStats:procedureIndex:"
+            ],
+        },
+        "_ANEIOSurfaceObject": {
+            "present": True,
+            "instance_methods": [],
+            "class_methods": ["objectWithIOSurface:"],
+        },
+    }
+    execution = {
+        "requested": executed,
+        "operation": "fp16_projection",
+        "shape": [1, 256, 1, 64],
+        "input_dtype": "float16",
+        "compute_dtype": "float16",
+        "output_dtype": "float16",
+        "tolerance": 0.002,
+        "last_successful_stage": "numeric_verified" if executed else "discovery",
+        "failure_stage": "",
+        "error": "",
+        "cleanup_error": "",
+        "mil_generated": executed,
+        "descriptor_created": executed,
+        "model_created": executed,
+        "artifacts_written": executed,
+        "compile_attempted": executed,
+        "compile_succeeded": executed,
+        "load_attempted": executed,
+        "load_succeeded": executed,
+        "iosurfaces_created": executed,
+        "request_created": executed,
+        "dispatch_attempted": executed,
+        "dispatch_succeeded": executed,
+        "output_finite": executed,
+        "numeric_verified": executed,
+        "execution_verified": executed,
+        "max_abs_error": 0.0 if executed else None,
+        "dispatch_ms": 0.291 if executed else None,
     }
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "probe": "strata-ane-capability",
         "platform": {
             "os": "macOS",
@@ -90,13 +132,13 @@ def _valid_report() -> dict:
             "descriptor_class": "_ANEInMemoryModelDescriptor",
             "model_lifecycle_entrypoints_present": True,
             "satisfied": True,
+            "request_class_present": True,
+            "iosurface_object_class_present": True,
+            "request_factory_present": True,
+            "iosurface_object_factory_present": True,
+            "execution_surface_satisfied": True,
         },
-        "execution": {
-            "compile_attempted": False,
-            "dispatch_attempted": False,
-            "execution_verified": False,
-            "numeric_verified": False,
-        },
+        "execution": execution,
         "errors": [],
     }
 
@@ -146,7 +188,28 @@ class ANEProbeReportTest(unittest.TestCase):
     def test_unproven_execution_claim_is_rejected(self):
         document = _valid_report()
         document["execution"]["execution_verified"] = True
-        with self.assertRaisesRegex(ANEProbeError, "lacks compile"):
+        with self.assertRaisesRegex(ANEProbeError, "execution-verification"):
+            ANEProbeReport.from_json(json.dumps(document))
+
+    def test_complete_projection_execution_report_is_verified(self):
+        report = ANEProbeReport.from_json(json.dumps(_valid_report(executed=True)))
+        repeat = ANEProbeReport.from_json(json.dumps(_valid_report(executed=True)))
+
+        self.assertTrue(report.execution_requested)
+        self.assertTrue(report.compile_succeeded)
+        self.assertTrue(report.load_succeeded)
+        self.assertTrue(report.dispatch_succeeded)
+        self.assertTrue(report.numeric_verified)
+        self.assertTrue(report.execution_verified)
+        self.assertEqual(report.max_abs_error, 0.0)
+        self.assertEqual(report.last_successful_stage, "numeric_verified")
+        self.assertEqual(report.runtime_fingerprint, repeat.runtime_fingerprint)
+        self.assertEqual(len(report.runtime_fingerprint), 64)
+
+    def test_out_of_order_execution_progress_is_rejected(self):
+        document = _valid_report(executed=True)
+        document["execution"]["compile_succeeded"] = False
+        with self.assertRaisesRegex(ANEProbeError, "load_attempted.*compile_succeeded"):
             ANEProbeReport.from_json(json.dumps(document))
 
 
@@ -162,16 +225,51 @@ class ANEBackendTest(unittest.TestCase):
             self.assertTrue(capabilities.requires_private_api)
             self.assertEqual(capabilities.supported_phases, ())
             self.assertEqual(capabilities.supported_operations, ())
-            with self.assertRaisesRegex(Exception, "not numerically verified"):
+            with self.assertRaisesRegex(Exception, "qualification is incomplete"):
                 backend.resolve_device("ane")
-            with self.assertRaisesRegex(Exception, "not been numerically verified"):
+            with self.assertRaisesRegex(Exception, "does not implement attention"):
                 backend.attention_kernel()
+
+    def test_explicit_execution_qualification_exposes_no_general_operations(self):
+        with _fake_worker(json.dumps(_valid_report(executed=True))) as worker:
+            backend = ANEBackend(
+                worker,
+                timeout_seconds=1.0,
+                attempt_execution=True,
+            )
+
+            self.assertTrue(backend.is_discovered())
+            self.assertTrue(backend.is_available())
+            capabilities = backend.capabilities()
+            self.assertEqual(capabilities.compute_units, (ComputeUnit.ANE,))
+            self.assertEqual(capabilities.supported_operations, ())
+            self.assertEqual(capabilities.supported_phases, ())
+            self.assertEqual(capabilities.supported_dtypes, ("float16",))
+            self.assertTrue(capabilities.supports_shared_iosurface)
+            self.assertTrue(capabilities.requires_private_api)
+            self.assertEqual(backend.resolve_device("ane").report.max_abs_error, 0.0)
+            with self.assertRaisesRegex(Exception, "does not implement general"):
+                backend.move_model_to_device(object(), object())
+
+    def test_cleanup_failure_invalidates_execution_qualification(self):
+        document = _valid_report(executed=True)
+        document["execution"]["cleanup_error"] = "unload failed"
+        document["errors"] = ["projection cleanup: unload failed"]
+        with _fake_worker(json.dumps(document)) as worker:
+            backend = ANEBackend(worker, attempt_execution=True)
+
+            report = backend.probe()
+            self.assertTrue(report.execution_verified)
+            self.assertFalse(report.qualification_verified)
+            self.assertFalse(backend.is_available())
+            self.assertEqual(backend.capabilities().compute_units, ())
 
     def test_surface_unavailable_returns_empty_capabilities(self):
         document = _valid_report()
         document["objective_c"]["classes"]["_ANEClient"]["present"] = False
         document["required_surface"]["ane_client_present"] = False
         document["required_surface"]["satisfied"] = False
+        document["required_surface"]["execution_surface_satisfied"] = False
         with _fake_worker(json.dumps(document)) as worker:
             backend = ANEBackend(worker)
 

@@ -8,7 +8,9 @@ verification exist in the native worker.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import subprocess
@@ -19,7 +21,7 @@ from ..core.hardware import ComputeUnit
 from .base import Backend, BackendError
 
 
-ANE_PROBE_SCHEMA_VERSION = 1
+ANE_PROBE_SCHEMA_VERSION = 2
 ANE_PROBE_NAME = "strata-ane-capability"
 _MAX_REPORT_BYTES = 1_048_576
 
@@ -29,6 +31,8 @@ _CLASS_NAMES = (
     "_ANEInMemoryModelDescriptor",
     "_ANEModel",
     "_ANEInMemoryModel",
+    "_ANERequest",
+    "_ANEIOSurfaceObject",
 )
 _FRAMEWORK_NAMES = ("AppleNeuralEngine", "ANECompiler")
 _SURFACE_BOOL_FIELDS = (
@@ -41,13 +45,46 @@ _SURFACE_BOOL_FIELDS = (
     "descriptor_factory_present",
     "model_lifecycle_entrypoints_present",
     "satisfied",
+    "request_class_present",
+    "iosurface_object_class_present",
+    "request_factory_present",
+    "iosurface_object_factory_present",
+    "execution_surface_satisfied",
 )
-_EXECUTION_FIELDS = (
+_EXECUTION_BOOL_FIELDS = (
+    "requested",
+    "mil_generated",
+    "descriptor_created",
+    "model_created",
+    "artifacts_written",
     "compile_attempted",
+    "compile_succeeded",
+    "load_attempted",
+    "load_succeeded",
+    "iosurfaces_created",
+    "request_created",
     "dispatch_attempted",
-    "execution_verified",
+    "dispatch_succeeded",
+    "output_finite",
     "numeric_verified",
+    "execution_verified",
 )
+_EXECUTION_STRING_FIELDS = (
+    "operation",
+    "input_dtype",
+    "compute_dtype",
+    "output_dtype",
+    "last_successful_stage",
+    "failure_stage",
+    "error",
+    "cleanup_error",
+)
+_EXECUTION_KEYS = set(_EXECUTION_BOOL_FIELDS) | set(_EXECUTION_STRING_FIELDS) | {
+    "shape",
+    "tolerance",
+    "max_abs_error",
+    "dispatch_ms",
+}
 
 
 class ANEProbeError(BackendError):
@@ -66,16 +103,61 @@ class ANEProbeReport:
     descriptor_class: str
     compiler_class: str
     required_surface_satisfied: bool
+    execution_surface_satisfied: bool
+    execution_requested: bool
+    last_successful_stage: str
     compile_attempted: bool
+    compile_succeeded: bool
+    load_succeeded: bool
     dispatch_attempted: bool
+    dispatch_succeeded: bool
     execution_verified: bool
     numeric_verified: bool
+    max_abs_error: float | None
+    dispatch_ms: float | None
+    execution_error: str
+    cleanup_error: str
     errors: Tuple[str, ...]
 
     @property
     def apple_silicon_supported(self) -> bool:
         """Whether the reported host can physically provide an Apple ANE."""
         return self.architecture == "arm64" and self.chip.startswith("Apple ")
+
+    @property
+    def runtime_fingerprint(self) -> str:
+        """Stable cache key for the observed private runtime qualification.
+
+        Timings and numerical measurements are deliberately excluded so
+        repeated successful probes on the same runtime produce the same key.
+        """
+        identity = {
+            "architecture": self.architecture,
+            "chip": self.chip,
+            "compiler_class": self.compiler_class,
+            "descriptor_class": self.descriptor_class,
+            "execution_surface_satisfied": self.execution_surface_satisfied,
+            "macos_build": self.macos_build,
+            "macos_version": self.macos_version,
+            "probe": ANE_PROBE_NAME,
+            "schema_version": ANE_PROBE_SCHEMA_VERSION,
+        }
+        return hashlib.sha256(
+            json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+
+    @property
+    def qualification_verified(self) -> bool:
+        """Whether execution, numerical readback, and cleanup all succeeded."""
+        return (
+            self.apple_silicon_supported
+            and self.required_surface_satisfied
+            and self.execution_verified
+            and self.numeric_verified
+            and not self.execution_error
+            and not self.cleanup_error
+            and not self.errors
+        )
 
     @classmethod
     def from_json(cls, payload: str) -> "ANEProbeReport":
@@ -236,6 +318,25 @@ class ANEProbeReport:
         if surface_flags["model_lifecycle_entrypoints_present"] != observed_model_lifecycle:
             raise ANEProbeError("ANE lifecycle summary contradicts method observations")
 
+        observed_request_factory = (
+            "requestWithInputs:inputIndices:outputs:outputIndices:weightsBuffer:perfStats:procedureIndex:"
+            in class_methods["_ANERequest"]
+        )
+        observed_iosurface_factory = (
+            "objectWithIOSurface:" in class_methods["_ANEIOSurfaceObject"]
+        )
+        if surface_flags["request_class_present"] != classes_present["_ANERequest"]:
+            raise ANEProbeError("ANE request summary contradicts class observations")
+        if (
+            surface_flags["iosurface_object_class_present"]
+            != classes_present["_ANEIOSurfaceObject"]
+        ):
+            raise ANEProbeError("ANE IOSurface summary contradicts class observations")
+        if surface_flags["request_factory_present"] != observed_request_factory:
+            raise ANEProbeError("ANE request factory summary contradicts method observations")
+        if surface_flags["iosurface_object_factory_present"] != observed_iosurface_factory:
+            raise ANEProbeError("ANE IOSurface factory summary contradicts method observations")
+
         expected_surface = all(
             surface_flags[name]
             for name in (
@@ -251,20 +352,56 @@ class ANEProbeReport:
         if surface_flags["satisfied"] != expected_surface:
             raise ANEProbeError("ANE required-surface conclusion is internally inconsistent")
 
+        expected_execution_surface = expected_surface and all(
+            surface_flags[name]
+            for name in (
+                "request_class_present",
+                "iosurface_object_class_present",
+                "request_factory_present",
+                "iosurface_object_factory_present",
+            )
+        )
+        if surface_flags["execution_surface_satisfied"] != expected_execution_surface:
+            raise ANEProbeError("ANE execution-surface conclusion is internally inconsistent")
+
         execution = _require_mapping(document["execution"], "execution")
-        _require_exact_keys(execution, set(_EXECUTION_FIELDS), "execution")
+        _require_exact_keys(execution, _EXECUTION_KEYS, "execution")
         execution_flags = {
             name: _require_bool(execution[name], f"execution.{name}")
-            for name in _EXECUTION_FIELDS
+            for name in _EXECUTION_BOOL_FIELDS
         }
-        if execution_flags["execution_verified"] and not (
-            execution_flags["compile_attempted"]
-            and execution_flags["dispatch_attempted"]
-            and execution_flags["numeric_verified"]
-        ):
-            raise ANEProbeError("ANE execution claim lacks compile, dispatch, or numeric proof")
-        if execution_flags["numeric_verified"] and not execution_flags["execution_verified"]:
-            raise ANEProbeError("ANE numeric verification requires verified execution")
+        execution_strings = {
+            name: _require_str(execution[name], f"execution.{name}")
+            for name in _EXECUTION_STRING_FIELDS
+        }
+        shape = _require_int_list(execution["shape"], "execution.shape")
+        if shape != [1, 256, 1, 64]:
+            raise ANEProbeError("ANE projection proof has an unexpected tensor shape")
+        if execution_strings["operation"] != "fp16_projection":
+            raise ANEProbeError("ANE execution proof has an unexpected operation")
+        for field in ("input_dtype", "compute_dtype", "output_dtype"):
+            if execution_strings[field] != "float16":
+                raise ANEProbeError(f"execution.{field} must be float16")
+        tolerance = _require_number(execution["tolerance"], "execution.tolerance")
+        if tolerance <= 0:
+            raise ANEProbeError("execution.tolerance must be positive")
+        max_abs_error = _require_optional_number(
+            execution["max_abs_error"], "execution.max_abs_error"
+        )
+        dispatch_ms = _require_optional_number(execution["dispatch_ms"], "execution.dispatch_ms")
+        if max_abs_error is not None and max_abs_error < 0:
+            raise ANEProbeError("execution.max_abs_error must not be negative")
+        if dispatch_ms is not None and dispatch_ms < 0:
+            raise ANEProbeError("execution.dispatch_ms must not be negative")
+
+        _validate_execution_progress(
+            execution_flags=execution_flags,
+            execution_strings=execution_strings,
+            execution_surface_satisfied=surface_flags["execution_surface_satisfied"],
+            tolerance=tolerance,
+            max_abs_error=max_abs_error,
+            dispatch_ms=dispatch_ms,
+        )
 
         errors = tuple(_require_str_list(document["errors"], "errors"))
         return cls(
@@ -276,10 +413,20 @@ class ANEProbeReport:
             descriptor_class=descriptor_class,
             compiler_class=compiler_class,
             required_surface_satisfied=surface_flags["satisfied"],
+            execution_surface_satisfied=surface_flags["execution_surface_satisfied"],
+            execution_requested=execution_flags["requested"],
+            last_successful_stage=execution_strings["last_successful_stage"],
             compile_attempted=execution_flags["compile_attempted"],
+            compile_succeeded=execution_flags["compile_succeeded"],
+            load_succeeded=execution_flags["load_succeeded"],
             dispatch_attempted=execution_flags["dispatch_attempted"],
+            dispatch_succeeded=execution_flags["dispatch_succeeded"],
             execution_verified=execution_flags["execution_verified"],
             numeric_verified=execution_flags["numeric_verified"],
+            max_abs_error=max_abs_error,
+            dispatch_ms=dispatch_ms,
+            execution_error=execution_strings["error"],
+            cleanup_error=execution_strings["cleanup_error"],
             errors=errors,
         )
 
@@ -292,7 +439,7 @@ class ANEDevice:
 
 
 class ANEBackend(Backend):
-    """Discovery-only backend for an out-of-process private ANE worker."""
+    """Fail-closed backend backed by an out-of-process private ANE probe."""
 
     name = "ane"
 
@@ -300,12 +447,14 @@ class ANEBackend(Backend):
         self,
         worker_path: os.PathLike[str] | str | None = None,
         *,
-        timeout_seconds: float = 5.0,
+        timeout_seconds: float = 30.0,
+        attempt_execution: bool = False,
     ) -> None:
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
         self.worker_path = Path(worker_path) if worker_path is not None else _default_worker_path()
         self.timeout_seconds = float(timeout_seconds)
+        self.attempt_execution = bool(attempt_execution)
         self._cached_report: ANEProbeReport | None = None
         self._cached_error: ANEProbeError | None = None
 
@@ -333,8 +482,11 @@ class ANEBackend(Backend):
         if not os.access(path, os.X_OK):
             raise ANEProbeError(f"ANE worker is not executable: {path}")
         try:
+            command = [str(path)]
+            if self.attempt_execution:
+                command.append("--execute-projection")
             completed = subprocess.run(
-                [str(path)],
+                command,
                 check=False,
                 capture_output=True,
                 text=True,
@@ -364,15 +516,14 @@ class ANEBackend(Backend):
             return False
 
     def is_available(self) -> bool:
-        """Return whether generated ANE work has been numerically verified."""
+        """Return whether the fixed projection qualification proof passed.
+
+        This qualifies the local private runtime. It does not imply that a
+        general StrataIR segment executor has been implemented.
+        """
         try:
             report = self.probe()
-            return (
-                report.apple_silicon_supported
-                and report.required_surface_satisfied
-                and report.execution_verified
-                and report.numeric_verified
-            )
+            return report.qualification_verified
         except ANEProbeError:
             return False
 
@@ -387,9 +538,9 @@ class ANEBackend(Backend):
             raise BackendError("ANE backend requires a native Apple Silicon process")
         if not report.required_surface_satisfied:
             raise BackendError("required private ANE runtime surface is unavailable")
-        if not report.execution_verified or not report.numeric_verified:
+        if not report.qualification_verified:
             raise BackendError(
-                "private ANE surface is discovered but execution is not numerically verified"
+                "private ANE surface is discovered but qualification is incomplete"
             )
         return ANEDevice(report=report)
 
@@ -400,21 +551,23 @@ class ANEBackend(Backend):
             return RuntimeCapabilities()
         if not report.apple_silicon_supported or not report.required_surface_satisfied:
             return RuntimeCapabilities()
-        if not report.execution_verified or not report.numeric_verified:
+        if not report.qualification_verified:
             return RuntimeCapabilities(requires_private_api=True)
         return RuntimeCapabilities(
             compute_units=(ComputeUnit.ANE,),
+            supported_dtypes=("float16",),
+            supports_shared_iosurface=True,
             requires_private_api=True,
         )
 
     def move_model_to_device(self, model: Any, device: Any) -> Any:
-        raise BackendError("ANE graph execution has not been numerically verified")
+        raise BackendError("ANE projection proof does not implement general model placement")
 
     def create_kv_cache(self, cache_dir: str, stats: Optional[Any]):
-        raise BackendError("ANE KV-cache execution has not been numerically verified")
+        raise BackendError("ANE projection proof does not implement a KV cache")
 
     def attention_kernel(self):
-        raise BackendError("ANE graph execution has not been numerically verified")
+        raise BackendError("ANE projection proof does not implement attention")
 
 
 def _default_worker_path() -> Path:
@@ -422,6 +575,93 @@ def _default_worker_path() -> Path:
     if override:
         return Path(override)
     return Path(__file__).resolve().parents[3] / "native" / "ane" / "build" / "strata-ane-probe"
+
+
+def _validate_execution_progress(
+    *,
+    execution_flags: Mapping[str, bool],
+    execution_strings: Mapping[str, str],
+    execution_surface_satisfied: bool,
+    tolerance: float,
+    max_abs_error: float | None,
+    dispatch_ms: float | None,
+) -> None:
+    requested = execution_flags["requested"]
+    progress_chain = (
+        "mil_generated",
+        "descriptor_created",
+        "model_created",
+        "artifacts_written",
+        "compile_attempted",
+        "compile_succeeded",
+        "load_attempted",
+        "load_succeeded",
+        "iosurfaces_created",
+        "request_created",
+        "dispatch_attempted",
+        "dispatch_succeeded",
+    )
+    for index, field in enumerate(progress_chain[1:], start=1):
+        if execution_flags[field] and not execution_flags[progress_chain[index - 1]]:
+            raise ANEProbeError(
+                f"execution.{field} is true before {progress_chain[index - 1]}"
+            )
+    if any(execution_flags[field] for field in progress_chain) and not requested:
+        raise ANEProbeError("ANE execution progress exists without a requested proof")
+    if execution_flags["output_finite"] and not execution_flags["dispatch_succeeded"]:
+        raise ANEProbeError("finite ANE output requires successful dispatch")
+    if (dispatch_ms is not None) != execution_flags["dispatch_attempted"]:
+        raise ANEProbeError("ANE dispatch timing contradicts dispatch state")
+    if (max_abs_error is not None) != execution_flags["output_finite"]:
+        raise ANEProbeError("ANE numerical error contradicts output state")
+
+    expected_numeric = (
+        execution_flags["output_finite"]
+        and max_abs_error is not None
+        and max_abs_error <= tolerance
+    )
+    if execution_flags["numeric_verified"] != expected_numeric:
+        raise ANEProbeError("ANE numeric-verification conclusion is inconsistent")
+    expected_execution = (
+        execution_flags["compile_succeeded"]
+        and execution_flags["load_succeeded"]
+        and execution_flags["dispatch_succeeded"]
+        and execution_flags["numeric_verified"]
+    )
+    if execution_flags["execution_verified"] != expected_execution:
+        raise ANEProbeError("ANE execution-verification conclusion is inconsistent")
+
+    expected_stage = "discovery"
+    if requested and execution_surface_satisfied:
+        expected_stage = "surface_validated"
+    stage_for_flag = {
+        "mil_generated": "mil_generated",
+        "descriptor_created": "descriptor_created",
+        "model_created": "model_created",
+        "artifacts_written": "artifacts_written",
+        "compile_succeeded": "compile_succeeded",
+        "load_succeeded": "load_succeeded",
+        "iosurfaces_created": "iosurfaces_created",
+        "request_created": "request_created",
+        "dispatch_succeeded": "dispatch_succeeded",
+        "numeric_verified": "numeric_verified",
+    }
+    for field, stage in stage_for_flag.items():
+        if execution_flags[field]:
+            expected_stage = stage
+    if execution_strings["last_successful_stage"] != expected_stage:
+        raise ANEProbeError("ANE last-successful-stage conclusion is inconsistent")
+
+    failure_stage = execution_strings["failure_stage"]
+    error = execution_strings["error"]
+    if not requested:
+        if failure_stage or error:
+            raise ANEProbeError("unrequested ANE proof must not report a failure")
+    elif execution_flags["execution_verified"]:
+        if failure_stage or error:
+            raise ANEProbeError("verified ANE execution must not report a failure")
+    elif not failure_stage or not error:
+        raise ANEProbeError("failed ANE execution must report its failure stage and error")
 
 
 def _require_mapping(value: Any, path: str) -> Mapping[str, Any]:
@@ -450,6 +690,18 @@ def _require_int(value: Any, path: str) -> int:
     return value
 
 
+def _require_number(value: Any, path: str) -> float:
+    if type(value) not in (int, float) or not math.isfinite(value):
+        raise ANEProbeError(f"{path} must be a finite number")
+    return float(value)
+
+
+def _require_optional_number(value: Any, path: str) -> float | None:
+    if value is None:
+        return None
+    return _require_number(value, path)
+
+
 def _require_str(value: Any, path: str) -> str:
     if not isinstance(value, str):
         raise ANEProbeError(f"{path} must be a string")
@@ -466,6 +718,12 @@ def _require_nonempty_str(value: Any, path: str) -> str:
 def _require_str_list(value: Any, path: str) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ANEProbeError(f"{path} must be an array of strings")
+    return value
+
+
+def _require_int_list(value: Any, path: str) -> list[int]:
+    if not isinstance(value, list) or any(type(item) is not int for item in value):
+        raise ANEProbeError(f"{path} must be an array of integers")
     return value
 
 

@@ -10,7 +10,7 @@ all: $(TARGET)
 $(TARGET): $(SOURCE)
 	mkdir -p $(BUILD_DIR)
 	$(CLANG) -fobjc-arc -Wall -Wextra -Werror -O2 \
-		-framework Foundation -o $@ $<
+		-framework Foundation -framework IOSurface -o $@ $<
 
 clean:
 	rm -f $(TARGET)
