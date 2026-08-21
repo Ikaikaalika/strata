@@ -1027,6 +1027,7 @@ Current active implementation:
 - Validated StrataIR graphs and deterministic CPU reference execution
 - Evidence-gated adaptive prefill/decode planner with an MLX fallback
 - Version-one aligned, checksummed weight packs with exact-range and mmap reads
+- Pack-backed group loading through the real prefetch and residency pipeline
 - Strata Governor: byte-budgeted LRU residency with pinned layer leases
 - Exact dense-layer prefetch with load, stall, bandwidth, compute, and memory traces
 - Optional governed execution in the custom Llama and DeepSeek adapters
@@ -1034,6 +1035,8 @@ Current active implementation:
 - Native Metal correctness probe for fixed-shape fused RMSNorm plus residual
 - Isolated private-ANE schema-v2 worker with explicit fp16 projection
   qualification on the local M1
+- Exact operation envelopes plus a bounded callable StrataIR-to-ANE prefill
+  projection with logical/physical layout conversion
 
 Known work remaining:
 
@@ -1046,8 +1049,10 @@ Known work remaining:
 - The residency budget does not yet adapt to KV-cache growth.
 - MoE loading exists as scaffolding, but full router/expert execution is not complete.
 - Qwen3-Next, Gemma, and GPT-OSS paths remain incomplete.
-- The direct-ANE result covers one fixed projection; no general segment
-  executor, multi-operator corpus, or persistent compiled-program cache exists.
+- The direct-ANE executor covers one fixed projection; no general multi-operator
+  executor, operator corpus, or persistent compiled-program cache exists.
+- The fixed ANE segment recompiles on every request and does not support the
+  one-token decode shape; one evaluate observation is not token throughput.
 - The Python package namespace is still `ollm` for compatibility.
 
 Recent baseline work:
@@ -1071,11 +1076,11 @@ Recent baseline work:
 The next implementation milestone is:
 
 ```text
-StrataIR linear-segment lowering into the isolated ANE worker
-+ exact operator/shape capability envelopes and compiled-program cache
-+ weight-pack range loader connected to asynchronous residency leases
-+ end-to-end MLX baseline for one small reproducible model
-+ measured ANE/MLX phase alternatives with logits parity
+Restartable resident ANE worker with fingerprinted compiled-program caching
++ repeated fixed-segment correctness and end-to-end latency measurements
++ verified weight-pack-to-MLX decoder with copy and stall tracing
++ one generated deterministic transformer block in StrataIR
++ MLX baseline and heterogeneous segment alternatives with logits parity
 ```
 
 This milestone must start with generated deterministic weights. Before any real

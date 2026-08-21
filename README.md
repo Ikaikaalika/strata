@@ -15,7 +15,7 @@ remain staged work.
 
 ## Current verified baseline
 
-The offline test suite currently verifies:
+The offline test suite and serialized local M1 probes currently verify:
 
 - Numerically stable chunked grouped-query attention against a NumPy reference
 - Causal masking across query and key chunks
@@ -32,6 +32,8 @@ The offline test suite currently verifies:
 - Checksummed, aligned weight-pack exact-range and read-only mmap access
 - Direct private-ANE compilation, IOSurface dispatch, and CPU numerical parity
   for one fixed fp16 projection on the local M1
+- Exact StrataIR lowering into that fixed callable ANE prefill segment
+- Weight-pack ranges loaded through the real residency and prefetch pipeline
 
 No network access or model download is required for these tests. Real-model
 throughput and memory claims are intentionally separate from this deterministic
@@ -101,12 +103,16 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/planning/adaptive_planner.py` | Evidence-gated prefill/decode target selection |
 | `src/ollm/storage/` | Cold tensor-store and manifest adapters |
 | `src/ollm/storage/weight_pack.py` | Versioned aligned pack, checksums, exact reads, and mmap |
+| `src/ollm/storage/weight_pack_store.py` | Pack-backed group loading for residency and prefetch |
 | `src/ollm/scheduling/` | Residency manager, prefetch scheduler, and dense pipeline |
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `docs/WAVE1_EVIDENCE.md` | Local M1 CPU, Metal, and ANE evidence and limitations |
 | `docs/WAVE2_EVIDENCE.md` | Adaptive planner, weight pack, and direct-ANE projection proof |
+| `docs/WAVE3_EVIDENCE.md` | Callable ANE segment and pack-backed residency evidence |
 | `native/ane/` | Isolated private-runtime discovery and opt-in projection worker |
+| `src/ollm/backends/ane_executor.py` | Bounded fixed-shape ANE request client |
+| `src/ollm/backends/ane_segment.py` | Exact StrataIR-to-ANE linear lowering |
 | `tests/` | Deterministic offline correctness suite |
 | `animations/prefill_vs_decode.py` | First Manim learning lesson |
 | `STRATA_ENGINEERING_CONTEXT.md` | Architecture, equations, roadmap, and handoff context |
@@ -154,14 +160,14 @@ measurement overhead and should be disabled for throughput benchmarks.
 
 ## Roadmap
 
-1. Lower a deterministic StrataIR linear segment into the qualified ANE worker,
-   with exact shape envelopes and persistent compiled-program caching.
-2. Benchmark real layer files and connect weight-pack ranges to asynchronous
-   residency leases in standard `mlx_lm` modules.
-3. Measure full-plan MLX baselines and heterogeneous alternatives by prefill and
-   decode phase before allowing the planner to switch targets.
-4. Make the weight budget adapt to KV-cache growth and memory pressure, then add
-   router-driven MoE expert paging.
+1. Replace per-call ANE compilation with a restartable resident worker and a
+   fingerprinted compiled-program cache.
+2. Add verified MLX and Metal decoders for pack-backed residency, with explicit
+   host/runtime copy accounting.
+3. Grow the ANE operator corpus and exact envelopes into one deterministic
+   transformer block, then measure full-plan MLX and heterogeneous alternatives.
+4. Add decode-capable shapes, adaptive KV-aware budgets, and router-driven MoE
+   expert paging only after end-to-end measurements justify them.
 
 See [STRATA_ENGINEERING_CONTEXT.md](STRATA_ENGINEERING_CONTEXT.md) for the full
 technical design and teaching context.
