@@ -5,8 +5,9 @@ large language model inference.
 
 Its engineering objective is to run the largest useful model with the smallest
 practical RAM footprint while preserving as much token throughput as possible.
-The current baseline uses MLX and Metal. SSD weight paging, runtime-neutral
-scheduling, MoE expert paging, and experimental Apple Neural Engine backends
+The current baseline uses MLX, a runtime-neutral IR and adaptive planner, a
+versioned SSD weight-pack path, native Metal probes, and an isolated private-ANE
+qualification worker. Full-model heterogeneous execution and MoE expert paging
 remain staged work.
 
 > The installable distribution is named `strata-llm`. The Python import
@@ -27,6 +28,10 @@ The offline test suite currently verifies:
 - Tensor shape, dtype, byte size, phase timing, and MLX memory trace records
 - Byte-budgeted layer residency, pinned-weight safety, exact next-layer
   prefetch, and warm-layer reuse across forwards
+- Evidence-scoped prefill/decode planning with an MLX fallback
+- Checksummed, aligned weight-pack exact-range and read-only mmap access
+- Direct private-ANE compilation, IOSurface dispatch, and CPU numerical parity
+  for one fixed fp16 projection on the local M1
 
 No network access or model download is required for these tests. Real-model
 throughput and memory claims are intentionally separate from this deterministic
@@ -36,8 +41,9 @@ correctness baseline.
 
 ```mermaid
 flowchart TD
-    API["Python API / CLI / learning labs"] --> PLAN["Execution planner"]
-    PLAN --> MODEL["Model adapter"]
+    API["Python API / CLI / learning labs"] --> MODEL["Model adapter"]
+    MODEL --> IR["StrataIR graph"]
+    IR --> PLAN
     PLAN --> RES["Residency manager"]
     PLAN --> KV["KV-cache manager"]
     PLAN --> TRACE["Tensor and performance tracer"]
@@ -45,11 +51,13 @@ flowchart TD
     MODEL --> RUNTIME["Runtime adapter"]
     RUNTIME --> MLX["MLX backend"]
     RUNTIME --> COREML["Future Core ML backend"]
-    RUNTIME --> METAL["Future custom Metal backend"]
-    RUNTIME --> ANE["Experimental ANE backend"]
+    RUNTIME --> METAL["Custom Metal lane"]
+    RUNTIME --> ANE["Isolated private-ANE lane"]
+    PLAN --> CPU["CPU correctness oracle"]
 
     RES --> STORE["Runtime-neutral tensor store"]
-    STORE --> SSD["SSD model storage"]
+    STORE --> PACK["Versioned weight pack"]
+    PACK --> SSD["SSD model storage"]
     RES --> RAM["Unified-memory cache"]
 ```
 
@@ -90,11 +98,15 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/generation.py` | Shared prefill and incremental decode loop |
 | `src/ollm/tracing.py` | Runtime-neutral tensor and operation trace records |
 | `src/ollm/core/` | Runtime-neutral tensor, group, capability, and plan contracts |
+| `src/ollm/planning/adaptive_planner.py` | Evidence-gated prefill/decode target selection |
 | `src/ollm/storage/` | Cold tensor-store and manifest adapters |
+| `src/ollm/storage/weight_pack.py` | Versioned aligned pack, checksums, exact reads, and mmap |
 | `src/ollm/scheduling/` | Residency manager, prefetch scheduler, and dense pipeline |
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `docs/WAVE1_EVIDENCE.md` | Local M1 CPU, Metal, and ANE evidence and limitations |
+| `docs/WAVE2_EVIDENCE.md` | Adaptive planner, weight pack, and direct-ANE projection proof |
+| `native/ane/` | Isolated private-runtime discovery and opt-in projection worker |
 | `tests/` | Deterministic offline correctness suite |
 | `animations/prefill_vs_decode.py` | First Manim learning lesson |
 | `STRATA_ENGINEERING_CONTEXT.md` | Architecture, equations, roadmap, and handoff context |
@@ -142,12 +154,14 @@ measurement overhead and should be disabled for throughput benchmarks.
 
 ## Roadmap
 
-1. Benchmark real layer files and adapt the governor to standard `mlx_lm`
-   modules.
-2. Make the weight budget adapt to KV-cache growth and memory pressure.
-3. Add router-driven MoE expert paging using the same residency contracts.
-4. Evaluate Core ML and experimental ANE execution only after the MLX reference
-   path is correct and benchmarked.
+1. Lower a deterministic StrataIR linear segment into the qualified ANE worker,
+   with exact shape envelopes and persistent compiled-program caching.
+2. Benchmark real layer files and connect weight-pack ranges to asynchronous
+   residency leases in standard `mlx_lm` modules.
+3. Measure full-plan MLX baselines and heterogeneous alternatives by prefill and
+   decode phase before allowing the planner to switch targets.
+4. Make the weight budget adapt to KV-cache growth and memory pressure, then add
+   router-driven MoE expert paging.
 
 See [STRATA_ENGINEERING_CONTEXT.md](STRATA_ENGINEERING_CONTEXT.md) for the full
 technical design and teaching context.

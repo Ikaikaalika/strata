@@ -70,23 +70,26 @@ The first Manim lesson is:
 
 ```mermaid
 flowchart TD
-    API["Python API / CLI / Learning Labs"] --> PLAN["Execution Planner"]
+    API["Python API / CLI / Learning Labs"] --> MODEL["Model Adapter"]
+    MODEL --> IR["StrataIR Graph"]
+    IR --> PLAN["Evidence-Gated Execution Planner"]
 
-    PLAN --> MODEL["Model Adapter"]
     PLAN --> RES["Residency Manager"]
     PLAN --> KV["KV-Cache Manager"]
     PLAN --> TRACE["Tensor + Performance Tracer"]
+    PLAN --> QUAL["Hardware Qualification + Fingerprint"]
 
-    MODEL --> RUNTIME["Runtime Adapter"]
+    PLAN --> RUNTIME["Segment Dispatch"]
 
     RUNTIME --> MLX["MLX Backend"]
-    RUNTIME --> GGML["llama.cpp / GGML Backend"]
     RUNTIME --> METAL["Custom Metal Backend"]
-    RUNTIME --> MPS["MPS Backend"]
-    RUNTIME --> ANE["Experimental ANE Backend"]
+    RUNTIME --> ANE["Isolated Private-ANE Worker"]
+    RUNTIME --> COREML["Optional Public Core ML Backend"]
+    RUNTIME --> CPU["CPU Correctness Oracle"]
 
     RES --> STORE["Runtime-neutral Tensor Store"]
-    STORE --> SSD["SSD Model Storage"]
+    STORE --> PACK["Versioned Weight Pack"]
+    PACK --> SSD["SSD Model Storage"]
     RES --> RAM["RAM / Unified-memory Cache"]
 
     KV --> KVRAM["RAM KV Cache"]
@@ -649,6 +652,14 @@ These projects are research evidence, not stable API contracts. Reported
 benchmarks are project- and machine-specific until reproduced on the target
 M1.
 
+Strata now has one reproduced direct-runtime result on that M1. The isolated
+worker generates an fp16 MIL 1.0/ios16 projection with shape
+`[1, 256, 1, 64]`, compiles and loads it through `_ANEInMemoryModel`, dispatches
+through IOSurface, and compares readback with a deterministic CPU reference.
+On macOS 26.5.2 build 25F84 the maximum absolute error was `0.0`. This qualifies
+the local ANE runtime but does not yet authorize arbitrary linear shapes or a
+full transformer segment. See `docs/WAVE2_EVIDENCE.md`.
+
 ### 10.2 Phase-adaptive heterogeneous execution
 
 The planner must benchmark and select among multiple valid phase assignments,
@@ -1013,20 +1024,30 @@ Current active implementation:
 - Prompt prefill followed by one-token cached decode
 - Runtime-neutral tensor and operation trace records
 - Runtime-neutral tensor, weight-group, capability, and execution-plan contracts
+- Validated StrataIR graphs and deterministic CPU reference execution
+- Evidence-gated adaptive prefill/decode planner with an MLX fallback
+- Version-one aligned, checksummed weight packs with exact-range and mmap reads
 - Strata Governor: byte-budgeted LRU residency with pinned layer leases
 - Exact dense-layer prefetch with load, stall, bandwidth, compute, and memory traces
 - Optional governed execution in the custom Llama and DeepSeek adapters
 - Initial Manim animation
+- Native Metal correctness probe for fixed-shape fused RMSNorm plus residual
+- Isolated private-ANE schema-v2 worker with explicit fp16 projection
+  qualification on the local M1
 
 Known work remaining:
 
 - Real-model validation is still needed for the Llama and DeepSeek adapters.
 - Real-file SSD bandwidth, page-cache state, token throughput, and memory
   pressure behavior still need measurement.
+- The weight pack is not yet connected to asynchronous MLX/Metal residency
+  leases, and the current 16 MiB reads are not controlled cold-cache results.
 - Standard `mlx_lm` modules are not yet adapted to governed layer leases.
 - The residency budget does not yet adapt to KV-cache growth.
 - MoE loading exists as scaffolding, but full router/expert execution is not complete.
 - Qwen3-Next, Gemma, and GPT-OSS paths remain incomplete.
+- The direct-ANE result covers one fixed projection; no general segment
+  executor, multi-operator corpus, or persistent compiled-program cache exists.
 - The Python package namespace is still `ollm` for compatibility.
 
 Recent baseline work:
@@ -1050,14 +1071,15 @@ Recent baseline work:
 The next implementation milestone is:
 
 ```text
-Isolated direct-ANE capability worker and M1 operator corpus
-+ ANEForge tiny-model logits parity against the MLX reference
-+ phase-assignment benchmark: ANE/MLX prefill and decode combinations
-+ real layer-file benchmark on the target storage device
+StrataIR linear-segment lowering into the isolated ANE worker
++ exact operator/shape capability envelopes and compiled-program cache
++ weight-pack range loader connected to asynchronous residency leases
++ end-to-end MLX baseline for one small reproducible model
++ measured ANE/MLX phase alternatives with logits parity
 ```
 
-This milestone must use a small reproducible model before downloading or
-converting multi-gigabyte checkpoints. The MLX path remains the correctness
-oracle and fallback. Router-driven MoE expert groups, adaptive response to KV
-growth, and standard `mlx_lm` integration follow after the direct-ANE and dense
-paging measurements establish the target M1's real operating envelope.
+This milestone must start with generated deterministic weights. Before any real
+checkpoint is downloaded, the user must choose the destination and approve its
+size. The MLX path remains the correctness oracle and fallback. Router-driven
+MoE expert groups and adaptive response to KV growth follow after the direct-ANE
+segment and dense paging measurements establish the M1's operating envelope.

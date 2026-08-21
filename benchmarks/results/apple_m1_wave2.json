@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "hardware": {
+    "chip": "Apple M1",
+    "compute_units_after_qualification": [
+      "cpu",
+      "gpu",
+      "ane"
+    ],
+    "hardware_fingerprint": "72c25f35229e76d33cf9ea2c73406ce51777ae986b66d2ec5dd1ed4cc7c6ab98",
+    "macos_build": "25F84",
+    "macos_version": "26.5.2",
+    "unified_memory_bytes": 17179869184
+  },
+  "lanes": {
+    "adaptive_planner": {
+      "evidence_kind": "correctness",
+      "hardware_evidence_required_to_displace_mlx": true,
+      "non_mlx_correctness_required": true,
+      "scope_keys": [
+        "model_id",
+        "model_hash",
+        "graph_id",
+        "quantization",
+        "batch_size",
+        "context_min_tokens",
+        "context_max_tokens",
+        "hardware_fingerprint",
+        "phase",
+        "target"
+      ],
+      "synthetic_performance_selects_targets": false
+    },
+    "ane_projection": {
+      "compile_succeeded": true,
+      "dispatch_succeeded": true,
+      "evidence_kind": "hardware",
+      "execution_surface": "private _ANEInMemoryModel plus IOSurface",
+      "execution_verified": true,
+      "general_segment_executor_implemented": false,
+      "input_dtype": "float16",
+      "load_succeeded": true,
+      "max_abs_error": 0.0,
+      "numeric_tolerance": 0.002,
+      "numeric_verified": true,
+      "observed_single_dispatch_ms": 0.33605098724365234,
+      "operation": "fixed fp16 projection represented as convolution",
+      "planner_scheduled_operations": [],
+      "runtime_fingerprint": "a7fe3300af262042da9d1918959d0786ea881c70542a387ae5780617261b5cde",
+      "shape": [
+        1,
+        256,
+        1,
+        64
+      ]
+    },
+    "weight_pack": {
+      "alignment_bytes": 4096,
+      "atomic_replace": true,
+      "checksum": "sha256",
+      "evidence_kind": "hardware",
+      "first_exact_range_read": {
+        "bytes": 16777216,
+        "effective_bytes_per_second": 1730419983.2106962,
+        "wall_time_ms": 9.695459000000003
+      },
+      "format_version": 1,
+      "mmap_read_only": true,
+      "payload_bytes": 16777216,
+      "second_exact_range_read": {
+        "bytes": 16777216,
+        "effective_bytes_per_second": 1674045730.3852181,
+        "wall_time_ms": 10.021958000000012
+      },
+      "write": {
+        "bytes": 16777216,
+        "effective_bytes_per_second": 764760306.0916339,
+        "wall_time_ms": 21.937874999999995
+      }
+    }
+  },
+  "limitations": [
+    "The ANE timing is one synchronous dispatch observation, not a throughput benchmark.",
+    "The ANE proof covers one fixed fp16 projection shape and does not authorize arbitrary linear layers or full models.",
+    "The weight-pack file had just been written, so neither exact-range read is a controlled cold-SSD measurement.",
+    "No direct SSD-to-GPU or SSD-to-ANE path, prefetch overlap, real model, token throughput, energy, or memory-pressure result is claimed."
+  ]
+}
