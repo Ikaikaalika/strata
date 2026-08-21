@@ -4,7 +4,7 @@ from .utils import Stats, file_get_contents
 from .backends import select_backend
 
 class Inference:
-	def __init__(self, model_id, device=None, logging=True, multimodality=False):
+	def __init__(self, model_id, device=None, logging=True, multimodality=False, tracer=None, memory_budget_bytes=None):
 		self.model_id = model_id
 		self.backend_selection = select_backend(device)
 		self.backend = self.backend_selection.backend
@@ -12,6 +12,8 @@ class Inference:
 		self.device_request = self.backend_selection.device_request
 		self.multimodality = multimodality
 		self.stats = Stats() if logging else None
+		self.tracer = tracer
+		self.memory_budget_bytes = memory_budget_bytes
 
 	def download_and_unpack(self, models_dir: str):
 		os.makedirs(models_dir, exist_ok=True)
@@ -93,6 +95,8 @@ class Inference:
 		if self.model_id.startswith("llama"):
 			# Use mlx_lm's standard loading for llama models
 			try:
+				if self.memory_budget_bytes is not None:
+					raise ImportError("Strata memory governor requested")
 				from mlx_lm import load
 				print(f"Loading {self.model_id} using mlx_lm...")
 
@@ -114,7 +118,10 @@ class Inference:
 				return
 
 			except ImportError:
-				print("mlx_lm not available, falling back to custom loader")
+				if self.memory_budget_bytes is not None:
+					print("Strata memory governor requested; using the custom layer loader")
+				else:
+					print("mlx_lm not available, falling back to custom loader")
 			except Exception as e:
 				print(f"Failed to load with mlx_lm: {e}")
 				print("Falling back to custom loader")
@@ -129,16 +136,26 @@ class Inference:
 			# Initialize MLX loader
 			gds_export_path = os.path.join(model_dir, "gds_export")
 			if not os.path.exists(gds_export_path):
+				detail = (
+					"The memory governor currently requires a Strata gds_export manifest."
+					if self.memory_budget_bytes is not None
+					else "Please install mlx_lm: pip install mlx-lm"
+				)
 				raise FileNotFoundError(
 					f"Custom loader requires gds_export directory at {gds_export_path}. "
-					f"Please install mlx_lm: pip install mlx-lm"
+					f"{detail}"
 				)
 
 			llama_mlx.loader = MLXWeights(gds_export_path, device=self.device)
 			llama_mlx.stats = self.stats
 
 			# Create MLX model
-			self.model = llama_mlx.MLXLlamaForCausalLM(config)
+			self.model = llama_mlx.MLXLlamaForCausalLM(
+				config,
+				tracer=self.tracer,
+				weight_loader=llama_mlx.loader,
+				memory_budget_bytes=self.memory_budget_bytes,
+			)
 
 			# Load embeddings and LM head from safetensors using MLX utils
 			import mlx.core as mx
@@ -194,7 +211,12 @@ class Inference:
 			deepseek_mlx.stats = self.stats
 
 			# Create MLX model
-			self.model = deepseek_mlx.MLXDeepSeekForCausalLM(config)
+			self.model = deepseek_mlx.MLXDeepSeekForCausalLM(
+				config,
+				tracer=self.tracer,
+				weight_loader=deepseek_mlx.loader,
+				memory_budget_bytes=self.memory_budget_bytes,
+			)
 
 			# Load embeddings and LM head from safetensors using MLX utils
 			import mlx.core as mx

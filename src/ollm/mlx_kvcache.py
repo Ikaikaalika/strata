@@ -2,9 +2,11 @@
 MLX-compatible KV cache implementation with disk offloading support.
 Mirrors the Torch KVCache API but uses MLX arrays and numpy serialization.
 """
+from __future__ import annotations
 
 import os
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
@@ -29,7 +31,7 @@ class MLXKVCache:
     def __init__(
         self,
         config: Any,
-        cache_dir: str = "./kvcache",
+        cache_dir: Optional[str] = None,
         stats: Optional[Any] = None
     ):
         """
@@ -37,7 +39,8 @@ class MLXKVCache:
 
         Args:
             config: Model config object (must have num_hidden_layers)
-            cache_dir: Directory for disk cache
+            cache_dir: Directory for disk cache. ``None`` creates a memory-only
+                cache and does not touch the filesystem.
             stats: Optional stats tracker
         """
         if not MLX_AVAILABLE:
@@ -50,8 +53,11 @@ class MLXKVCache:
         # Cache storage: layer_idx -> {"key": mx.array, "value": mx.array}
         self._cache: Dict[int, Dict[str, mx.array]] = {}
         self._disk_offloaded: Dict[int, str] = {}  # layer_idx -> filename
+        self._layer_lengths: Dict[int, int] = {}
+        self._managed_disk_files: set[str] = set()
 
-        os.makedirs(cache_dir, exist_ok=True)
+        if cache_dir is not None:
+            os.makedirs(cache_dir, exist_ok=True)
 
         # Track sequence length
         self._seen_tokens = 0
@@ -75,9 +81,27 @@ class MLXKVCache:
         Returns:
             Tuple of (updated_keys, updated_values)
         """
+        self._validate_layer_index(layer_idx)
+        self._validate_state_shapes(key_states, value_states)
+
         # Load from disk if offloaded
         if layer_idx in self._disk_offloaded:
             self._load_layer_from_disk(layer_idx)
+
+        previous_length = self._layer_lengths.get(layer_idx, 0)
+        self._validate_cache_position(
+            cache_kwargs,
+            previous_length=previous_length,
+            new_length=key_states.shape[2],
+        )
+
+        if layer_idx in self._cache:
+            cached_key = self._cache[layer_idx]["key"]
+            cached_value = self._cache[layer_idx]["value"]
+            if cached_key.shape[:2] + cached_key.shape[3:] != key_states.shape[:2] + key_states.shape[3:]:
+                raise ValueError("new key states must match cached batch, head, and feature dimensions")
+            if cached_value.shape[:2] + cached_value.shape[3:] != value_states.shape[:2] + value_states.shape[3:]:
+                raise ValueError("new value states must match cached batch, head, and feature dimensions")
 
         # Initialize layer cache if needed
         if layer_idx not in self._cache:
@@ -94,9 +118,44 @@ class MLXKVCache:
             )
 
         # Update sequence length
-        self._seen_tokens = self._cache[layer_idx]["key"].shape[2]
+        layer_length = self._cache[layer_idx]["key"].shape[2]
+        self._layer_lengths[layer_idx] = layer_length
+        self._seen_tokens = max(self._layer_lengths.values(), default=0)
 
         return self._cache[layer_idx]["key"], self._cache[layer_idx]["value"]
+
+    def _validate_layer_index(self, layer_idx: int) -> None:
+        if not isinstance(layer_idx, int) or layer_idx < 0:
+            raise ValueError("layer_idx must be a non-negative integer")
+        layer_count = getattr(self.config, "num_hidden_layers", None)
+        if layer_count is not None and layer_idx >= layer_count:
+            raise ValueError(
+                f"layer_idx {layer_idx} is outside configured layer count {layer_count}"
+            )
+
+    @staticmethod
+    def _validate_state_shapes(key_states: mx.array, value_states: mx.array) -> None:
+        if key_states.ndim != 4 or value_states.ndim != 4:
+            raise ValueError("key and value states must have rank 4")
+        if key_states.shape != value_states.shape:
+            raise ValueError("key and value states must have identical shapes")
+
+    @staticmethod
+    def _validate_cache_position(
+        cache_kwargs: Optional[Dict[str, Any]],
+        *,
+        previous_length: int,
+        new_length: int,
+    ) -> None:
+        if not cache_kwargs or cache_kwargs.get("cache_position") is None:
+            return
+        positions = np.asarray(cache_kwargs["cache_position"]).reshape(-1)
+        expected = np.arange(previous_length, previous_length + new_length)
+        if positions.shape != expected.shape or not np.array_equal(positions, expected):
+            raise ValueError(
+                "cache_position must append exactly after the cached sequence; "
+                f"expected {expected.tolist()}, got {positions.tolist()}"
+            )
 
     def get_seq_length(self, layer_idx: Optional[int] = 0) -> int:
         """
@@ -108,12 +167,9 @@ class MLXKVCache:
         Returns:
             Sequence length
         """
-        if layer_idx in self._cache:
-            return self._cache[layer_idx]["key"].shape[2]
-        elif layer_idx in self._disk_offloaded:
-            # Need to check disk
-            return self._seen_tokens
-        return 0
+        if layer_idx is None:
+            return max(self._layer_lengths.values(), default=0)
+        return self._layer_lengths.get(layer_idx, 0)
 
     def get_max_cache_shape(self) -> Optional[int]:
         """
@@ -136,10 +192,12 @@ class MLXKVCache:
             return
 
         if filename is None:
-            filename = os.path.join(
-                self.cache_dir,
-                f"kvcache_layer_{layer_idx}.npz"
-            )
+            if self.cache_dir is None:
+                raise ValueError("filename is required for a memory-only KV cache")
+            filename = os.path.join(self.cache_dir, f"kvcache_layer_{layer_idx}.npz")
+
+        destination = Path(filename)
+        destination.parent.mkdir(parents=True, exist_ok=True)
 
         t0 = time.perf_counter()
 
@@ -149,7 +207,7 @@ class MLXKVCache:
 
         # Save to disk
         np.savez_compressed(
-            filename,
+            destination,
             key=key_np,
             value=value_np,
             seen_tokens=self._seen_tokens
@@ -159,7 +217,8 @@ class MLXKVCache:
             self.stats.set("kv_save_to_disk", t0)
 
         # Track offloaded location and free memory
-        self._disk_offloaded[layer_idx] = filename
+        self._disk_offloaded[layer_idx] = os.fspath(destination)
+        self._managed_disk_files.add(os.fspath(destination))
         del self._cache[layer_idx]
 
     def _load_layer_from_disk(self, layer_idx: int):
@@ -176,17 +235,18 @@ class MLXKVCache:
         t0 = time.perf_counter()
 
         # Load from disk
-        data = np.load(filename)
-        key_np = data["key"]
-        value_np = data["value"]
-        if "seen_tokens" in data:
-            self._seen_tokens = int(data["seen_tokens"])
+        with np.load(filename) as data:
+            key_np = data["key"]
+            value_np = data["value"]
+            if "seen_tokens" in data:
+                self._seen_tokens = int(data["seen_tokens"])
 
         # Convert to MLX
         self._cache[layer_idx] = {
             "key": mx.array(key_np),
             "value": mx.array(value_np)
         }
+        self._layer_lengths[layer_idx] = self._cache[layer_idx]["key"].shape[2]
 
         if self.stats:
             self.stats.set("kv_load_from_disk", t0)
@@ -214,11 +274,13 @@ class MLXKVCache:
         self._cache.clear()
 
         # Delete disk files
-        for filename in self._disk_offloaded.values():
+        for filename in self._managed_disk_files:
             if os.path.exists(filename):
                 os.remove(filename)
 
         self._disk_offloaded.clear()
+        self._managed_disk_files.clear()
+        self._layer_lengths.clear()
         self._seen_tokens = 0
 
     def __len__(self) -> int:
@@ -268,6 +330,8 @@ class MLXLlamaDiskCache(MLXKVCache):
             max_layers_in_memory: Maximum number of layers to keep in memory
         """
         super().__init__(config, cache_dir, stats)
+        if max_layers_in_memory <= 0:
+            raise ValueError("max_layers_in_memory must be positive")
         self.max_layers_in_memory = max_layers_in_memory
 
     def update(

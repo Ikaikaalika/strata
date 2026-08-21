@@ -14,46 +14,78 @@ def require_mx():  # pragma: no cover - simple guard
         raise RuntimeError("MLX is not available; install mlx to use MLX kernels")
 
 
-def online_chunked_grouped_attention_rope_no_mask_mx(
+def _normalize_query_positions(query_positions, batch_size: int, query_length: int):
+    """Return query positions as ``[batch, query_length]`` int32 values."""
+    positions = mx.array(query_positions, dtype=mx.int32)
+    if positions.ndim == 1:
+        positions = mx.expand_dims(positions, axis=0)
+    if positions.shape == (1, query_length) and batch_size > 1:
+        positions = mx.broadcast_to(positions, (batch_size, query_length))
+    if positions.shape != (batch_size, query_length):
+        raise ValueError(
+            "query_positions must have shape [query_length] or "
+            f"[batch, query_length], got {positions.shape}"
+        )
+    return positions
+
+
+def online_chunked_grouped_attention_mx(
     q,
     k,
     v,
-    position_ids: Optional[object] = None,
+    query_positions: Optional[object] = None,
+    causal: bool = True,
     q_block_size: int = 32768,
     k_block_size: int = 1024,
     eps: float = 1e-12,
 ):
-    """MLX variant of grouped attention kernel used during inference."""
+    """Compute numerically stable, chunked grouped-query attention.
+
+    Query positions are absolute positions in the key/value sequence. When they
+    are omitted, queries are assumed to be the newest ``Lq`` entries in a key
+    sequence of length ``Lk``. That bottom-right alignment makes the same
+    kernel correct for both full-sequence prefill and cached decode.
+    """
     require_mx()
 
-    if position_ids is not None:
-        pass  # kept for API parity; masking handled upstream
+    if q_block_size <= 0 or k_block_size <= 0:
+        raise ValueError("attention block sizes must be positive")
 
     B, Hq, Lq, D = q.shape
     _, Hkv, Lk, Dk = k.shape
     if D != Dk:
         raise ValueError("q and k must share last-dim size")
+    if k.shape[0] != B or v.shape[0] != B:
+        raise ValueError("q, k, and v must share batch size")
+    if v.shape[1] != Hkv or v.shape[2] != Lk:
+        raise ValueError("k and v must share head and sequence dimensions")
+    if v.shape[3] != D:
+        raise ValueError("q, k, and v must share last-dim size")
+    if Hkv <= 0 or Hq % Hkv != 0:
+        raise ValueError("query heads must be divisible by key/value heads")
+    if causal and Lk < Lq:
+        raise ValueError("causal attention requires key length >= query length")
+
+    if causal:
+        if query_positions is None:
+            query_positions = mx.arange(Lk - Lq, Lk, dtype=mx.int32)
+        query_positions = _normalize_query_positions(query_positions, B, Lq)
 
     # Determine mapping of query heads to key-value heads
-    group_size = (Hq + Hkv - 1) // Hkv
-    head_mapping = (mx.arange(Hq, dtype=mx.int32) // group_size).tolist()
-    groups = []
-    for hkv_idx in range(Hkv):
-        q_head_idxs = [i for i, h in enumerate(head_mapping) if h == hkv_idx]
-        groups.append(q_head_idxs or None)
+    group_size = Hq // Hkv
 
     dtype = q.dtype
-    out = mx.zeros((B, Hq, Lq, D), dtype=dtype)
     scale = 1.0 / (D ** 0.5)
+    group_outputs = []
 
-    for hkv_idx, q_head_idxs in enumerate(groups):
-        if not q_head_idxs:
-            continue
-
+    for hkv_idx in range(Hkv):
         k_h = k[:, hkv_idx].astype(mx.float32)
         v_h = v[:, hkv_idx].astype(mx.float32)
-        q_sub = q[:, q_head_idxs].astype(mx.float32)
+        head_start = hkv_idx * group_size
+        head_end = head_start + group_size
+        q_sub = q[:, head_start:head_end].astype(mx.float32)
         Hq_g = q_sub.shape[1]
+        query_outputs = []
 
         for q_start in range(0, Lq, q_block_size):
             q_end = min(Lq, q_start + q_block_size)
@@ -72,54 +104,75 @@ def online_chunked_grouped_attention_rope_no_mask_mx(
                 v_block = v_h[:, k_start:k_end, :]
 
                 scores = mx.einsum("bhqd,bkd->bhqk", q_block, k_block) * scale
-                local_max = mx.max(scores, axis=-1)
+                if causal:
+                    q_positions = query_positions[:, q_start:q_end]
+                    k_positions = mx.arange(k_start, k_end, dtype=mx.int32)
+                    allowed = k_positions[None, None, None, :] <= q_positions[:, None, :, None]
+                    scores = mx.where(allowed, scores, neg_inf)
+                    local_valid = mx.any(allowed, axis=-1)
+                else:
+                    allowed = None
+                    local_valid = mx.ones((B, 1, Bq), dtype=mx.bool_)
+
+                raw_local_max = mx.max(scores, axis=-1)
+                local_max = mx.where(local_valid, raw_local_max, mx.zeros_like(raw_local_max))
                 exp_scores = mx.exp(scores - local_max[..., None])
+                if allowed is not None:
+                    exp_scores = mx.where(allowed, exp_scores, mx.zeros_like(exp_scores))
                 sum_exp = mx.sum(exp_scores, axis=-1)
                 weighted_v_chunk = mx.einsum("bhqk,bkd->bhqd", exp_scores, v_block)
 
                 prev_m = m
-                first_mask = mx.equal(prev_m, neg_inf)
-                new_m = mx.where(first_mask, local_max, mx.maximum(prev_m, local_max))
-                alpha = mx.where(first_mask, mx.zeros_like(prev_m), mx.exp(prev_m - new_m))
-                beta = mx.exp(local_max - new_m)
-
                 prev_s = s
                 prev_wv = wv
-
-                s = mx.where(first_mask, sum_exp, alpha * prev_s + beta * sum_exp)
-                s = s.astype(mx.float32)
-
-                wv = mx.where(
-                    first_mask[..., None],
-                    weighted_v_chunk,
-                    alpha[..., None] * prev_wv + beta[..., None] * weighted_v_chunk,
+                prev_valid = prev_s > 0
+                local_valid = mx.broadcast_to(local_valid, prev_s.shape)
+                both_valid = prev_valid & local_valid
+                new_m = mx.where(
+                    both_valid,
+                    mx.maximum(prev_m, local_max),
+                    mx.where(prev_valid, prev_m, local_max),
                 )
-                wv = wv.astype(mx.float32)
+                alpha = mx.where(prev_valid, mx.exp(prev_m - new_m), mx.zeros_like(prev_m))
+                beta = mx.where(local_valid, mx.exp(local_max - new_m), mx.zeros_like(local_max))
+
+                s = (alpha * prev_s + beta * sum_exp).astype(mx.float32)
+                wv = (
+                    alpha[..., None] * prev_wv
+                    + beta[..., None] * weighted_v_chunk
+                ).astype(mx.float32)
                 m = new_m
 
-            denom = s[..., None] + eps
+            denom = mx.maximum(s[..., None], eps)
             out_block = (wv / denom).astype(dtype)
+            query_outputs.append(out_block)
 
-            # Update output for this group of query heads using scatter
-            # Create indices for scatter operation
-            for local_head_idx, global_head_idx in enumerate(q_head_idxs):
-                # Extract the slice we want to update
-                before = out[:, :global_head_idx, :, :]
-                after = out[:, global_head_idx+1:, :, :]
+        group_outputs.append(mx.concatenate(query_outputs, axis=2))
 
-                # Build the middle part (the updated head)
-                middle_before = out[:, global_head_idx:global_head_idx+1, :q_start, :]
-                middle_updated = mx.expand_dims(out_block[:, local_head_idx, :, :], axis=1)
-                middle_after = out[:, global_head_idx:global_head_idx+1, q_end:, :]
-                middle = mx.concatenate([middle_before, middle_updated, middle_after], axis=2)
+    return mx.concatenate(group_outputs, axis=1)
 
-                # Reconstruct the full output
-                parts = []
-                if global_head_idx > 0:
-                    parts.append(before)
-                parts.append(middle)
-                if global_head_idx < Hq - 1:
-                    parts.append(after)
-                out = mx.concatenate(parts, axis=1)
 
-    return out
+def online_chunked_grouped_attention_rope_no_mask_mx(
+    q,
+    k,
+    v,
+    position_ids: Optional[object] = None,
+    q_block_size: int = 32768,
+    k_block_size: int = 1024,
+    eps: float = 1e-12,
+):
+    """Backward-compatible unmasked attention entry point.
+
+    ``position_ids`` remains accepted because older callers supplied it even
+    though this function never used it.
+    """
+    del position_ids
+    return online_chunked_grouped_attention_mx(
+        q,
+        k,
+        v,
+        causal=False,
+        q_block_size=q_block_size,
+        k_block_size=k_block_size,
+        eps=eps,
+    )
