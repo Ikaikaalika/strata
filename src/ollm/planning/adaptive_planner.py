@@ -19,10 +19,10 @@ from ..core.adaptive_plan import (
     BackendTarget,
     ExecutionSegment,
 )
-from ..core.capabilities import RuntimeCapabilities
+from ..core.capabilities import OperationEnvelope, RuntimeCapabilities
 from ..core.evidence import EvidenceKind, EvidenceRecord
 from ..core.hardware import HardwareProfile
-from ..core.ir import InferencePhase, StrataIRGraph, TensorRole
+from ..core.ir import IROperation, InferencePhase, StrataIRGraph, TensorRole, TensorSpec
 
 
 _PHASES = (InferencePhase.PREFILL, InferencePhase.DECODE)
@@ -333,6 +333,22 @@ class AdaptivePlanner:
         if unsupported_operations:
             reasons.append(f"unsupported operations {unsupported_operations}")
 
+        if capability.operation_envelopes:
+            tensors = graph.tensors_by_name()
+            unmatched_envelopes = sorted(
+                operation.operation_id
+                for operation in graph.operations
+                if not any(
+                    self._operation_matches_envelope(operation, envelope, tensors)
+                    for envelope in capability.operation_envelopes
+                )
+            )
+            if unmatched_envelopes:
+                reasons.append(
+                    "operations outside exact envelopes "
+                    f"{unmatched_envelopes}"
+                )
+
         supported_dtypes = {
             dtype.lower().replace("mlx.core.", "").replace("torch.", "")
             for dtype in capability.supported_dtypes
@@ -363,6 +379,33 @@ class AdaptivePlanner:
             reasons.append("graph has quantized weights but target does not support them")
 
         return reasons
+
+    def _operation_matches_envelope(
+        self,
+        operation: IROperation,
+        envelope: OperationEnvelope,
+        tensors: Mapping[str, TensorSpec],
+    ) -> bool:
+        if operation.kind is not envelope.kind:
+            return False
+        input_shapes = tuple(tuple(tensors[name].shape) for name in operation.inputs)
+        output_shapes = tuple(tuple(tensors[name].shape) for name in operation.outputs)
+        if input_shapes != envelope.input_shapes:
+            return False
+        if output_shapes != envelope.output_shapes:
+            return False
+        for name, expected in envelope.required_attributes:
+            if name not in operation.attributes:
+                return False
+            actual = operation.attributes[name]
+            if type(actual) is not type(expected):
+                return False
+            try:
+                if not bool(actual == expected):
+                    return False
+            except (TypeError, ValueError):
+                return False
+        return True
 
     def _correctness_verified(
         self,

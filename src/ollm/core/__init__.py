@@ -1,7 +1,7 @@
 """Runtime-neutral planning contracts for Strata."""
 
 from .adaptive_plan import AdaptiveExecutionPlan, BackendTarget, ExecutionSegment
-from .capabilities import RuntimeCapabilities
+from .capabilities import OperationEnvelope, RuntimeCapabilities
 from .evidence import EvidenceKind, EvidenceRecord, Measurement
 from .execution_plan import ExecutionPlan, PlanStep
 from .hardware import ComputeUnit, HardwareProfile
@@ -30,6 +30,7 @@ __all__ = [
     "Measurement",
     "ModelSpec",
     "OperationKind",
+    "OperationEnvelope",
     "PlanStep",
     "RuntimeCapabilities",
     "StrataIRGraph",

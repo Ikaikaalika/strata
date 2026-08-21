@@ -9,6 +9,7 @@ from ollm.core import (
     IROperation,
     InferencePhase,
     Measurement,
+    OperationEnvelope,
     OperationKind,
     RuntimeCapabilities,
     StrataIRGraph,
@@ -48,6 +49,7 @@ def _capability(
     dynamic=True,
     dtypes=("float16",),
     phases=(InferencePhase.PREFILL, InferencePhase.DECODE),
+    envelopes=(),
 ):
     unit = {
         BackendTarget.MLX: ComputeUnit.GPU,
@@ -61,6 +63,7 @@ def _capability(
         supported_phases=phases,
         supported_operations=operations,
         supported_dtypes=dtypes,
+        operation_envelopes=envelopes,
         supports_dynamic_shapes=dynamic,
         requires_private_api=target is BackendTarget.ANE,
     )
@@ -108,6 +111,31 @@ def _build(planner, capabilities, evidence=(), **overrides):
     )
     arguments.update(overrides)
     return planner.build(**arguments)
+
+
+def _exact_linear_graph(*, tokens=64, width=256, weight_layout="out_in"):
+    tensors = (
+        TensorSpec("x", (tokens, width), "float16", TensorRole.INPUT),
+        TensorSpec("w", (width, width), "float16", TensorRole.WEIGHT),
+        TensorSpec("y", (tokens, width), "float16", TensorRole.OUTPUT),
+    )
+    operation = IROperation(
+        "op",
+        OperationKind.LINEAR,
+        ("x", "w"),
+        ("y",),
+        {"weight_layout": weight_layout},
+    )
+    return StrataIRGraph("tiny", tensors, (operation,), ("x",), ("y",))
+
+
+def _linear_envelope():
+    return OperationEnvelope(
+        OperationKind.LINEAR,
+        ((64, 256), (256, 256)),
+        ((64, 256),),
+        (("weight_layout", "out_in"),),
+    )
 
 
 class AdaptivePlannerTest(unittest.TestCase):
@@ -408,6 +436,95 @@ class AdaptivePlannerTest(unittest.TestCase):
         metal = result.evaluation(BackendTarget.METAL, InferencePhase.PREFILL)
         self.assertFalse(metal.capability_eligible)
         self.assertIn("unsupported dtypes ['float16']", metal.rejection_reasons)
+
+    def test_exact_linear_envelope_still_requires_correctness_and_hardware(self):
+        hardware = _hardware()
+        capabilities = {
+            BackendTarget.MLX: _capability(BackendTarget.MLX),
+            BackendTarget.METAL: _capability(
+                BackendTarget.METAL,
+                dynamic=False,
+                envelopes=(_linear_envelope(),),
+            ),
+        }
+        graph = _exact_linear_graph()
+
+        without_evidence = _build(
+            AdaptivePlanner(),
+            capabilities,
+            graph=graph,
+        )
+        self.assertTrue(
+            without_evidence.evaluation(
+                BackendTarget.METAL, InferencePhase.PREFILL
+            ).capability_eligible
+        )
+        self.assertTrue(
+            all(
+                segment.target is BackendTarget.MLX
+                for segment in without_evidence.plan.segments
+            )
+        )
+
+        evidence = tuple(
+            _evidence(kind, target, phase, value, hardware)
+            for phase in (InferencePhase.PREFILL, InferencePhase.DECODE)
+            for target, kind, value in (
+                (BackendTarget.MLX, EvidenceKind.HARDWARE, 10.0),
+                (BackendTarget.METAL, EvidenceKind.CORRECTNESS, 1.0),
+                (BackendTarget.METAL, EvidenceKind.HARDWARE, 20.0),
+            )
+        )
+        verified = _build(
+            AdaptivePlanner(),
+            capabilities,
+            evidence,
+            graph=graph,
+        )
+        self.assertTrue(
+            all(
+                segment.target is BackendTarget.METAL
+                for segment in verified.plan.segments
+            )
+        )
+
+    def test_exact_envelope_rejects_shape_layout_and_symbolic_mismatches(self):
+        metal = _capability(
+            BackendTarget.METAL,
+            dynamic=True,
+            envelopes=(_linear_envelope(),),
+        )
+        capabilities = {
+            BackendTarget.MLX: _capability(BackendTarget.MLX),
+            BackendTarget.METAL: metal,
+        }
+        cases = (
+            ("shape", _exact_linear_graph(tokens=32)),
+            ("layout", _exact_linear_graph(weight_layout="in_out")),
+            ("symbolic", _exact_linear_graph(tokens="tokens")),
+        )
+        for label, graph in cases:
+            with self.subTest(label=label):
+                result = _build(
+                    AdaptivePlanner(),
+                    capabilities,
+                    graph=graph,
+                )
+                evaluation = result.evaluation(
+                    BackendTarget.METAL,
+                    InferencePhase.PREFILL,
+                )
+                self.assertFalse(evaluation.capability_eligible)
+                self.assertIn(
+                    "operations outside exact envelopes ['op']",
+                    evaluation.rejection_reasons,
+                )
+                self.assertTrue(
+                    all(
+                        segment.target is BackendTarget.MLX
+                        for segment in result.plan.segments
+                    )
+                )
 
 
 if __name__ == "__main__":  # pragma: no cover

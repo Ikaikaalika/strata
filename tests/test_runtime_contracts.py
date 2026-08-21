@@ -11,6 +11,7 @@ from ollm.core import (
     IROperation,
     InferencePhase,
     Measurement,
+    OperationEnvelope,
     OperationKind,
     RuntimeCapabilities,
     StrataIRGraph,
@@ -163,6 +164,54 @@ class HardwareAndEvidenceContractTest(unittest.TestCase):
         )
         self.assertEqual(capability.compute_units, (ComputeUnit.ANE,))
         self.assertTrue(capability.requires_private_api)
+
+
+class OperationEnvelopeContractTest(unittest.TestCase):
+    def test_exact_envelope_is_immutable_and_canonical(self):
+        envelope = OperationEnvelope(
+            OperationKind.LINEAR,
+            ([64, 256], [256, 256]),
+            ([64, 256],),
+            {"weight_layout": "out_in", "fused_bias": False},
+        )
+        self.assertEqual(
+            envelope.input_shapes,
+            ((64, 256), (256, 256)),
+        )
+        self.assertEqual(
+            envelope.required_attributes,
+            (("fused_bias", False), ("weight_layout", "out_in")),
+        )
+        self.assertIsInstance(hash(envelope), int)
+
+    def test_envelope_rejects_symbolic_or_invalid_dimensions(self):
+        with self.assertRaisesRegex(ValueError, "exact positive integers"):
+            OperationEnvelope(
+                OperationKind.LINEAR,
+                (("tokens", 256), (256, 256)),
+                ((64, 256),),
+            )
+        with self.assertRaisesRegex(ValueError, "exact positive integers"):
+            OperationEnvelope(
+                OperationKind.LINEAR,
+                ((64, 256), (256, 256)),
+                ((0, 256),),
+            )
+
+    def test_capabilities_reject_duplicate_or_unadvertised_envelopes(self):
+        envelope = OperationEnvelope(
+            OperationKind.LINEAR,
+            ((64, 256), (256, 256)),
+            ((64, 256),),
+            (("weight_layout", "out_in"),),
+        )
+        with self.assertRaisesRegex(ValueError, "operation envelopes must be unique"):
+            RuntimeCapabilities(
+                supported_operations=(OperationKind.LINEAR,),
+                operation_envelopes=(envelope, envelope),
+            )
+        with self.assertRaisesRegex(ValueError, "matching supported operations"):
+            RuntimeCapabilities(operation_envelopes=(envelope,))
 
 
 if __name__ == "__main__":
