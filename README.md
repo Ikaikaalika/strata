@@ -39,6 +39,11 @@ No network access or model download is required for these tests. Real-model
 throughput and memory claims are intentionally separate from this deterministic
 correctness baseline.
 
+> Storage boundary: `/Volumes/Tyler HDD` is the source checkout, not an SSD.
+> Strata must not use it for SSD offload, SSD benchmarking, or model/cache
+> placement intended to represent SSD behavior. SSD experiments require a
+> separate destination approved by the user.
+
 ## Architecture direction
 
 ```mermaid

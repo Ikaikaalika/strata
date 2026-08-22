@@ -484,6 +484,11 @@ The engineering goal is to measure and control every term.
 
 ## 8. SSD offload strategies
 
+> **Local storage boundary:** `/Volumes/Tyler HDD` is a confirmed HDD and is
+> source-checkout storage only. It is not an SSD test or offload target. Use a
+> separate user-approved SSD destination for model weights, caches, and storage
+> qualification runs.
+
 ### 8.1 Dense layer paging
 
 Dense transformer execution order is predictable:
@@ -1042,9 +1047,10 @@ Known work remaining:
 
 - Real-model validation is still needed for the Llama and DeepSeek adapters.
 - Real-file SSD bandwidth, page-cache state, token throughput, and memory
-  pressure behavior still need measurement.
+  pressure behavior still need measurement on a separate user-approved SSD.
 - The weight pack is not yet connected to asynchronous MLX/Metal residency
-  leases, and the current 16 MiB reads are not controlled cold-cache results.
+  leases. The historical 16 MiB reads came from the checkout HDD, are not
+  controlled cold-cache results, and are excluded from SSD planning.
 - Standard `mlx_lm` modules are not yet adapted to governed layer leases.
 - The residency budget does not yet adapt to KV-cache growth.
 - MoE loading exists as scaffolding, but full router/expert execution is not complete.

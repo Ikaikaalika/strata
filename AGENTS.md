@@ -12,6 +12,11 @@ the Python import namespace `ollm` until a dedicated compatibility migration.
 - Do not download packages, repositories, models, or large data until the user
   chooses the destination.
 - Use generated small fixtures before real model weights.
+- Treat `/Volumes/Tyler HDD` as source-checkout storage only. The user has
+  confirmed that it is an HDD. Never use it as an SSD offload target, place
+  model weights or caches there to represent SSD behavior, or run storage
+  qualification benchmarks against it. Obtain a user-approved SSD destination
+  before SSD experiments or large model placement.
 
 ## Evidence rules
 

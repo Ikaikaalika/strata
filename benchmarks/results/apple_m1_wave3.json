@@ -66,7 +66,9 @@
     "external_weight_pack_observation": {
       "alignment_bytes": 4096,
       "device_media_name": "Dual SATA Bridge",
+      "device_media_type": "hdd",
       "evidence_kind": "hardware",
+      "eligible_for_ssd_planning": false,
       "first_exact_range_read": {
         "bytes": 16777216,
         "effective_bytes_per_second": 1647018539.1996505,
@@ -75,12 +77,14 @@
       "mount": "/Volumes/Tyler HDD",
       "payload_bytes": 16777216,
       "protocol": "USB",
+      "qualification_status": "excluded_from_ssd_qualification",
       "second_exact_range_read": {
         "bytes": 16777216,
         "effective_bytes_per_second": 1623811072.396437,
         "wall_time_ms": 10.332000000000008
       },
-      "solid_state": "Info not available",
+      "solid_state": false,
+      "source_checkout_only": true,
       "temporary_file_removed": true,
       "write": {
         "bytes": 16777216,
@@ -107,8 +111,8 @@
   "limitations": [
     "The ANE request recompiles and reloads the program on every call; its evaluate-only dispatch time is not end-to-end latency.",
     "The ANE segment supports one fixed prefill projection, no bias, no decode shape, and no full transformer block.",
-    "The USB external device does not report whether it is solid-state, so it is not labeled as SSD.",
-    "The external file was read immediately after writing without cache eviction, so read timings are not cold-media bandwidth.",
+    "The user confirmed that /Volumes/Tyler HDD is an HDD; this historical observation is excluded from SSD qualification and planner decisions.",
+    "The external HDD file was read immediately after writing without cache eviction, so read timings are not cold-media bandwidth.",
     "No real model, token throughput, energy, memory-pressure, direct storage-to-accelerator, or simultaneous CPU/GPU/ANE result is claimed."
   ]
 }

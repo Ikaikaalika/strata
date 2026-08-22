@@ -74,17 +74,20 @@ reservations instead of leaking budget.
 The default decoder retains immutable host bytes. MLX, Metal, and ANE decoders
 must still account for host-to-runtime copies and device allocation.
 
-## External storage observation
+## Rejected HDD storage target
 
 The repository lives on `/Volumes/Tyler HDD`, an external USB APFS volume behind
-a device reported as `Dual SATA Bridge`. macOS reports `Solid State: Info not
-available`, so the device is not labeled SSD.
+a device reported as `Dual SATA Bridge`. The user has confirmed that this volume
+is an HDD. It is source-checkout storage only and is excluded from SSD offload,
+storage qualification, and planner decisions.
 
-A generated 16 MiB pack on that mount took about `268.6 ms` to write
+A historical generated 16 MiB pack on that mount took about `268.6 ms` to write
 (approximately `62.5 MB/s`). Immediate reads took about `10.19 ms` and
 `10.33 ms`, but the file had just been written and no cache eviction occurred.
-Those read numbers are cache-state observations, not cold device bandwidth. The
-generated file was removed after the run.
+Those read numbers are cache-state observations from an HDD, not cold device or
+SSD bandwidth. They must not be used to tune the planner or support SSD claims.
+The generated file was removed after the run, and no future storage benchmark or
+model/offload placement should target this volume.
 
 ## Next gate
 
@@ -96,5 +99,5 @@ real end-to-end throughput.
 
 For storage, the next gate is a decoder that creates MLX arrays from verified
 pack ranges while tracing bytes, copy duration, residency, and demand stall.
-Cold-media testing must fingerprint the target mount and control or clearly
-observe cache state.
+Cold-media testing requires a separate user-approved SSD destination, must
+fingerprint that target mount, and must control or clearly observe cache state.
