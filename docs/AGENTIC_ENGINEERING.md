@@ -24,9 +24,10 @@ throughput, SSD-throughput, energy, or accelerator-execution claim.
 ```mermaid
 flowchart TD
     BASE["Verified baseline"] --> CONTRACT["Freeze StrataIR + plan contracts"]
-    CONTRACT --> CPU["CPU oracle lane"]
-    CONTRACT --> METAL["Metal kernel lane"]
-    CONTRACT --> ANE["ANE worker lane"]
+    CONTRACT --> PLATFORM["Freeze Common Compute platform contract"]
+    PLATFORM --> CPU["CPU oracle lane"]
+    PLATFORM --> METAL["Metal kernel lane"]
+    PLATFORM --> ANE["ANE worker lane"]
     CPU --> INTEGRATE["Primary integration"]
     METAL --> INTEGRATE
     ANE --> INTEGRATE

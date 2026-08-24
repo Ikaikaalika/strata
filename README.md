@@ -3,6 +3,11 @@
 Strata is an Apple Silicon runtime and learning laboratory for memory-tiered
 large language model inference.
 
+Strata is being engineered as the adaptive per-Mac LLM runtime beneath Common
+Compute. Common Compute selects a provider Mac; Strata admits the request and
+chooses a measured plan for that model, service objective, hardware identity,
+and live memory/thermal/power state.
+
 Its engineering objective is to run the largest useful model with the smallest
 practical RAM footprint while preserving as much token throughput as possible.
 The current baseline uses MLX, a runtime-neutral IR and adaptive planner, a
@@ -29,6 +34,8 @@ The offline test suite and serialized local M1 probes currently verify:
 - Byte-budgeted layer residency, pinned-weight safety, exact next-layer
   prefetch, and warm-layer reuse across forwards
 - Evidence-scoped prefill/decode planning with an MLX fallback
+- Live-platform admission with explicit service objectives, safe memory budgets,
+  full/paged residency decisions, and fail-closed SSD qualification
 - Checksummed, aligned weight-pack exact-range and read-only mmap access
 - Direct private-ANE compilation, IOSurface dispatch, and CPU numerical parity
   for one fixed fp16 projection on the local M1
@@ -105,6 +112,7 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/generation.py` | Shared prefill and incremental decode loop |
 | `src/ollm/tracing.py` | Runtime-neutral tensor and operation trace records |
 | `src/ollm/core/` | Runtime-neutral tensor, group, capability, and plan contracts |
+| `src/ollm/core/platform.py` | Common Compute service objective, live-state, storage, and admission contracts |
 | `src/ollm/planning/adaptive_planner.py` | Evidence-gated prefill/decode target selection |
 | `src/ollm/storage/` | Cold tensor-store and manifest adapters |
 | `src/ollm/storage/weight_pack.py` | Versioned aligned pack, checksums, exact reads, and mmap |
@@ -112,6 +120,7 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/scheduling/` | Residency manager, prefetch scheduler, and dense pipeline |
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
+| `docs/COMMON_COMPUTE_RUNTIME.md` | Common Compute boundary, adaptive objective, and native-runtime roadmap |
 | `docs/WAVE1_EVIDENCE.md` | Local M1 CPU, Metal, and ANE evidence and limitations |
 | `docs/WAVE2_EVIDENCE.md` | Adaptive planner, weight pack, and direct-ANE projection proof |
 | `docs/WAVE3_EVIDENCE.md` | Callable ANE segment and pack-backed residency evidence |
@@ -165,13 +174,15 @@ measurement overhead and should be disabled for throughput benchmarks.
 
 ## Roadmap
 
-1. Replace per-call ANE compilation with a restartable resident worker and a
+1. Freeze the versioned Common Compute request, live-state, admission, and
+   receipt schema; mirror it in Swift with cross-language golden fixtures.
+2. Replace per-call ANE compilation with a restartable resident worker and a
    fingerprinted compiled-program cache.
-2. Add verified MLX and Metal decoders for pack-backed residency, with explicit
+3. Add verified MLX and Metal decoders for pack-backed residency, with explicit
    host/runtime copy accounting.
-3. Grow the ANE operator corpus and exact envelopes into one deterministic
+4. Grow the ANE operator corpus and exact envelopes into one deterministic
    transformer block, then measure full-plan MLX and heterogeneous alternatives.
-4. Add decode-capable shapes, adaptive KV-aware budgets, and router-driven MoE
+5. Add decode-capable shapes, adaptive KV-aware budgets, and router-driven MoE
    expert paging only after end-to-end measurements justify them.
 
 See [STRATA_ENGINEERING_CONTEXT.md](STRATA_ENGINEERING_CONTEXT.md) for the full

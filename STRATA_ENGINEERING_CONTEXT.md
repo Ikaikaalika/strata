@@ -1029,6 +1029,8 @@ Current active implementation:
 - Prompt prefill followed by one-token cached decode
 - Runtime-neutral tensor and operation trace records
 - Runtime-neutral tensor, weight-group, capability, and execution-plan contracts
+- Common Compute service-objective, live-platform, storage-qualification, and
+  adaptive-admission contracts
 - Validated StrataIR graphs and deterministic CPU reference execution
 - Evidence-gated adaptive prefill/decode planner with an MLX fallback
 - Version-one aligned, checksummed weight packs with exact-range and mmap reads
@@ -1082,7 +1084,10 @@ Recent baseline work:
 The next implementation milestone is:
 
 ```text
-Restartable resident ANE worker with fingerprinted compiled-program caching
+Versioned Common Compute request/state/admission/receipt schema
++ Swift mirror types and cross-language golden fixtures
++ local provider feature-flag bridge to the verified MLX fallback
++ restartable resident ANE worker with fingerprinted compiled-program caching
 + repeated fixed-segment correctness and end-to-end latency measurements
 + verified weight-pack-to-MLX decoder with copy and stall tracing
 + one generated deterministic transformer block in StrataIR
