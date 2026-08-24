@@ -85,6 +85,9 @@ product boundary, implementation stack, portable-model/capsule split, and
 compute-engine ownership. See
 [docs/PERFORMANCE_CONTRACT.md](docs/PERFORMANCE_CONTRACT.md) for the benchmark
 vector, evidence ladder, competitor baselines, and promotion gates.
+The first named external scorecard is
+[docs/DARKBLOOM_TARGET.md](docs/DARKBLOOM_TARGET.md), with fail-closed
+machine-readable M4 Max gates under `benchmarks/targets/`.
 
 See [docs/COMMON_COMPUTE_RUNTIME.md](docs/COMMON_COMPUTE_RUNTIME.md) for the
 canonical ownership map, XPC protocol, adaptation loop, migration waves, and
@@ -137,6 +140,7 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
 | `docs/STANDALONE_RUNTIME.md` | Standalone library, CLI, daemon, adapter, and native SoC architecture |
 | `docs/PERFORMANCE_CONTRACT.md` | Benchmark dimensions, evidence ladder, suites, and promotion gates |
+| `docs/DARKBLOOM_TARGET.md` | Exact Darkbloom comparison matrix and performance architecture |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `docs/COMMON_COMPUTE_RUNTIME.md` | Common Compute boundary, adaptive objective, and native-runtime roadmap |
 | `docs/STRATA_ENGINE_ARCHITECTURE.md` | Detailed Strata engine modules, state machines, hot path, and build order |

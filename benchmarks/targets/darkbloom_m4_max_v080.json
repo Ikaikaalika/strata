@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "target_id": "darkbloom-m4-max-v080-engine-sweep-2026-07-27",
+  "status": "external_hardware_target_not_yet_run_by_strata",
+  "source": {
+    "url": "https://github.com/Layr-Labs/d-inference/blob/master/docs/reports/2026-07-27-v080-post-release-engine-bench.md",
+    "darkbloom_engine_commit": "edc6036",
+    "report_date": "2026-07-27",
+    "notes": "Each gate is ten percent better than the strongest comparable reported Darkbloom cell. Provider and fleet totals are excluded because their workload mix is not the engine sweep."
+  },
+  "required_hardware": {
+    "chip": "Apple M4 Max",
+    "cpu_cores": 16,
+    "unified_memory_bytes": 137438953472,
+    "macos_build": "25F84"
+  },
+  "required_models": {
+    "gpt-oss-20b-MXFP4-Q8": "773a7da77e569019bb0fd17a554b263738d669a3",
+    "gemma-4-26B-A4B-it-qat-4bit": "0e3cbab38ce568cf6e23543010d08d03b731910c"
+  },
+  "required_correctness": [
+    "gpt_oss_greedy_reference",
+    "gpt_oss_chunked_prefill_reference",
+    "gemma_greedy_reference",
+    "gemma_chunked_prefill_reference",
+    "arrival_invariance",
+    "kv_state_isolation"
+  ],
+  "workload": {
+    "decode_steps": 128,
+    "greedy": true,
+    "warm_model": true,
+    "prefix_cache": false,
+    "engine_order": "alternating_across_repetitions",
+    "minimum_repetitions": 5,
+    "reported_statistic": "median",
+    "host_policy": "serialized GPU run; reject contended or thermally throttled repetitions"
+  },
+  "cells": [
+    {
+      "id": "gpt_oss_b1_decode_tps",
+      "model": "gpt-oss-20b-MXFP4-Q8",
+      "prompt_tokens": 500,
+      "batch_size": 1,
+      "metric": "per_sequence_decode_tokens_per_second",
+      "unit": "token/s",
+      "direction": "higher",
+      "darkbloom_best": 108.9,
+      "strata_gate": 119.79
+    },
+    {
+      "id": "gpt_oss_b1_ttft_ms",
+      "model": "gpt-oss-20b-MXFP4-Q8",
+      "prompt_tokens": 500,
+      "batch_size": 1,
+      "metric": "time_to_first_token_p50",
+      "unit": "ms",
+      "direction": "lower",
+      "darkbloom_best": 410.0,
+      "strata_gate": 369.0
+    },
+    {
+      "id": "gpt_oss_b1_itl_ms",
+      "model": "gpt-oss-20b-MXFP4-Q8",
+      "prompt_tokens": 500,
+      "batch_size": 1,
+      "metric": "inter_token_latency_p50",
+      "unit": "ms",
+      "direction": "lower",
+      "darkbloom_best": 9.2,
+      "strata_gate": 8.28
+    },
+    {
+      "id": "gpt_oss_b8_aggregate_tps",
+      "model": "gpt-oss-20b-MXFP4-Q8",
+      "prompt_tokens_per_sequence": 500,
+      "batch_size": 8,
+      "metric": "aggregate_tokens_per_second_including_prefill",
+      "unit": "token/s",
+      "direction": "higher",
+      "darkbloom_best": 129.6,
+      "strata_gate": 142.56
+    },
+    {
+      "id": "gpt_oss_8192_prefill_tps",
+      "model": "gpt-oss-20b-MXFP4-Q8",
+      "prompt_tokens": 8192,
+      "batch_size": 1,
+      "metric": "prompt_tokens_per_second",
+      "unit": "token/s",
+      "direction": "higher",
+      "darkbloom_best": 1097.0,
+      "strata_gate": 1206.7
+    },
+    {
+      "id": "gpt_oss_b8_peak_gib",
+      "model": "gpt-oss-20b-MXFP4-Q8",
+      "prompt_tokens_per_sequence": 500,
+      "batch_size": 8,
+      "metric": "peak_runtime_memory",
+      "unit": "GiB",
+      "direction": "lower",
+      "darkbloom_best": 13.88,
+      "strata_gate": 13.88
+    },
+    {
+      "id": "gemma_b1_decode_tps",
+      "model": "gemma-4-26B-A4B-it-qat-4bit",
+      "prompt_tokens": 500,
+      "batch_size": 1,
+      "metric": "per_sequence_decode_tokens_per_second",
+      "unit": "token/s",
+      "direction": "higher",
+      "darkbloom_best": 107.5,
+      "strata_gate": 118.25
+    },
+    {
+      "id": "gemma_b1_ttft_ms",
+      "model": "gemma-4-26B-A4B-it-qat-4bit",
+      "prompt_tokens": 500,
+      "batch_size": 1,
+      "metric": "time_to_first_token_p50",
+      "unit": "ms",
+      "direction": "lower",
+      "darkbloom_best": 407.0,
+      "strata_gate": 366.3
+    },
+    {
+      "id": "gemma_b1_itl_ms",
+      "model": "gemma-4-26B-A4B-it-qat-4bit",
+      "prompt_tokens": 500,
+      "batch_size": 1,
+      "metric": "inter_token_latency_p50",
+      "unit": "ms",
+      "direction": "lower",
+      "darkbloom_best": 9.3,
+      "strata_gate": 8.37
+    },
+    {
+      "id": "gemma_b8_aggregate_tps",
+      "model": "gemma-4-26B-A4B-it-qat-4bit",
+      "prompt_tokens_per_sequence": 500,
+      "batch_size": 8,
+      "metric": "aggregate_tokens_per_second_including_prefill",
+      "unit": "token/s",
+      "direction": "higher",
+      "darkbloom_best": 138.6,
+      "strata_gate": 152.46
+    },
+    {
+      "id": "gemma_b8_itl_ms",
+      "model": "gemma-4-26B-A4B-it-qat-4bit",
+      "prompt_tokens_per_sequence": 500,
+      "batch_size": 8,
+      "metric": "inter_token_latency_p50",
+      "unit": "ms",
+      "direction": "lower",
+      "darkbloom_best": 30.4,
+      "strata_gate": 27.36
+    },
+    {
+      "id": "gemma_8192_prefill_tps",
+      "model": "gemma-4-26B-A4B-it-qat-4bit",
+      "prompt_tokens": 8192,
+      "batch_size": 1,
+      "metric": "prompt_tokens_per_second",
+      "unit": "token/s",
+      "direction": "higher",
+      "darkbloom_best": 1091.0,
+      "strata_gate": 1200.1
+    },
+    {
+      "id": "gemma_b8_peak_gib",
+      "model": "gemma-4-26B-A4B-it-qat-4bit",
+      "prompt_tokens_per_sequence": 500,
+      "batch_size": 8,
+      "metric": "peak_runtime_memory",
+      "unit": "GiB",
+      "direction": "lower",
+      "darkbloom_best": 18.53,
+      "strata_gate": 18.53
+    }
+  ],
+  "excluded_public_claims": [
+    "Five billion tokens per day is a fleet traffic claim, not a per-engine benchmark.",
+    "The reported provider-side Gemma B8 aggregate 247.3 token/s used a different workload and cannot be a gate until its exact request shapes and timing boundary are reproduced.",
+    "The reported three-to-four-times prefill improvement lacks a complete public before/after benchmark contract in the supplied timeline."
+  ]
+}
+

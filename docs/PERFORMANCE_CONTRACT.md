@@ -67,6 +67,13 @@ sampling settings, and output tokens against:
 Raw logs remain immutable. A summarized result must link to its exact raw
 record and disclose any unavailable metric.
 
+The first named external performance target is Darkbloom's public M4 Max v0.8.0
+engine sweep. See [`DARKBLOOM_TARGET.md`](DARKBLOOM_TARGET.md) and the
+machine-readable
+[`darkbloom_m4_max_v080.json`](../benchmarks/targets/darkbloom_m4_max_v080.json).
+Strata may claim that it exceeds this target only after every exact hardware,
+model, workload, correctness, memory, and 10-percent performance gate passes.
+
 ## Promotion gates
 
 ### Native kernel to phase-program candidate
@@ -119,4 +126,3 @@ direct-Metal implementation. The result is L2 kernel hardware evidence only.
 `/Volumes/Tyler HDD` is explicitly excluded from all SSD qualification, weight
 placement, and offload benchmarks. Storage work waits for a user-approved SSD
 destination.
-
