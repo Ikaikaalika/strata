@@ -36,6 +36,13 @@ flowchart LR
 The runtime-neutral planner owns storage, residency, prefetch, pinning, and
 eviction. MLX continues to own tensor graphs and Metal kernels.
 
+Admission now exposes an explicit `auto`, `full`, or `paged` residency
+preference. The residency manager can shrink or grow its weight budget at a
+scheduler safe boundary. Shrinking evicts oldest unpinned groups and fails
+atomically when loading or pinned groups cannot fit; it never invalidates live
+compute. The target native design is in
+[`DYNAMIC_SSD_RESIDENCY.md`](DYNAMIC_SSD_RESIDENCY.md).
+
 ## Dense execution timeline
 
 ```mermaid
@@ -199,7 +206,8 @@ benchmark.
 
 - Benchmark actual layer files on the target storage device.
 - Record page-cache state and effective SSD bandwidth.
-- Add adaptive budget changes based on KV-cache growth and memory pressure.
+- Wire the implemented safe budget resize into live KV growth and
+  memory-pressure events.
 - Add MoE expert groups and exact router-driven acquisition.
 - Adapt standard `mlx_lm` model modules without forking their kernels.
 

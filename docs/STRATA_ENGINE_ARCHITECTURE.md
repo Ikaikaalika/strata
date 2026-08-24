@@ -278,7 +278,7 @@ in which they were proven.
 | `LivePlatformState` | `src/ollm/core/platform.py` | Short-lived memory, thermal, power, and approved-storage snapshot |
 | `ServiceObjective` | `src/ollm/core/platform.py` | Workload class, context/output bounds, latency/rate goals, and policy flags |
 | `RuntimeDemand` | `src/ollm/core/platform.py` | Weight, KV, activation, temporary, and minimum-window estimates |
-| `AdmissionDecision` | `src/ollm/core/platform.py` | Admit/reject, memory budget, full/paged mode, storage ID, and reasons |
+| `AdmissionDecision` | `src/ollm/core/platform.py` | Admit/reject, total and weight budgets, full/paged mode, storage ID, and reasons |
 | `TensorSpec`, `IROperation`, `StrataIRGraph` | `src/ollm/core/ir.py` | Runtime-neutral logical tensor graph |
 | `OperationEnvelope`, `RuntimeCapabilities` | `src/ollm/core/capabilities.py` | Exact backend eligibility facts |
 | `AdaptiveExecutionPlan` | `src/ollm/core/adaptive_plan.py` | Phase-specific backend segments keyed to model and hardware |
@@ -711,6 +711,12 @@ allocator, concurrent prefix cache, or hardware-proven SSD policy.
 
 ## 14. Weight storage, residency, and prefetch
 
+The public residency preference is `auto`, `full`, or `paged`. `auto` chooses
+full residency when safe and may page only with explicit spill permission;
+`full` rejects if all weights cannot fit; `paged` forces a bounded warm-weight
+window on an approved SSD. The concrete decision remains `full` or `paged`.
+See [`DYNAMIC_SSD_RESIDENCY.md`](DYNAMIC_SSD_RESIDENCY.md).
+
 ### 14.1 Cold representation
 
 The current weight pack supplies:
@@ -750,6 +756,12 @@ Loading reservations count against the budget. Commit reconciles expected and
 actual decoded byte size. Pinned values cannot be eviction victims. The
 executor releases a lease only after lazy backend work is synchronized and no
 queued command still references the weights.
+
+At a prefill-chunk or decode-iteration boundary, KV growth or memory pressure
+may shrink the warm-weight budget. The current residency manager evicts LRU
+unpinned groups during this resize and fails atomically if loading or pinned
+groups alone exceed the requested budget. It never evicts a live buffer to
+satisfy a policy update.
 
 ### 14.4 Dense prefetch
 

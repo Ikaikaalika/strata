@@ -70,6 +70,13 @@ artifacts, prefill/decode program variants, buffer layouts, and correctness and
 performance evidence. It is a rebuildable cache, not a replacement model
 format and not the only copy of user data.
 
+Model loads expose `auto`, `full`, and `paged` residency preferences. `auto`
+uses full residency when safe and, when spilling is permitted, otherwise
+selects an approved measured SSD; `full` rejects rather than spilling; `paged`
+deliberately caps warm weights and streams atomic groups. See
+[`DYNAMIC_SSD_RESIDENCY.md`](DYNAMIC_SSD_RESIDENCY.md) for the memory equation,
+safe-boundary resizing, Metal I/O path, MoE policy, and evidence gates.
+
 ## Using the whole SoC intelligently
 
 Strata optimizes useful capability, not utilization percentages.
@@ -121,4 +128,3 @@ Common Compute should consume this product through its adapter, canary it behind
 a feature flag, and supply production reliability evidence. Before open-source
 release, audit dependency/model licenses, private-API separation, generated
 artifacts, repository provenance, secrets, and the current license ownership.
-

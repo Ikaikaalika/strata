@@ -10,6 +10,7 @@ from ollm.core import (
     MemoryPressure,
     PowerSource,
     ResidencyMode,
+    ResidencyPreference,
     RuntimeDemand,
     ServiceObjective,
     StorageMedium,
@@ -110,6 +111,115 @@ class AdaptiveAdmissionPolicyTest(unittest.TestCase):
         self.assertTrue(decision.admitted)
         self.assertIs(decision.residency_mode, ResidencyMode.PAGED)
         self.assertEqual(decision.storage_target_id, "fast-ssd")
+
+    def test_explicit_paged_mode_uses_ssd_even_when_full_residency_fits(self):
+        decision = self.policy.decide(
+            hardware=self.hardware,
+            platform=platform(
+                self.hardware,
+                storage_targets=(
+                    StorageTarget(
+                        "approved-ssd",
+                        StorageMedium.INTERNAL_SSD,
+                        True,
+                        100 * GIB,
+                        2e9,
+                    ),
+                ),
+            ),
+            objective=objective(
+                residency_preference=ResidencyPreference.PAGED,
+                max_resident_weight_bytes=2 * GIB,
+            ),
+            demand=demand(storage_bytes_required=6 * GIB),
+        )
+        self.assertTrue(decision.admitted)
+        self.assertIs(decision.residency_mode, ResidencyMode.PAGED)
+        self.assertEqual(decision.storage_target_id, "approved-ssd")
+        self.assertEqual(decision.weight_residency_budget_bytes, 2 * GIB)
+
+    def test_paged_mode_can_select_one_approved_storage_target(self):
+        targets = (
+            StorageTarget(
+                "internal-ssd",
+                StorageMedium.INTERNAL_SSD,
+                True,
+                100 * GIB,
+                3e9,
+            ),
+            StorageTarget(
+                "selected-external-ssd",
+                StorageMedium.EXTERNAL_SSD,
+                True,
+                100 * GIB,
+                1e9,
+            ),
+        )
+        decision = self.policy.decide(
+            hardware=self.hardware,
+            platform=platform(self.hardware, storage_targets=targets),
+            objective=objective(
+                residency_preference=ResidencyPreference.PAGED,
+                preferred_storage_target_id="selected-external-ssd",
+            ),
+            demand=demand(storage_bytes_required=6 * GIB),
+        )
+
+        self.assertTrue(decision.admitted)
+        self.assertEqual(decision.storage_target_id, "selected-external-ssd")
+
+    def test_weight_cap_below_minimum_window_is_rejected(self):
+        decision = self.policy.decide(
+            hardware=self.hardware,
+            platform=platform(
+                self.hardware,
+                storage_targets=(
+                    StorageTarget(
+                        "approved-ssd",
+                        StorageMedium.INTERNAL_SSD,
+                        True,
+                        100 * GIB,
+                        2e9,
+                    ),
+                ),
+            ),
+            objective=objective(
+                residency_preference=ResidencyPreference.PAGED,
+                max_resident_weight_bytes=512 * 1024**2,
+            ),
+            demand=demand(minimum_weight_window_bytes=GIB),
+        )
+
+        self.assertFalse(decision.admitted)
+        self.assertEqual(decision.reasons, (AdmissionReason.INSUFFICIENT_MEMORY,))
+
+    def test_explicit_full_mode_never_falls_back_to_ssd(self):
+        decision = self.policy.decide(
+            hardware=self.hardware,
+            platform=platform(
+                self.hardware,
+                available_memory_bytes=6 * GIB,
+                storage_targets=(
+                    StorageTarget(
+                        "approved-ssd",
+                        StorageMedium.INTERNAL_SSD,
+                        True,
+                        100 * GIB,
+                        2e9,
+                    ),
+                ),
+            ),
+            objective=objective(
+                residency_preference=ResidencyPreference.FULL,
+                allow_weight_spill=True,
+            ),
+            demand=demand(model_weight_bytes=10 * GIB),
+        )
+        self.assertFalse(decision.admitted)
+        self.assertEqual(
+            decision.reasons,
+            (AdmissionReason.FULL_RESIDENCY_REQUIRED,),
+        )
 
     def test_hdd_only_never_qualifies_as_paging_target(self):
         decision = self.policy.decide(

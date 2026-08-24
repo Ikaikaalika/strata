@@ -7,7 +7,12 @@ from ollm.backends.mlx_governor import (
     suggested_residency_budget,
 )
 from ollm.core import ExecutionPlan, ModelSpec, TensorRef, WeightGroup
-from ollm.scheduling import DenseLayerPipeline, PrefetchScheduler, ResidencyManager
+from ollm.scheduling import (
+    BudgetExceededError,
+    DenseLayerPipeline,
+    PrefetchScheduler,
+    ResidencyManager,
+)
 
 
 class FakeTensor:
@@ -82,6 +87,47 @@ class RuntimeContractTest(unittest.TestCase):
         self.assertEqual(evicted, ["b"])
         self.assertLessEqual(snapshot.used_bytes, snapshot.budget_bytes)
         residency.release("a")
+
+    def test_residency_budget_shrink_evicts_oldest_unpinned_groups(self):
+        evicted = []
+        residency = ResidencyManager(
+            12,
+            on_evict=lambda key, value: evicted.append(key),
+        )
+        for key in ("a", "b", "c"):
+            self.assertTrue(residency.reserve(key, 4))
+            residency.commit(key, {"value": key})
+        residency.pin("a")
+        residency.release("a")
+
+        removed = residency.resize_budget(8)
+
+        self.assertEqual(removed, ("b",))
+        self.assertEqual(evicted, ["b"])
+        snapshot = residency.snapshot()
+        self.assertEqual(snapshot.budget_bytes, 8)
+        self.assertEqual(snapshot.resident_keys, ("a", "c"))
+
+    def test_residency_budget_shrink_refuses_to_evict_pinned_groups(self):
+        evicted = []
+        residency = ResidencyManager(
+            8,
+            on_evict=lambda key, value: evicted.append(key),
+        )
+        for key in ("a", "b"):
+            self.assertTrue(residency.reserve(key, 4))
+            residency.commit(key, {"value": key})
+            residency.pin(key)
+
+        before = residency.snapshot()
+        with self.assertRaisesRegex(BudgetExceededError, "pinned"):
+            residency.resize_budget(4)
+        after = residency.snapshot()
+
+        self.assertEqual(after, before)
+        self.assertEqual(evicted, [])
+        residency.release("a")
+        residency.release("b")
 
     def test_pipeline_starts_next_load_before_current_compute(self):
         groups = tuple(group(index) for index in range(3))

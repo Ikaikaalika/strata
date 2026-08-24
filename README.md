@@ -88,6 +88,9 @@ vector, evidence ladder, competitor baselines, and promotion gates.
 The first named external scorecard is
 [docs/DARKBLOOM_TARGET.md](docs/DARKBLOOM_TARGET.md), with fail-closed
 machine-readable M4 Max gates under `benchmarks/targets/`.
+Dynamic whole-model and partial-weight SSD residency is specified in
+[docs/DYNAMIC_SSD_RESIDENCY.md](docs/DYNAMIC_SSD_RESIDENCY.md); it always stages
+weights into unified memory and never treats the checkout HDD as SSD.
 
 See [docs/COMMON_COMPUTE_RUNTIME.md](docs/COMMON_COMPUTE_RUNTIME.md) for the
 canonical ownership map, XPC protocol, adaptation loop, migration waves, and
@@ -141,6 +144,7 @@ state machine, hardware profile, and explicit limitations.
 | `docs/STANDALONE_RUNTIME.md` | Standalone library, CLI, daemon, adapter, and native SoC architecture |
 | `docs/PERFORMANCE_CONTRACT.md` | Benchmark dimensions, evidence ladder, suites, and promotion gates |
 | `docs/DARKBLOOM_TARGET.md` | Exact Darkbloom comparison matrix and performance architecture |
+| `docs/DYNAMIC_SSD_RESIDENCY.md` | Auto/full/paged weight policy, native Metal I/O path, and safe resizing |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `docs/COMMON_COMPUTE_RUNTIME.md` | Common Compute boundary, adaptive objective, and native-runtime roadmap |
 | `docs/STRATA_ENGINE_ARCHITECTURE.md` | Detailed Strata engine modules, state machines, hot path, and build order |

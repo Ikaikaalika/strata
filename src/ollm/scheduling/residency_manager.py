@@ -208,6 +208,59 @@ class ResidencyManager:
             self._entries.clear()
         self._notify_evictions(evicted)
 
+    def resize_budget(self, budget_bytes: int) -> Tuple[str, ...]:
+        """Resize the warm-weight budget and evict LRU groups when shrinking.
+
+        The caller must use a scheduler safe boundary. Loading and pinned
+        groups are protected. If those groups alone exceed the requested
+        budget, the resize fails without changing the budget or residency set.
+        """
+        if budget_bytes <= 0:
+            raise ValueError("budget_bytes must be positive")
+        requested = int(budget_bytes)
+        with self._lock:
+            protected_bytes = sum(
+                entry.byte_size
+                for entry in self._entries.values()
+                if entry.state is ResidencyState.LOADING or entry.pin_count > 0
+            )
+            if protected_bytes > requested:
+                raise BudgetExceededError(
+                    f"cannot shrink residency budget to {requested} bytes; "
+                    f"loading or pinned groups require {protected_bytes} bytes"
+                )
+
+            remaining = self._used_bytes()
+            victims: List[_Entry] = []
+            candidates = sorted(
+                (
+                    entry
+                    for entry in self._entries.values()
+                    if entry.state is ResidencyState.RESIDENT
+                    and entry.pin_count == 0
+                ),
+                key=lambda entry: entry.last_used,
+            )
+            for candidate in candidates:
+                if remaining <= requested:
+                    break
+                victims.append(candidate)
+                remaining -= candidate.byte_size
+            if remaining > requested:
+                raise BudgetExceededError(
+                    f"cannot shrink residency budget to {requested} bytes; "
+                    f"protected residency leaves {remaining} bytes"
+                )
+
+            self.budget_bytes = requested
+            evicted = []
+            for victim in victims:
+                del self._entries[victim.key]
+                evicted.append((victim.key, victim.value))
+
+        self._notify_evictions(evicted)
+        return tuple(key for key, _ in evicted)
+
     def snapshot(self) -> ResidencySnapshot:
         with self._lock:
             loading = tuple(

@@ -55,6 +55,14 @@ class ResidencyMode(str, Enum):
     PAGED = "paged"
 
 
+class ResidencyPreference(str, Enum):
+    """Caller policy; the admission decision resolves it to a concrete mode."""
+
+    AUTO = "auto"
+    FULL = "full"
+    PAGED = "paged"
+
+
 class AdmissionReason(str, Enum):
     FULL_RESIDENCY = "full_residency"
     SSD_PAGING = "ssd_paging"
@@ -63,6 +71,7 @@ class AdmissionReason(str, Enum):
     MEMORY_PRESSURE = "memory_pressure"
     POWER_POLICY = "power_policy"
     INSUFFICIENT_MEMORY = "insufficient_memory"
+    FULL_RESIDENCY_REQUIRED = "full_residency_required"
     SPILL_DISABLED = "spill_disabled"
     NO_QUALIFIED_SSD = "no_qualified_ssd"
 
@@ -79,6 +88,9 @@ class ServiceObjective:
     min_decode_tokens_per_second: Optional[float] = None
     deadline_ms: Optional[float] = None
     max_runtime_memory_bytes: Optional[int] = None
+    max_resident_weight_bytes: Optional[int] = None
+    residency_preference: ResidencyPreference = ResidencyPreference.AUTO
+    preferred_storage_target_id: Optional[str] = None
     allow_weight_spill: bool = False
     allow_battery: bool = False
     allow_low_power_mode: bool = False
@@ -106,6 +118,15 @@ class ServiceObjective:
             raise ValueError(
                 "max_runtime_memory_bytes must be positive when provided"
             )
+        if (
+            self.max_resident_weight_bytes is not None
+            and self.max_resident_weight_bytes <= 0
+        ):
+            raise ValueError(
+                "max_resident_weight_bytes must be positive when provided"
+            )
+        if self.preferred_storage_target_id == "":
+            raise ValueError("preferred_storage_target_id must not be empty")
 
 
 @dataclass(frozen=True)
@@ -220,6 +241,7 @@ class LivePlatformState:
 class AdmissionDecision:
     admitted: bool
     memory_budget_bytes: int
+    weight_residency_budget_bytes: int
     residency_mode: Optional[ResidencyMode]
     storage_target_id: Optional[str]
     private_backends_allowed: bool
@@ -228,6 +250,12 @@ class AdmissionDecision:
     def __post_init__(self) -> None:
         if self.memory_budget_bytes < 0:
             raise ValueError("memory_budget_bytes must not be negative")
+        if self.weight_residency_budget_bytes < 0:
+            raise ValueError("weight_residency_budget_bytes must not be negative")
+        if self.weight_residency_budget_bytes > self.memory_budget_bytes:
+            raise ValueError(
+                "weight residency budget must not exceed total memory budget"
+            )
         if self.admitted:
             if self.residency_mode is None:
                 raise ValueError("admitted decisions require a residency mode")
@@ -275,69 +303,101 @@ class AdaptiveAdmissionPolicy:
     ) -> AdmissionDecision:
         private_allowed = objective.deployment_mode is DeploymentMode.RESEARCH
         budget = self._memory_budget(hardware, platform, objective)
+        weight_budget = self._weight_budget(budget, objective, demand)
 
         if platform.hardware_fingerprint != hardware.fingerprint:
             return self._reject(
                 budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.HARDWARE_STATE_MISMATCH,
             )
         if platform.thermal_state in {ThermalState.SERIOUS, ThermalState.CRITICAL}:
             return self._reject(
                 budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.THERMAL_PRESSURE,
             )
         if platform.memory_pressure is MemoryPressure.CRITICAL:
             return self._reject(
                 budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.MEMORY_PRESSURE,
             )
         if platform.power_source is PowerSource.BATTERY and not objective.allow_battery:
             return self._reject(
                 budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.POWER_POLICY,
             )
         if platform.low_power_mode and not objective.allow_low_power_mode:
             return self._reject(
                 budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.POWER_POLICY,
             )
-        if demand.minimum_working_set_bytes > budget:
+        if (
+            demand.minimum_working_set_bytes > budget
+            or demand.minimum_weight_window_bytes > weight_budget
+        ):
             return self._reject(
                 budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.INSUFFICIENT_MEMORY,
             )
-        if demand.full_residency_bytes <= budget:
+        if (
+            objective.residency_preference is not ResidencyPreference.PAGED
+            and demand.full_residency_bytes <= budget
+            and demand.model_weight_bytes <= weight_budget
+        ):
             return AdmissionDecision(
                 admitted=True,
                 memory_budget_bytes=budget,
+                weight_residency_budget_bytes=weight_budget,
                 residency_mode=ResidencyMode.FULL,
                 storage_target_id=None,
                 private_backends_allowed=private_allowed,
                 reasons=(AdmissionReason.FULL_RESIDENCY,),
             )
-        if not objective.allow_weight_spill:
+        if objective.residency_preference is ResidencyPreference.FULL:
             return self._reject(
                 budget,
+                weight_budget,
+                private_allowed,
+                AdmissionReason.FULL_RESIDENCY_REQUIRED,
+            )
+        if (
+            objective.residency_preference is ResidencyPreference.AUTO
+            and not objective.allow_weight_spill
+        ):
+            return self._reject(
+                budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.SPILL_DISABLED,
             )
 
-        target = self._select_storage_target(platform, demand.storage_bytes_required)
+        target = self._select_storage_target(
+            platform,
+            demand.storage_bytes_required,
+            objective.preferred_storage_target_id,
+        )
         if target is None:
             return self._reject(
                 budget,
+                weight_budget,
                 private_allowed,
                 AdmissionReason.NO_QUALIFIED_SSD,
             )
         return AdmissionDecision(
             admitted=True,
             memory_budget_bytes=budget,
+            weight_residency_budget_bytes=weight_budget,
             residency_mode=ResidencyMode.PAGED,
             storage_target_id=target.target_id,
             private_backends_allowed=private_allowed,
@@ -367,15 +427,39 @@ class AdaptiveAdmissionPolicy:
         return max(0, min(limits))
 
     @staticmethod
+    def _weight_budget(
+        memory_budget_bytes: int,
+        objective: ServiceObjective,
+        demand: RuntimeDemand,
+    ) -> int:
+        non_weight_bytes = (
+            demand.kv_cache_bytes
+            + demand.activation_bytes
+            + demand.temporary_bytes
+        )
+        limits = [
+            demand.model_weight_bytes,
+            max(0, memory_budget_bytes - non_weight_bytes),
+        ]
+        if objective.max_resident_weight_bytes is not None:
+            limits.append(objective.max_resident_weight_bytes)
+        return max(0, min(limits))
+
+    @staticmethod
     def _select_storage_target(
         platform: LivePlatformState,
         required_free_bytes: int,
+        preferred_target_id: Optional[str] = None,
     ) -> Optional[StorageTarget]:
         candidates = [
             target
             for target in platform.storage_targets
             if target.qualified_for_adaptive_paging
             and target.free_bytes >= required_free_bytes
+            and (
+                preferred_target_id is None
+                or target.target_id == preferred_target_id
+            )
         ]
         if not candidates:
             return None
@@ -390,12 +474,14 @@ class AdaptiveAdmissionPolicy:
     @staticmethod
     def _reject(
         memory_budget_bytes: int,
+        weight_residency_budget_bytes: int,
         private_backends_allowed: bool,
         reason: AdmissionReason,
     ) -> AdmissionDecision:
         return AdmissionDecision(
             admitted=False,
             memory_budget_bytes=memory_budget_bytes,
+            weight_residency_budget_bytes=weight_residency_budget_bytes,
             residency_mode=None,
             storage_target_id=None,
             private_backends_allowed=private_backends_allowed,
@@ -412,6 +498,7 @@ __all__ = [
     "MemoryPressure",
     "PowerSource",
     "ResidencyMode",
+    "ResidencyPreference",
     "RuntimeDemand",
     "ServiceObjective",
     "StorageMedium",
