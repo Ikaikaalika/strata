@@ -7,10 +7,12 @@ component marked **target** is a contract to implement, not a present runtime
 capability. **Research** components may use private APIs and may not enter the
 supported production lane.
 
-This document describes Strata itself: the adaptive, per-Mac LLM inference
-engine beneath Common Compute. The outer provider, fleet, XPC, billing, and
-network boundaries are specified in
-[`COMMON_COMPUTE_RUNTIME.md`](COMMON_COMPUTE_RUNTIME.md).
+This document describes Strata itself: a standalone adaptive per-Mac LLM
+inference engine shared by its CLI, local service, embedding API, and external
+integrations. The public product boundary is specified in
+[`STANDALONE_RUNTIME.md`](STANDALONE_RUNTIME.md). Common Compute is the first
+proving-ground integration; its provider, fleet, XPC, billing, and network
+boundaries are specified in [`COMMON_COMPUTE_RUNTIME.md`](COMMON_COMPUTE_RUNTIME.md).
 
 ## 1. Mission and optimization target
 
@@ -88,11 +90,11 @@ planner, not current behavior.
 
 ```mermaid
 flowchart TB
-    subgraph OUTER["Common Compute host — outside Strata"]
-        NET["Network and fleet lease"]
-        HOST["Swift provider host"]
-        BILL["Usage, result, and billing handoff"]
-        NET --> HOST
+    subgraph FRONTENDS["Product and integration frontends"]
+        CLI["strata CLI"]
+        DAEMON["stratad local service"]
+        EMBED["Embedded libstrata caller"]
+        CC["Common Compute adapter"]
     end
 
     subgraph ENGINE["Persistent Strata engine"]
@@ -127,9 +129,14 @@ flowchart TB
         SSD["Approved measured SSD"]
     end
 
-    HOST -->|"fixed data contract"| GATE
-    STREAM -->|"events + receipt"| HOST
-    HOST --> BILL
+    CLI -->|"stable data contract"| GATE
+    DAEMON -->|"stable data contract"| GATE
+    EMBED -->|"stable C ABI"| GATE
+    CC -->|"fixed XPC data contract"| GATE
+    STREAM --> CLI
+    STREAM --> DAEMON
+    STREAM --> EMBED
+    STREAM --> CC
     EXEC --> CPU
     EXEC --> MLX
     EXEC --> METAL
@@ -139,15 +146,16 @@ flowchart TB
     MEM <--> SSD
 ```
 
-Common Compute owns remote routing, provider leases, customer authorization,
-artifact download, billing, and fleet lifecycle. Strata owns everything on the
-inference hot path after the fixed request reaches the engine: validation,
-admission, tokenization, model state, batching, prefill, decode, sampling, KV,
-weights, backend dispatch, cancellation, metrics, and the terminal receipt.
+Strata owns everything on the inference hot path after a fixed request reaches
+the engine: validation, admission, tokenization, model state, batching, prefill,
+decode, sampling, KV, weights, backend dispatch, cancellation, metrics, and the
+terminal receipt. Each frontend owns its transport and external policy. Common
+Compute additionally owns remote routing, provider leases, customer
+authorization, artifact staging, billing, and fleet lifecycle.
 
-The XPC service is a process and security boundary. It is not another
-scheduler. There must be exactly one authoritative Strata scheduler inside the
-engine process.
+A daemon or XPC service is a process and security boundary, not another
+scheduler. There must be exactly one authoritative Strata scheduler for each
+engine instance.
 
 ## 4. Control plane and data plane
 
@@ -189,9 +197,9 @@ outputs are safe for the next owner.
 ## 5. Target native process topology
 
 ```text
-Common Compute provider app
-  └─ StrataKit client
-      └─ signed no-network strata-runtime XPC service
+strata CLI / stratad / embedded app / Common Compute adapter
+  └─ stable libstrata C ABI or versioned local protocol
+      └─ persistent native Strata runtime
           ├─ EngineSupervisor
           ├─ ModelRegistry
           │   └─ ModelSlot[model digest, quantization]
@@ -228,7 +236,7 @@ compatibility migration.
 ```mermaid
 stateDiagram-v2
     [*] --> Stopped
-    Stopped --> Starting: host starts XPC service
+    Stopped --> Starting: frontend starts engine
     Starting --> SelfTesting: contracts and stores initialized
     SelfTesting --> Ready: required MLX fixture passes
     SelfTesting --> Failed: required baseline fails
@@ -660,7 +668,7 @@ Priority is lexicographic rather than one opaque score:
 
 ### 12.4 Backpressure and output
 
-Token generation must not create one XPC message per token. Text deltas are
+Token generation must not create one transport message per token. Text deltas are
 coalesced on a bounded interval or byte threshold, while request accounting
 keeps exact token counts. If the consumer cannot drain bounded output buffers,
 the scheduler pauses that sequence and eventually terminates it under an
@@ -977,7 +985,7 @@ Rules:
 | Critical pressure | cancel/drain bounded work and stop advertising readiness |
 | Serious/critical thermal state | stop admission; drain or cancel by objective |
 | SSD disappears or slows beyond qualification | no new paged admission; fail/defer safely rather than substitute HDD |
-| XPC crash loop | host stops advertising `strata_llm` until self-test passes |
+| Service crash loop | frontend stops advertising the model until self-test passes |
 
 Fallback lineage is part of the plan record. Strata does not catch an arbitrary
 backend exception and silently rerun after text has already been emitted.
@@ -1023,16 +1031,16 @@ evidence IDs used for selection
 warnings and fallback lineage
 ```
 
-The receipt is metering input, not billing authority. Common Compute owns the
-external billing decision.
+The receipt is metering input, not billing authority. An integration such as
+Common Compute owns any external billing decision.
 
 ## 21. Security and trust boundaries
 
 - The runtime accepts a fixed versioned data protocol, not an executable path,
   arbitrary arguments, environment variables, package install, or customer
   code.
-- The native service has no network capability. The host stages authorized
-  artifacts.
+- The core runtime has no networking capability. `stratad` owns its bounded
+  local listener, and integration hosts stage authorized artifacts.
 - Every path is resolved beneath the app-group root; symlink escapes, excess
   files, excess bytes, and unexpected file types are rejected.
 - Model, tokenizer, weight, compiled-program, evidence, and prefix-cache
@@ -1074,8 +1082,8 @@ destination.
 
 | Area | Current repository truth | Target |
 |---|---|---|
-| Engine process | Python library and isolated native probes | Persistent signed Swift XPC runtime |
-| Public request | Legacy `Inference` API plus frozen architecture contract | Versioned fixed request/control/event/receipt schema |
+| Engine process | Python library and isolated native probes | Persistent native library/runtime with optional Swift service shell |
+| Public request | Legacy `Inference` API plus frozen architecture contract | Stable C ABI plus versioned request/control/event/receipt schema |
 | Model coverage | `mlx_lm` compatibility plus custom Llama/DeepSeek scaffolds | Registry of versioned adapters with MLX fallback |
 | IR | Validated runtime-neutral graph | Broader ops, graph hashing, segment boundary/lifetime metadata |
 | Admission | Deterministic live-state full/paged/reject policy | Engine-wide reservation ledger and queue-aware admission |
@@ -1098,7 +1106,7 @@ The order deliberately establishes semantics before optimization.
 ### Wave A — engine contracts
 
 1. Freeze request, event, receipt, identity, and state-transition schemas.
-2. Add deterministic serialization and Python/Swift golden fixtures.
+2. Add deterministic serialization and Python/native golden fixtures.
 3. Define exact `ModelArtifact`, `KVSchema`, and `SegmentDescriptor` contracts.
 4. Move legacy download behavior outside the runtime; the engine opens only
    pre-authorized local artifacts.
@@ -1108,7 +1116,7 @@ replayed requests fail deterministically without tensor execution.
 
 ### Wave B — persistent MLX vertical slice
 
-1. Create the signed no-network XPC service and supervisor.
+1. Create the persistent native library/runtime and one local service shell.
 2. Load one generated fixture model into one persistent model slot.
 3. Implement one request with prefill-once, incremental decode, stream
    coalescing, cancellation, and exactly one receipt.
@@ -1170,7 +1178,7 @@ hit/miss/stall behavior and no correctness regression.
 - It is not a system that forces all compute engines to be active.
 - It is not direct SSD-to-GPU or SSD-to-ANE execution.
 - It is not an on-disk ANE compile cache presented as live weight paging.
-- It is not a generic subprocess/package runner inside Common Compute.
+- It is not a generic subprocess or package runner.
 - It is not provider-blind confidential computing.
 - It is not an online optimizer allowed to experiment on customer outputs.
 

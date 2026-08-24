@@ -1,12 +1,13 @@
 # Strata
 
-Strata is an Apple Silicon runtime and learning laboratory for memory-tiered
-large language model inference.
+Strata is a standalone Apple-Silicon LLM engine and learning laboratory for
+adaptive, memory-tiered inference. Its intended product surface is a native
+library, CLI, and local model server; Common Compute is its first proving-ground
+integration through a separate adapter.
 
-Strata is being engineered as the adaptive per-Mac LLM runtime beneath Common
-Compute. Common Compute selects a provider Mac; Strata admits the request and
-chooses a measured plan for that model, service objective, hardware identity,
-and live memory/thermal/power state.
+For each model and request, Strata admits a safe memory budget and selects a
+measured execution plan for the hardware identity, prompt/decode phase, shape,
+service objective, and live memory/thermal/power state.
 
 Its engineering objective is to run the largest useful model with the smallest
 practical RAM footprint while preserving as much token throughput as possible.
@@ -55,29 +56,35 @@ correctness baseline.
 
 ```mermaid
 flowchart TD
-    CLIENT["Common Compute client"] --> ROUTER["Fleet router"]
-    ROUTER --> HOST["Swift provider host"]
-    HOST -->|"fixed request + cancellation"| XPC["Persistent no-network Strata XPC"]
-    XPC --> ADMIT["Live admission + memory budget"]
+    CLI["strata CLI"] --> API["Stable libstrata API"]
+    DAEMON["stratad local server"] --> API
+    CC["Common Compute XPC adapter"] --> API
+    API --> ADMIT["Live admission + memory budget"]
     ADMIT --> BATCH["Prefill/decode batch scheduler"]
-    BATCH --> PLAN["Evidence-gated segment planner"]
+    BATCH --> PLAN["Verified native phase program"]
+    PLAN --> CPU["CPU control + sampling"]
     PLAN --> MLX["MLX compatibility baseline"]
-    PLAN --> METAL["Custom Metal"]
+    PLAN --> METAL["Direct Metal programs"]
     PLAN --> COREML["Supported Core ML"]
-    PLAN --> ANE["Isolated ANE research"]
+    PLAN --> ANE["Bounded ANE programs"]
     BATCH --> KV["KV + prefix cache"]
     BATCH --> RES["Weight residency + prefetch"]
     RES --> RAM["Unified memory"]
     RES --> SSD["Approved measured SSD"]
-    XPC -->|"bounded events + receipt"| HOST
 
-    LAB["Python Strata oracle/lab"] -->|"golden fixtures + evidence"| PLAN
+    LAB["Python ollm offline oracle/lab"] -->|"golden fixtures + evidence"| PLAN
 ```
 
-The boundary is deliberate: Common Compute owns networking, leases, routing,
-billing, and provider lifecycle. Strata owns the persistent inference hot path:
-admission, batching, KV state, residency, prefetching, eviction, backend
-selection, and measurement. MLX and native adapters own tensor kernels.
+The boundary is deliberate: Strata owns model import, the persistent inference
+hot path, batching, KV state, residency, backend selection, and measurement.
+Integrators own their networking and business concepts. Python produces test
+fixtures and evidence but is not part of the production token hot path.
+
+See [docs/STANDALONE_RUNTIME.md](docs/STANDALONE_RUNTIME.md) for the native
+product boundary, implementation stack, portable-model/capsule split, and
+compute-engine ownership. See
+[docs/PERFORMANCE_CONTRACT.md](docs/PERFORMANCE_CONTRACT.md) for the benchmark
+vector, evidence ladder, competitor baselines, and promotion gates.
 
 See [docs/COMMON_COMPUTE_RUNTIME.md](docs/COMMON_COMPUTE_RUNTIME.md) for the
 canonical ownership map, XPC protocol, adaptation loop, migration waves, and
@@ -128,6 +135,8 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/storage/weight_pack_store.py` | Pack-backed group loading for residency and prefetch |
 | `src/ollm/scheduling/` | Residency manager, prefetch scheduler, and dense pipeline |
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
+| `docs/STANDALONE_RUNTIME.md` | Standalone library, CLI, daemon, adapter, and native SoC architecture |
+| `docs/PERFORMANCE_CONTRACT.md` | Benchmark dimensions, evidence ladder, suites, and promotion gates |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `docs/COMMON_COMPUTE_RUNTIME.md` | Common Compute boundary, adaptive objective, and native-runtime roadmap |
 | `docs/STRATA_ENGINE_ARCHITECTURE.md` | Detailed Strata engine modules, state machines, hot path, and build order |
@@ -135,6 +144,7 @@ state machine, hardware profile, and explicit limitations.
 | `docs/WAVE2_EVIDENCE.md` | Adaptive planner, weight pack, and direct-ANE projection proof |
 | `docs/WAVE3_EVIDENCE.md` | Callable ANE segment and pack-backed residency evidence |
 | `native/ane/` | Isolated private-runtime discovery and opt-in projection worker |
+| `native/metal/linear_projection_bench.mm` | Generated-fixture native CPU/direct-Metal projection benchmark |
 | `src/ollm/backends/ane_executor.py` | Bounded fixed-shape ANE request client |
 | `src/ollm/backends/ane_segment.py` | Exact StrataIR-to-ANE linear lowering |
 | `tests/` | Deterministic offline correctness suite |

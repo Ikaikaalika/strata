@@ -19,3 +19,20 @@ This is not yet an optimized LLM kernel. One GPU thread performs the reduction
 for one row, so the numerical and native-dispatch evidence is meaningful while
 the performance number is only a baseline for a later SIMD/threadgroup
 reduction.
+
+## Native FP16 projection benchmark
+
+The projection benchmark fixes one operator contract shared with the current
+bounded ANE probe: input `[64, 256]`, `out_in` weight `[256, 256]`, FP16 storage,
+FP32 accumulation, and output `[64, 256]`.
+
+```sh
+./native/metal/build_linear_bench.sh
+```
+
+It reports a native scalar CPU oracle, untiled and threadgroup-tiled direct-Metal
+wall/device times, numerical error, hardware identity, revision, warmups,
+iterations, and timing boundaries as JSON. The tiled variant stages a
+16-output by 8-token tile over 32-wide reduction slices. Both variants remain
+learning kernels. This is generated-fixture L2 kernel evidence, not a model
+tokens-per-second claim.
