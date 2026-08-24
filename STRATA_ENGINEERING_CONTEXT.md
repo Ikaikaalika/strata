@@ -1086,16 +1086,16 @@ The next implementation milestone is:
 ```text
 Versioned Common Compute request/state/admission/receipt schema
 + Swift mirror types and cross-language golden fixtures
-+ local provider feature-flag bridge to the verified MLX fallback
-+ restartable resident ANE worker with fingerprinted compiled-program caching
-+ repeated fixed-segment correctness and end-to-end latency measurements
-+ verified weight-pack-to-MLX decoder with copy and stall tracing
-+ one generated deterministic transformer block in StrataIR
-+ MLX baseline and heterogeneous segment alternatives with logits parity
++ deterministic streaming/cancellation fixture through the no-network XPC service
++ one pinned model in a persistent native MLX worker with mlx_llm parity
++ two-request continuous batching with independent streams and correct metering
++ adaptive KV/residency budgets and verified weight-pack-to-MLX copy tracing
++ restartable ANE worker and heterogeneous segments after the serving baseline
 ```
 
 This milestone must start with generated deterministic weights. Before any real
 checkpoint is downloaded, the user must choose the destination and approve its
 size. The MLX path remains the correctness oracle and fallback. Router-driven
-MoE expert groups and adaptive response to KV growth follow after the direct-ANE
-segment and dense paging measurements establish the M1's operating envelope.
+MoE expert groups and direct-ANE expansion follow after the persistent,
+correctly metered serving path and adaptive memory loop establish a measurable
+baseline.

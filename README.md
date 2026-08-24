@@ -55,29 +55,33 @@ correctness baseline.
 
 ```mermaid
 flowchart TD
-    API["Python API / CLI / learning labs"] --> MODEL["Model adapter"]
-    MODEL --> IR["StrataIR graph"]
-    IR --> PLAN
-    PLAN --> RES["Residency manager"]
-    PLAN --> KV["KV-cache manager"]
-    PLAN --> TRACE["Tensor and performance tracer"]
+    CLIENT["Common Compute client"] --> ROUTER["Fleet router"]
+    ROUTER --> HOST["Swift provider host"]
+    HOST -->|"fixed request + cancellation"| XPC["Persistent no-network Strata XPC"]
+    XPC --> ADMIT["Live admission + memory budget"]
+    ADMIT --> BATCH["Prefill/decode batch scheduler"]
+    BATCH --> PLAN["Evidence-gated segment planner"]
+    PLAN --> MLX["MLX compatibility baseline"]
+    PLAN --> METAL["Custom Metal"]
+    PLAN --> COREML["Supported Core ML"]
+    PLAN --> ANE["Isolated ANE research"]
+    BATCH --> KV["KV + prefix cache"]
+    BATCH --> RES["Weight residency + prefetch"]
+    RES --> RAM["Unified memory"]
+    RES --> SSD["Approved measured SSD"]
+    XPC -->|"bounded events + receipt"| HOST
 
-    MODEL --> RUNTIME["Runtime adapter"]
-    RUNTIME --> MLX["MLX backend"]
-    RUNTIME --> COREML["Future Core ML backend"]
-    RUNTIME --> METAL["Custom Metal lane"]
-    RUNTIME --> ANE["Isolated private-ANE lane"]
-    PLAN --> CPU["CPU correctness oracle"]
-
-    RES --> STORE["Runtime-neutral tensor store"]
-    STORE --> PACK["Versioned weight pack"]
-    PACK --> SSD["SSD model storage"]
-    RES --> RAM["Unified-memory cache"]
+    LAB["Python Strata oracle/lab"] -->|"golden fixtures + evidence"| PLAN
 ```
 
-The architectural boundary is deliberate: Strata should own residency,
-prefetching, eviction, cache policy, and measurement. MLX or another runtime
-should own tensor computation and device kernels.
+The boundary is deliberate: Common Compute owns networking, leases, routing,
+billing, and provider lifecycle. Strata owns the persistent inference hot path:
+admission, batching, KV state, residency, prefetching, eviction, backend
+selection, and measurement. MLX and native adapters own tensor kernels.
+
+See [docs/COMMON_COMPUTE_RUNTIME.md](docs/COMMON_COMPUTE_RUNTIME.md) for the
+canonical ownership map, XPC protocol, adaptation loop, migration waves, and
+acceptance gates.
 
 ## Strata Governor
 
@@ -176,14 +180,16 @@ measurement overhead and should be disabled for throughput benchmarks.
 
 1. Freeze the versioned Common Compute request, live-state, admission, and
    receipt schema; mirror it in Swift with cross-language golden fixtures.
-2. Replace per-call ANE compilation with a restartable resident worker and a
-   fingerprinted compiled-program cache.
-3. Add verified MLX and Metal decoders for pack-backed residency, with explicit
-   host/runtime copy accounting.
-4. Grow the ANE operator corpus and exact envelopes into one deterministic
-   transformer block, then measure full-plan MLX and heterogeneous alternatives.
-5. Add decode-capable shapes, adaptive KV-aware budgets, and router-driven MoE
-   expert paging only after end-to-end measurements justify them.
+2. Prove fixed-request streaming, cancellation, path confinement, and restart
+   through the no-network XPC service with a generated fixture.
+3. Run one pinned model in a persistent native MLX XPC worker with exact
+   `mlx_llm` compatibility and fallback.
+4. Add bounded continuous batching with separate/chunked prefill and one-token
+   decode scheduling, independent streams, fairness, and cancellation.
+5. Connect adaptive KV/residency budgets and qualified SSD paging with explicit
+   host/runtime copy and demand-stall accounting.
+6. Grow Metal/Core ML/ANE operation envelopes into verified transformer
+   segments and keep only alternatives that improve the full serving plan.
 
 See [STRATA_ENGINEERING_CONTEXT.md](STRATA_ENGINEERING_CONTEXT.md) for the full
 technical design and teaching context.
