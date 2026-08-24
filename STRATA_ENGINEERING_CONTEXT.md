@@ -2,6 +2,12 @@
 
 This document is the shared design and learning context for Strata. Future work should use it as the project reference.
 
+The canonical detailed internal engine design is
+[`docs/STRATA_ENGINE_ARCHITECTURE.md`](docs/STRATA_ENGINE_ARCHITECTURE.md).
+The canonical Common Compute/Strata ownership and native service boundary is
+[`docs/COMMON_COMPUTE_RUNTIME.md`](docs/COMMON_COMPUTE_RUNTIME.md). This context
+document retains the teaching-oriented explanation and historical roadmap.
+
 ## 1. Project identity
 
 **Project name:** Strata

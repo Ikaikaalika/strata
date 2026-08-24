@@ -83,6 +83,11 @@ See [docs/COMMON_COMPUTE_RUNTIME.md](docs/COMMON_COMPUTE_RUNTIME.md) for the
 canonical ownership map, XPC protocol, adaptation loop, migration waves, and
 acceptance gates.
 
+See [docs/STRATA_ENGINE_ARCHITECTURE.md](docs/STRATA_ENGINE_ARCHITECTURE.md)
+for the high-detail internal engine design: modules and ownership, request and
+model state machines, continuous batching, KV and weight memory accounting,
+backend handoffs, failure recovery, evidence, and implementation order.
+
 ## Strata Governor
 
 The first rearchitected runtime slice is a persistent Apple Silicon memory
@@ -125,6 +130,7 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `docs/COMMON_COMPUTE_RUNTIME.md` | Common Compute boundary, adaptive objective, and native-runtime roadmap |
+| `docs/STRATA_ENGINE_ARCHITECTURE.md` | Detailed Strata engine modules, state machines, hot path, and build order |
 | `docs/WAVE1_EVIDENCE.md` | Local M1 CPU, Metal, and ANE evidence and limitations |
 | `docs/WAVE2_EVIDENCE.md` | Adaptive planner, weight pack, and direct-ANE projection proof |
 | `docs/WAVE3_EVIDENCE.md` | Callable ANE segment and pack-backed residency evidence |
