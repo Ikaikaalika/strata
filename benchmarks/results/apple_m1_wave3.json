@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "hardware": {
+    "chip": "Apple M1",
+    "hardware_fingerprint": "72c25f35229e76d33cf9ea2c73406ce51777ae986b66d2ec5dd1ed4cc7c6ab98",
+    "macos_build": "25F84",
+    "macos_version": "26.5.2"
+  },
+  "lanes": {
+    "ane_linear_request": {
+      "cleanup_error": "",
+      "compile_succeeded": true,
+      "correctness_reference": "NumPy float32 accumulation followed by float16 cast",
+      "dispatch_evaluate_only_ms": 0.31197071075439453,
+      "dispatch_succeeded": true,
+      "dtype": "float16",
+      "end_to_end_compile_inclusive_ms": 366.167625,
+      "evidence_kind": "hardware",
+      "input_shape": [
+        64,
+        256
+      ],
+      "layout_boundary": "logical token-major to IOSurface channel-major and back",
+      "load_succeeded": true,
+      "max_abs_error": 0.000335693359375,
+      "mean_abs_error": 0.0000614944874541834,
+      "measured_iterations": 1,
+      "output_finite": true,
+      "output_written": true,
+      "phase": "prefill",
+      "random_seed": 20260820,
+      "warmup_iterations": 0,
+      "weight_layout": "out_in",
+      "weight_shape": [
+        256,
+        256
+      ]
+    },
+    "exact_operation_envelope": {
+      "evidence_kind": "correctness",
+      "input_shapes": [
+        [
+          64,
+          256
+        ],
+        [
+          256,
+          256
+        ]
+      ],
+      "operation": "linear",
+      "output_shapes": [
+        [
+          64,
+          256
+        ]
+      ],
+      "required_attributes": {
+        "weight_layout": "out_in"
+      },
+      "supported_phases": [
+        "prefill"
+      ],
+      "symbolic_shapes_accepted": false
+    },
+    "external_weight_pack_observation": {
+      "alignment_bytes": 4096,
+      "device_media_name": "Dual SATA Bridge",
+      "device_media_type": "hdd",
+      "evidence_kind": "hardware",
+      "eligible_for_ssd_planning": false,
+      "first_exact_range_read": {
+        "bytes": 16777216,
+        "effective_bytes_per_second": 1647018539.1996505,
+        "wall_time_ms": 10.186416000000031
+      },
+      "mount": "/Volumes/Tyler HDD",
+      "payload_bytes": 16777216,
+      "protocol": "USB",
+      "qualification_status": "excluded_from_ssd_qualification",
+      "second_exact_range_read": {
+        "bytes": 16777216,
+        "effective_bytes_per_second": 1623811072.396437,
+        "wall_time_ms": 10.332000000000008
+      },
+      "solid_state": false,
+      "source_checkout_only": true,
+      "temporary_file_removed": true,
+      "write": {
+        "bytes": 16777216,
+        "effective_bytes_per_second": 62461247.49629563,
+        "wall_time_ms": 268.60200000000003
+      }
+    },
+    "weight_pack_residency": {
+      "bytes_loaded": 12,
+      "cold_misses": 1,
+      "computed_value": 6,
+      "evidence_kind": "correctness",
+      "evicted_groups": [
+        "layer.0"
+      ],
+      "final_resident_groups": [
+        "layer.1",
+        "layer.2"
+      ],
+      "prefetch_outcomes": 2,
+      "residency_budget_bytes": 8
+    }
+  },
+  "limitations": [
+    "The ANE request recompiles and reloads the program on every call; its evaluate-only dispatch time is not end-to-end latency.",
+    "The ANE segment supports one fixed prefill projection, no bias, no decode shape, and no full transformer block.",
+    "The user confirmed that /Volumes/Tyler HDD is an HDD; this historical observation is excluded from SSD qualification and planner decisions.",
+    "The external HDD file was read immediately after writing without cache eviction, so read timings are not cold-media bandwidth.",
+    "No real model, token throughput, energy, memory-pressure, direct storage-to-accelerator, or simultaneous CPU/GPU/ANE result is claimed."
+  ]
+}

@@ -1,89 +1,67 @@
-# Model Status - MLX-Only Implementation
+# Strata implementation status
 
-## Summary
+This file distinguishes locally verified behavior from adapter scaffolding and
+future work. It is not a real-model benchmark report.
 
-This project has been successfully converted to **MLX-only** (no PyTorch dependencies). All PyTorch/torch code has been removed and replaced with MLX implementations.
+## Verified locally
 
-## Fully Working Models ✅
+The deterministic offline suite verifies the following on MLX:
 
-### DeepSeek Models
-- **deepseek-coder-1.3b** ✅ - Fully tested and working
-  - Load time: ~0.1s
-  - Inference: ~10-20 tok/s
-  - Memory: ~2.6GB
+| Area | Evidence |
+|---|---|
+| Grouped-query attention | MLX output matches an independent NumPy reference |
+| Causal masking | Future values cannot affect earlier token outputs |
+| RoPE | Query and key rotation matches a NumPy reference |
+| Prefill/decode split | Generation submits the full prompt once, then one token per call |
+| KV cache | Values and per-layer lengths append correctly; replayed positions fail closed |
+| End-to-end tiny models | Cached decode logits match full causal forward passes in two-layer Llama and DeepSeek fixtures |
+| Disk cache round trip | Serialized keys and values restore without numerical change |
+| Tracing | Phase, layer, tensor shape/dtype/bytes, duration, and MLX memory are recorded |
+| Strata Governor | Hard byte budget, pinned-layer safety, exact prefetch ordering, LRU eviction, demand fallback, and warm reuse are deterministic tests |
+| Governed Llama | Output matches the non-governed path and a full-budget second forward performs no layer reloads |
 
-- **deepseek-coder-6.7b** ⚠️ - Implementation ready (needs weight files)
-  - All code paths functional
-  - Requires full model download (~13GB)
+Run:
 
-## Models Requiring HuggingFace Authentication 🔐
-
-These models work with the codebase but require HuggingFace authentication:
-
-- **llama3-1B-chat** - Requires accepting license on HuggingFace
-- **llama3-3B-chat** - Requires accepting license on HuggingFace
-- **llama3-8B-chat** - Requires accepting license on HuggingFace
-- **gemma3-12B** - Requires accepting license on HuggingFace
-
-**To use these models:**
-1. Accept the model license on HuggingFace
-2. Login: `huggingface-cli login`
-3. Models will auto-download via `mlx-lm`
-
-## Not Yet Implemented ⏳
-
-- **qwen3-next-80B** - MLX implementation needed
-- **gpt-oss-20B** - Requires mxfp4 unpacking support
-
-## Testing
-
-Run the automated test suite:
 ```bash
-python3 test_models_automated.py
+PYTHONPATH=src python -m pytest -q
 ```
 
-Test a specific model:
-```bash
-python3 test_single_model.py deepseek-coder-1.3b
-```
+No network access or model weights are required.
 
-## Key Changes from PyTorch Version
+## Adapter status
 
-1. **Removed PyTorch Dependencies**
-   - All `torch` imports removed
-   - Using MLX's native safetensors loading
-   - MLX-optimized attention kernels
+| Model family | Current state |
+|---|---|
+| Llama | Custom MLX adapter has a deterministic two-layer correctness fixture; `mlx_lm` loading is also available in `Inference` |
+| DeepSeek | Llama-like custom adapter has the same deterministic two-layer cached-versus-full correctness coverage; a current real-model validation run is still required |
+| Qwen3-Next | Not implemented in the active MLX execution path |
+| Gemma 3 | Not implemented in the active custom MLX execution path |
+| GPT-OSS | Not implemented; packed MXFP4 support is required |
 
-2. **MLX Backend Only**
-   - Removed `torch_backend.py`
-   - Default backend is now MLX
-   - Native Metal GPU acceleration on Apple Silicon
+Model availability, license gates, and weight downloads are not treated as
+proof of adapter correctness. Each real model still needs an explicit,
+reproducible validation report.
 
-3. **Safetensors Loading**
-   - Direct loading via MLX utils
-   - Supports both single-file and sharded formats
-   - Handles bfloat16 natively
+## Memory-tiering status
 
-4. **Working Models**
-   - DeepSeek models fully functional
-   - Llama models ready (need auth)
-   - Clean, PyTorch-free codebase
+- The custom Llama and DeepSeek adapters can use the persistent Strata Governor
+  when constructed with a weight loader and `memory_budget_bytes`.
+- The governor reserves expected bytes before I/O, pins the active layer,
+  prefetches the next exact dense layer, and evicts only unpinned LRU entries.
+- MLX execution is materialized per layer before model references are cleared,
+  preventing a lazy graph from retaining every prior layer's weights.
+- `MLXKVCache` supports memory-only operation and explicit SSD serialization.
+- Weight load time, effective bandwidth, cache status, demand stall, layer
+  compute time, and MLX memory counters are traced separately.
+- The current overlap benchmark is synthetic. Actual SSD files, model-token
+  throughput, page-cache conditions, and memory-pressure behavior remain to be
+  measured.
+- MoE expert loading code is scaffolding, not a completed router-driven paging
+  implementation.
 
-## Performance
+## Next validation milestone
 
-On Apple M1/M2/M3:
-- **deepseek-coder-1.3b**: ~10-20 tokens/sec
-- **Optimized for Metal**: Native GPU acceleration
-- **Low memory overhead**: Efficient MLX memory management
-
-## Dependencies
-
-Core (MLX-only):
-```
-mlx>=0.23.0
-mlx-lm>=0.22.0
-transformers>=4.55.0
-safetensors>=0.4.0
-```
-
-No PyTorch, no CUDA, no flash-attention required!
+1. Benchmark real layer files on the target storage device.
+2. Adapt standard `mlx_lm` modules to governed layer leases.
+3. Make the residency budget respond to KV-cache growth and memory pressure.
+4. Add router-driven MoE expert groups only after dense paging is measured.

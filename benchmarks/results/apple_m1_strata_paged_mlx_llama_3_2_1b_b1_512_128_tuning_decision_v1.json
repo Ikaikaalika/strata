@@ -1,0 +1,75 @@
+{
+  "captured_at_utc": "2026-08-25T02:27:30.720209+00:00",
+  "claim_boundary": "Deterministic selection from supplied comparable measurements; not a new hardware run and not transferable to another fingerprint.",
+  "evaluations": [
+    {
+      "candidate": {
+        "candidate_id": "cap640mib-pd0-io1-pin14",
+        "decode_tokens_per_second": 6.3580689324709265,
+        "exact_token_parity": true,
+        "io_workers": 1,
+        "max_resident_weight_bytes": 671088640,
+        "peak_memory_gb": 1.0021521,
+        "pinned_layer_count": 14,
+        "prefetch_distance": 0,
+        "ttft_ms": 1038.605000008829
+      },
+      "eligible": true,
+      "rejection_reasons": [],
+      "score": 1.1551613297200443,
+      "source": "/Volumes/Tyler HDD/strata/benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd0_io1_v1.json"
+    },
+    {
+      "candidate": {
+        "candidate_id": "cap640mib-pd1-io1-pin13",
+        "decode_tokens_per_second": 5.719360300791843,
+        "exact_token_parity": true,
+        "io_workers": 1,
+        "max_resident_weight_bytes": 671088640,
+        "peak_memory_gb": 1.0021521,
+        "pinned_layer_count": 13,
+        "prefetch_distance": 1,
+        "ttft_ms": 1119.2496250150725
+      },
+      "eligible": true,
+      "rejection_reasons": [],
+      "score": 1.0418155874028767,
+      "source": "/Volumes/Tyler HDD/strata/benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd1_io1_v1.json"
+    }
+  ],
+  "evidence_kind": "hardware-evidence-synthesis",
+  "fingerprint": [
+    "commoncompute-apple-m1-16gb-model-ladder-v1",
+    "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    "08231374eeacb049a0eade7922910865b8fce912",
+    "Apple M1",
+    "25F84",
+    512,
+    128,
+    1,
+    "greedy",
+    false
+  ],
+  "objective": {
+    "decode_weight": 1.0,
+    "max_peak_memory_gb": 1.05,
+    "max_ttft_ms": null,
+    "memory_weight": 0.0,
+    "min_decode_tokens_per_second": null,
+    "ttft_weight": 0.1
+  },
+  "runner": "strata-paged-mlx-tuner",
+  "schema_version": 1,
+  "selected": {
+    "candidate_id": "cap640mib-pd0-io1-pin14",
+    "decode_tokens_per_second": 6.3580689324709265,
+    "exact_token_parity": true,
+    "io_workers": 1,
+    "max_resident_weight_bytes": 671088640,
+    "peak_memory_gb": 1.0021521,
+    "pinned_layer_count": 14,
+    "prefetch_distance": 0,
+    "source": "/Volumes/Tyler HDD/strata/benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd0_io1_v1.json",
+    "ttft_ms": 1038.605000008829
+  }
+}

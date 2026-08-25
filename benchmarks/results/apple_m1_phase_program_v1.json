@@ -1,0 +1,128 @@
+{
+  "benchmark": "strata-native-linear-projection",
+  "correctness": {
+    "maximum_allowed_abs_error": 0.01,
+    "passed": true,
+    "phase_max_abs_error": 0,
+    "phase_mean_abs_error": 0,
+    "reference": "native scalar CPU float32 accumulation followed by float16 cast",
+    "tiled_max_abs_error": 0,
+    "tiled_mean_abs_error": 0,
+    "untiled_max_abs_error": 0,
+    "untiled_mean_abs_error": 0
+  },
+  "evidence_kind": "hardware",
+  "failure_reason": null,
+  "hardware": {
+    "architecture": "arm64",
+    "chip": "Apple M1",
+    "logical_cpu_count": 8,
+    "macos_build": "25F84",
+    "macos_version": "Version 26.5.2 (Build 25F84)",
+    "physical_memory_bytes": 17179869184,
+    "thermal_state_after_run": "nominal"
+  },
+  "lanes": {
+    "cpu_scalar_reference": {
+      "median_gflops": 1.0221595637737229,
+      "optimization_role": "correctness reference, not optimized CPU baseline",
+      "sink": 0.010204315185546875,
+      "timing": {
+        "mean_ms": 8.2077008199999995,
+        "median_ms": 8.2067499999999995,
+        "minimum_ms": 7.5229999999999997,
+        "p95_ms": 8.6230840000000004
+      },
+      "timing_boundary": "one complete native scalar projection; output retained; excludes allocation and fixture generation"
+    },
+    "metal_direct_tiled": {
+      "gpu_device_timing": {
+        "mean_ms": 0.064218328334391117,
+        "median_ms": 0.064229185227304697,
+        "minimum_ms": 0.06274995394051075,
+        "p95_ms": 0.065833330154418945
+      },
+      "kernel": "16-output by 8-token threadgroup tile with 32-wide staged K slices",
+      "median_device_gflops": 130.60430348467023,
+      "median_device_latency_reduction_percent_vs_untiled": 56.583551901086977,
+      "median_wall_gflops": 31.971765656473259,
+      "median_wall_latency_reduction_percent_vs_untiled": 24.332948810382124,
+      "timing_boundary": "fresh command buffer and encoder creation, encode, commit, GPU execution, and wait; persistent pipeline and buffers; excludes compilation, allocation, and warmup",
+      "wall_timing": {
+        "mean_ms": 0.26668505999999997,
+        "median_ms": 0.26237549999999998,
+        "minimum_ms": 0.22770799999999999,
+        "p95_ms": 0.311917
+      }
+    },
+    "metal_direct_untiled": {
+      "gpu_device_timing": {
+        "mean_ms": 0.14778249664232135,
+        "median_ms": 0.14793744776397943,
+        "minimum_ms": 0.14212506357580423,
+        "p95_ms": 0.15149998944252729
+      },
+      "kernel": "one output element per thread; untiled correctness baseline",
+      "median_device_gflops": 56.703749637368702,
+      "median_wall_gflops": 24.192092285508291,
+      "timing_boundary": "fresh command buffer and encoder creation, encode, commit, GPU execution, and wait; persistent pipeline and buffers; excludes compilation, allocation, and warmup",
+      "wall_timing": {
+        "mean_ms": 0.34887488000000011,
+        "median_ms": 0.34675,
+        "minimum_ms": 0.31191600000000003,
+        "p95_ms": 0.38379099999999999
+      }
+    },
+    "metal_tiled_phase_program": {
+      "dispatches_per_command_buffer": 16,
+      "median_device_gflops": 137.98352781082153,
+      "median_gpu_device_ms_per_projection": 0.060794271121267229,
+      "median_wall_gflops": 111.94722660689152,
+      "median_wall_latency_reduction_percent_vs_single_tiled": 71.440323601098427,
+      "median_wall_ms_per_projection": 0.074933593749999999,
+      "optimization_role": "command submission amortization proxy for a persistent phase program",
+      "timing_boundary": "one command buffer and compute encoder containing sixteen independent tiled projections; reports total and amortized per-projection latency; includes encode, commit, GPU execution, and wait",
+      "total_gpu_device_timing": {
+        "mean_ms": 0.97255000146105886,
+        "median_ms": 0.97270833794027567,
+        "minimum_ms": 0.96416659653186798,
+        "p95_ms": 0.97737496253103018
+      },
+      "total_wall_timing": {
+        "mean_ms": 1.1992707999999999,
+        "median_ms": 1.1989375,
+        "minimum_ms": 1.1515420000000001,
+        "p95_ms": 1.249708
+      }
+    }
+  },
+  "limitations": [
+    "The CPU lane is a scalar correctness reference and does not represent Accelerate or BNNS performance.",
+    "Both Metal kernels are learning baselines, not production transformer kernels.",
+    "The phase-program lane repeats one independent projection sixteen times; it measures dispatch amortization, not a transformer layer graph or token throughput.",
+    "The fixed shape matches the bounded ANE prefill envelope but this executable does not dispatch ANE.",
+    "This generated fixture is not a token-throughput or real-model benchmark."
+  ],
+  "measured_iterations": 50,
+  "operation": {
+    "accumulator_dtype": "float32",
+    "dtype": "float16",
+    "fixture": "analytic_sine_cosine_v1",
+    "input_shape": [64, 256],
+    "kind": "linear",
+    "output_shape": [64, 256],
+    "phase": "prefill",
+    "weight_layout": "out_in",
+    "weight_shape": [256, 256]
+  },
+  "schema_version": 1,
+  "software": {
+    "dirty": true,
+    "executable": "native Objective-C++ and direct Metal; no Python hot path",
+    "metal_language_standard": "metal3.1",
+    "revision": "111b3b9e0fdf9541f436d61b899105e9666377bb",
+    "sdk": "MacOSX26.2.sdk"
+  },
+  "success": true,
+  "warmup_iterations": 5
+}

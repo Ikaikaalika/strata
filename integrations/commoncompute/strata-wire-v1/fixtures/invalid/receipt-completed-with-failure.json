@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "message_type": "receipt",
+  "request_id": "req-fixture-0001",
+  "terminal_sequence": 2,
+  "status": "completed",
+  "finish_reason": "stop",
+  "completed_at_unix_ms": 1787630400550,
+  "output_text": "ok",
+  "usage": {"prompt_tokens": 18, "completion_tokens": 1, "total_tokens": 19},
+  "metrics": {"queue_ms": 2.5, "ttft_ms": 510.0, "inter_token_latency_ms": null, "decode_tokens_per_second": null, "peak_memory_bytes": 1211000000, "maximum_batch_size": 1},
+  "execution": {"backend": "mlx", "route": "direct_single_sequence", "plan_id": "plan-llama-short-m1-v1", "evidence_ids": [], "fallback_used": false},
+  "failure": {"code": "impossible", "stage": "partial_output", "retryable": false, "message": "Completed receipts cannot contain a failure."}
+}

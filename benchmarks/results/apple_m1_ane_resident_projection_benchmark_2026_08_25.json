@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-08-25T03:34:53Z",
+  "report": "strata-ane-resident-projection-benchmark",
+  "evidence_kind": "hardware",
+  "platform": {
+    "os": "macOS",
+    "version": "26.5.2",
+    "build": "25F84",
+    "architecture": "arm64",
+    "chip": "Apple M1"
+  },
+  "operation": {
+    "kind": "fp16_projection",
+    "logical_input_shape": [64, 256],
+    "logical_weight_shape": [256, 256],
+    "physical_shape": [1, 256, 1, 64],
+    "dtype": "float16"
+  },
+  "resident_lifecycle": {
+    "compile_once": true,
+    "load_once": true,
+    "request_reused": true,
+    "iosurfaces_reused": true,
+    "trials": 5,
+    "warmups_per_trial": 5,
+    "iterations_per_trial": 50,
+    "total_measured_dispatches": 250
+  },
+  "correctness": {
+    "numeric_verified": true,
+    "max_abs_error": 0.0,
+    "tolerance": 0.002
+  },
+  "trial_median_dispatch_ms": {
+    "minimum": 0.23502111434936523,
+    "median": 0.24950504302978516,
+    "mean": 0.2479076385498047,
+    "maximum": 0.25898218154907227
+  },
+  "trial_p95_dispatch_ms": {
+    "minimum": 0.2899169921875,
+    "median": 0.2980232238769531,
+    "mean": 0.30181407928466797,
+    "maximum": 0.31697750091552734
+  },
+  "trials": [
+    {"trial": 1, "median_ms": 0.24402141571044922, "p95_ms": 0.31006336212158203, "mean_ms": 0.24953365325927734, "minimum_ms": 0.20611286163330078, "maximum_ms": 0.31805038452148438},
+    {"trial": 2, "median_ms": 0.25200843811035156, "p95_ms": 0.29408931732177734, "mean_ms": 0.25063514709472656, "minimum_ms": 0.17797946929931641, "maximum_ms": 0.33295154571533203},
+    {"trial": 3, "median_ms": 0.25898218154907227, "p95_ms": 0.31697750091552734, "mean_ms": 0.25773048400878906, "minimum_ms": 0.18703937530517578, "maximum_ms": 0.34308433532714844},
+    {"trial": 4, "median_ms": 0.24950504302978516, "p95_ms": 0.29802322387695312, "mean_ms": 0.25078773498535156, "minimum_ms": 0.16999244689941406, "maximum_ms": 0.30303001403808594},
+    {"trial": 5, "median_ms": 0.23502111434936523, "p95_ms": 0.2899169921875, "mean_ms": 0.24019002914428711, "minimum_ms": 0.18608570098876953, "maximum_ms": 0.29706954956054688}
+  ],
+  "timing_scope": "evaluateWithQoS only on one compiled and loaded model with reused IOSurfaces and request",
+  "planner_eligible": false,
+  "success": true,
+  "claim_boundary": "Fixed projection warm-dispatch evidence only; excludes full LLM phase, layout bridges, sampling, and backend handoffs."
+}

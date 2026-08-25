@@ -1,0 +1,417 @@
+{
+  "captured_at_utc": "2026-08-25T02:20:03.716173+00:00",
+  "claim_boundary": "Strata Python/MLX quantized Llama paging laboratory with an explicit resident cap; not native Strata, cold-SSD throughput, direct SSD execution, ANE, or Common Compute evidence.",
+  "correctness": {
+    "mlx_lm_exact_greedy_token_parity": true,
+    "numerical_error": "not measured; exact greedy tokens only",
+    "repetition_token_invariance": true,
+    "requested_token_count_passed": true
+  },
+  "evidence_kind": "hardware",
+  "hardware": {
+    "architecture": "arm64",
+    "chip": "Apple M1",
+    "macos_build": "25F84",
+    "macos_version": "26.5.2",
+    "thermal_state_after_run": "nominal",
+    "unified_memory_bytes": 17179869184
+  },
+  "measurement": {
+    "download_timed": false,
+    "model_load_timed": false,
+    "timing_boundaries": {
+      "decode_tokens_per_second": "post-first generated tokens divided by host-observed decode interval",
+      "inter_token_latency_ms": "median interval between materialized sampled tokens",
+      "prompt_tokens_per_second": "prompt length divided by host-observed TTFT",
+      "ttft_ms": "before custom Strata model prefill to materialized first sampled token",
+      "weight_scheduler": "cumulative exact-range load work and acquire-visible stall inside each repetition"
+    },
+    "units": {
+      "latency": "milliseconds",
+      "memory": "decimal gigabytes from MLX peak allocation counter",
+      "throughput": "tokens per second",
+      "weight_bytes": "bytes"
+    }
+  },
+  "model": {
+    "artifact": {
+      "activation_dtype": "bfloat16",
+      "hidden_size": 2048,
+      "model_type": "llama",
+      "num_attention_heads": 32,
+      "num_hidden_layers": 16,
+      "num_key_value_heads": 8,
+      "weight_quantization": {
+        "bits": 4,
+        "group_size": 64
+      },
+      "weights": [
+        {
+          "bytes": 695283921,
+          "filename": "model.safetensors",
+          "sha256": "35e396644bca888eec399f9c0f843ec7fa78b8f8c5e06841661be62b4edf96dd"
+        }
+      ]
+    },
+    "local_snapshot": "/Users/tylergee/Library/Application Support/Strata/models/models--mlx-community--Llama-3.2-1B-Instruct-4bit/snapshots/08231374eeacb049a0eade7922910865b8fce912",
+    "model_id": "llama-3.2-1b",
+    "repo": "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    "revision": "08231374eeacb049a0eade7922910865b8fce912"
+  },
+  "repetitions": [
+    {
+      "aggregate_tokens_per_second_including_prefill": 5.09662152473794,
+      "decode_tokens_per_second": 5.935698862097649,
+      "inter_token_latency_ms": 166.82358388788998,
+      "peak_memory_gb": 1.0021521,
+      "prompt_tokens_per_second": 484.8935606979193,
+      "residency_after": {
+        "budget_bytes": 523333632,
+        "loading_bytes": 0,
+        "loading_keys": [],
+        "pinned_keys": [
+          "decoder.layer.0",
+          "decoder.layer.1",
+          "decoder.layer.2",
+          "decoder.layer.3",
+          "decoder.layer.4",
+          "decoder.layer.5",
+          "decoder.layer.6",
+          "decoder.layer.7",
+          "decoder.layer.8",
+          "decoder.layer.9",
+          "decoder.layer.10",
+          "decoder.layer.11"
+        ],
+        "resident_bytes": 513269760,
+        "resident_keys": [
+          "decoder.layer.0",
+          "decoder.layer.1",
+          "decoder.layer.2",
+          "decoder.layer.3",
+          "decoder.layer.4",
+          "decoder.layer.5",
+          "decoder.layer.6",
+          "decoder.layer.7",
+          "decoder.layer.8",
+          "decoder.layer.9",
+          "decoder.layer.10",
+          "decoder.layer.11",
+          "decoder.layer.13",
+          "decoder.layer.14",
+          "decoder.layer.15"
+        ],
+        "used_bytes": 513269760
+      },
+      "token_ids": [
+        [
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531
+        ]
+      ],
+      "ttft_ms": 1055.9018339263275,
+      "wall_time_seconds": 6.278669083956629,
+      "weight_scheduler": {
+        "bytes_loaded": 4414119936,
+        "cold_misses": 1,
+        "load_time_ms": 2953.4783005947247,
+        "prefetch_ready_hits": 56,
+        "prefetch_skips": 0,
+        "prefetch_waits": 72,
+        "resident_hits": 384,
+        "stall_time_ms": 475.60770146083087
+      }
+    },
+    {
+      "aggregate_tokens_per_second_including_prefill": 5.030346020615273,
+      "decode_tokens_per_second": 5.854020554693855,
+      "inter_token_latency_ms": 171.3665829738602,
+      "peak_memory_gb": 1.002184868,
+      "prompt_tokens_per_second": 480.37809134125473,
+      "residency_after": {
+        "budget_bytes": 523333632,
+        "loading_bytes": 0,
+        "loading_keys": [],
+        "pinned_keys": [
+          "decoder.layer.0",
+          "decoder.layer.1",
+          "decoder.layer.2",
+          "decoder.layer.3",
+          "decoder.layer.4",
+          "decoder.layer.5",
+          "decoder.layer.6",
+          "decoder.layer.7",
+          "decoder.layer.8",
+          "decoder.layer.9",
+          "decoder.layer.10",
+          "decoder.layer.11"
+        ],
+        "resident_bytes": 513269760,
+        "resident_keys": [
+          "decoder.layer.0",
+          "decoder.layer.1",
+          "decoder.layer.2",
+          "decoder.layer.3",
+          "decoder.layer.4",
+          "decoder.layer.5",
+          "decoder.layer.6",
+          "decoder.layer.7",
+          "decoder.layer.8",
+          "decoder.layer.9",
+          "decoder.layer.10",
+          "decoder.layer.11",
+          "decoder.layer.13",
+          "decoder.layer.14",
+          "decoder.layer.15"
+        ],
+        "used_bytes": 513269760
+      },
+      "token_ids": [
+        [
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531
+        ]
+      ],
+      "ttft_ms": 1065.827124984935,
+      "wall_time_seconds": 6.361391416983679,
+      "weight_scheduler": {
+        "bytes_loaded": 4414119936,
+        "cold_misses": 1,
+        "load_time_ms": 2972.8027132805437,
+        "prefetch_ready_hits": 57,
+        "prefetch_skips": 0,
+        "prefetch_waits": 71,
+        "resident_hits": 384,
+        "stall_time_ms": 480.8612323831767
+      }
+    },
+    {
+      "aggregate_tokens_per_second_including_prefill": 5.016901765658122,
+      "decode_tokens_per_second": 5.837110351716243,
+      "inter_token_latency_ms": 171.31179105490446,
+      "peak_memory_gb": 1.0021521,
+      "prompt_tokens_per_second": 479.6536001698521,
+      "residency_after": {
+        "budget_bytes": 523333632,
+        "loading_bytes": 0,
+        "loading_keys": [],
+        "pinned_keys": [
+          "decoder.layer.0",
+          "decoder.layer.1",
+          "decoder.layer.2",
+          "decoder.layer.3",
+          "decoder.layer.4",
+          "decoder.layer.5",
+          "decoder.layer.6",
+          "decoder.layer.7",
+          "decoder.layer.8",
+          "decoder.layer.9",
+          "decoder.layer.10",
+          "decoder.layer.11"
+        ],
+        "resident_bytes": 513269760,
+        "resident_keys": [
+          "decoder.layer.0",
+          "decoder.layer.1",
+          "decoder.layer.2",
+          "decoder.layer.3",
+          "decoder.layer.4",
+          "decoder.layer.5",
+          "decoder.layer.6",
+          "decoder.layer.7",
+          "decoder.layer.8",
+          "decoder.layer.9",
+          "decoder.layer.10",
+          "decoder.layer.11",
+          "decoder.layer.13",
+          "decoder.layer.14",
+          "decoder.layer.15"
+        ],
+        "used_bytes": 513269760
+      },
+      "token_ids": [
+        [
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531,
+          29531
+        ]
+      ],
+      "ttft_ms": 1067.4369999906048,
+      "wall_time_seconds": 6.378438625019044,
+      "weight_scheduler": {
+        "bytes_loaded": 4414119936,
+        "cold_misses": 1,
+        "load_time_ms": 2991.502748336643,
+        "prefetch_ready_hits": 54,
+        "prefetch_skips": 0,
+        "prefetch_waits": 74,
+        "resident_hits": 384,
+        "stall_time_ms": 465.7525848597288
+      }
+    }
+  ],
+  "runner": "strata-paged-mlx-lab",
+  "schema_version": 1,
+  "software": {
+    "mlx": "0.31.1",
+    "mlx_lm": "0.31.2",
+    "python": "3.13.5"
+  },
+  "summary": {
+    "aggregate_tokens_per_second_including_prefill": {
+      "mean": 5.047956437003778,
+      "median": 5.030346020615273,
+      "minimum": 5.016901765658122,
+      "p95": 5.09662152473794
+    },
+    "decode_tokens_per_second": {
+      "mean": 5.875609922835916,
+      "median": 5.854020554693855,
+      "minimum": 5.837110351716243,
+      "p95": 5.935698862097649
+    },
+    "inter_token_latency_ms": {
+      "mean": 169.83398597221822,
+      "median": 171.31179105490446,
+      "minimum": 166.82358388788998,
+      "p95": 171.3665829738602
+    },
+    "peak_memory_gb": {
+      "mean": 1.0021630226666667,
+      "median": 1.0021521,
+      "minimum": 1.0021521,
+      "p95": 1.002184868
+    },
+    "prompt_tokens_per_second": {
+      "mean": 481.6417507363421,
+      "median": 480.37809134125473,
+      "minimum": 479.6536001698521,
+      "p95": 484.8935606979193
+    },
+    "ttft_ms": {
+      "mean": 1063.0553196339558,
+      "median": 1065.827124984935,
+      "minimum": 1055.9018339263275,
+      "p95": 1067.4369999906048
+    }
+  },
+  "target_id": "commoncompute-apple-m1-16gb-model-ladder-v1",
+  "weight_residency": {
+    "cache_state": "uncontrolled warm file/page-cache state",
+    "runtime": {
+      "io_workers": 2,
+      "layer_residency_budget_bytes": 523333632,
+      "model_type": "llama",
+      "pinned_global_weight_bytes": 147755008,
+      "pinned_layer_count": 12,
+      "pinned_layer_weight_bytes": 410615808,
+      "prefetch_distance": 2,
+      "quantization_bits": 4,
+      "quantization_group_size": 64,
+      "snapshot": "/Users/tylergee/Library/Application Support/Strata/models/models--mlx-community--Llama-3.2-1B-Instruct-4bit/snapshots/08231374eeacb049a0eade7922910865b8fce912",
+      "storage_target_id": "approved-internal-ssd",
+      "total_layer_weight_bytes": 547487744
+    },
+    "ssd_offload_parameter": "required",
+    "storage_target_id": "approved-internal-ssd",
+    "strata_managed_paging": true
+  },
+  "workload": {
+    "batch_size": 1,
+    "output_tokens_per_sequence": 32,
+    "prefix_cache": false,
+    "prompt_tokens_per_sequence": 512,
+    "repetitions": 3,
+    "sampling": "greedy",
+    "warmups": 1
+  }
+}

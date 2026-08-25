@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
+from ..core.capabilities import RuntimeCapabilities
+
 
 class BackendError(RuntimeError):
     """Raised when a backend is unavailable or misconfigured."""
@@ -32,6 +34,10 @@ class Backend:
     def attention_kernel(self):
         """Return callable implementing grouped attention for the backend."""
         raise NotImplementedError
+
+    def capabilities(self) -> RuntimeCapabilities:
+        """Declare optional runtime features to the execution planner."""
+        return RuntimeCapabilities()
 
 
 @dataclass(frozen=True)

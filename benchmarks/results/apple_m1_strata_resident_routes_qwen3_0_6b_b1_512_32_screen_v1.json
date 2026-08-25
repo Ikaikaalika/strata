@@ -1,0 +1,399 @@
+{
+  "candidate_runs": [
+    {
+      "end_to_end_output_tokens_per_second": 41.499966597013156,
+      "inter_token_latency_ms": 9.474458987824619,
+      "token_ids": [
+        220,
+        334,
+        220,
+        16,
+        220,
+        16,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "ttft_ms": 482.387833064422,
+      "wall_time_seconds": 0.7710849579889327
+    },
+    {
+      "end_to_end_output_tokens_per_second": 41.6746593020401,
+      "inter_token_latency_ms": 9.55495797097683,
+      "token_ids": [
+        220,
+        334,
+        220,
+        16,
+        220,
+        16,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "ttft_ms": 475.03795800730586,
+      "wall_time_seconds": 0.7678527079988271
+    },
+    {
+      "end_to_end_output_tokens_per_second": 41.7881792920939,
+      "inter_token_latency_ms": 9.228874929249287,
+      "token_ids": [
+        220,
+        334,
+        220,
+        16,
+        220,
+        16,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "ttft_ms": 479.2779589770362,
+      "wall_time_seconds": 0.7657667919993401
+    }
+  ],
+  "captured_at_utc": "2026-08-25T03:44:04.002211+00:00",
+  "claim_boundary": "Paired warm hardware evidence for Strata route selection over the pinned MLX-LM compatibility backend; not a native Metal, ANE, SSD, provider, or Darkbloom comparison.",
+  "comparison": {
+    "batch_one_route_promotion_passed": true,
+    "candidate_repetition_token_invariance": true,
+    "candidate_summary": {
+      "end_to_end_output_tokens_per_second": {
+        "maximum": 41.7881792920939,
+        "mean": 41.65426839704905,
+        "median": 41.6746593020401,
+        "minimum": 41.499966597013156
+      },
+      "inter_token_latency_ms": {
+        "maximum": 9.55495797097683,
+        "mean": 9.419430629350245,
+        "median": 9.474458987824619,
+        "minimum": 9.228874929249287
+      },
+      "ttft_ms": {
+        "maximum": 482.387833064422,
+        "mean": 478.90125001625466,
+        "median": 479.2779589770362,
+        "minimum": 475.03795800730586
+      },
+      "wall_time_seconds": {
+        "maximum": 0.7710849579889327,
+        "mean": 0.7682348193290333,
+        "median": 0.7678527079988271,
+        "minimum": 0.7657667919993401
+      }
+    },
+    "control_repetition_token_invariance": true,
+    "control_summary": {
+      "end_to_end_output_tokens_per_second": {
+        "maximum": 38.68714370481548,
+        "mean": 38.51021342936789,
+        "median": 38.65239240588633,
+        "minimum": 38.19110417740185
+      },
+      "inter_token_latency_ms": {
+        "maximum": 9.838500060141087,
+        "mean": 9.659333348584672,
+        "median": 9.742749971337616,
+        "minimum": 9.396750014275312
+      },
+      "ttft_ms": {
+        "maximum": 520.4559580888599,
+        "mean": 517.6015140023082,
+        "median": 520.3114589676261,
+        "minimum": 512.0371249504387
+      },
+      "wall_time_seconds": {
+        "maximum": 0.8378914589993656,
+        "mean": 0.830977152994213,
+        "median": 0.8278918330324814,
+        "minimum": 0.8271481669507921
+      }
+    },
+    "exact_greedy_token_parity": true,
+    "median_improvement_percent": {
+      "end_to_end_output_tokens_per_second": 7.8190940017816555,
+      "inter_token_latency_ms": 2.7537500634039467,
+      "ttft_ms": 7.886334095352497,
+      "wall_time_seconds": 7.252049439083995
+    },
+    "promotion_thresholds": {
+      "minimum_end_to_end_improvement_percent": 2.0,
+      "minimum_inter_token_improvement_percent": -2.0,
+      "minimum_ttft_improvement_percent": 0.0
+    }
+  },
+  "control_runs": [
+    {
+      "end_to_end_output_tokens_per_second": 38.19110417740185,
+      "inter_token_latency_ms": 9.742749971337616,
+      "token_ids": [
+        220,
+        334,
+        220,
+        16,
+        220,
+        16,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "ttft_ms": 520.3114589676261,
+      "wall_time_seconds": 0.8378914589993656
+    },
+    {
+      "end_to_end_output_tokens_per_second": 38.65239240588633,
+      "inter_token_latency_ms": 9.396750014275312,
+      "token_ids": [
+        220,
+        334,
+        220,
+        16,
+        220,
+        16,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "ttft_ms": 520.4559580888599,
+      "wall_time_seconds": 0.8278918330324814
+    },
+    {
+      "end_to_end_output_tokens_per_second": 38.68714370481548,
+      "inter_token_latency_ms": 9.838500060141087,
+      "token_ids": [
+        220,
+        334,
+        220,
+        16,
+        220,
+        16,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15,
+        15
+      ],
+      "ttft_ms": 512.0371249504387,
+      "wall_time_seconds": 0.8271481669507921
+    }
+  ],
+  "evidence_kind": "hardware",
+  "hardware": {
+    "architecture": "arm64",
+    "chip": "Apple M1",
+    "macos_build": "25F84",
+    "macos_version": "26.5.2",
+    "thermal_state_after_run": "nominal",
+    "unified_memory_bytes": 17179869184
+  },
+  "measurement": {
+    "download_timed": false,
+    "model_load_timed": false,
+    "run_order": [
+      [
+        "control",
+        "candidate"
+      ],
+      [
+        "candidate",
+        "control"
+      ],
+      [
+        "control",
+        "candidate"
+      ]
+    ],
+    "timing_boundary": "host wall clock immediately before route iteration through requested final token"
+  },
+  "model": {
+    "artifact": {
+      "activation_dtype": "bfloat16",
+      "hidden_size": 1024,
+      "model_type": "qwen3",
+      "num_attention_heads": 16,
+      "num_hidden_layers": 28,
+      "num_key_value_heads": 8,
+      "weight_quantization": {
+        "bits": 4,
+        "group_size": 64
+      },
+      "weights": [
+        {
+          "bytes": 335450584,
+          "filename": "model.safetensors",
+          "sha256": "392e8d466d56100ada00eb82031fb854297fc9e389b7d303eba3af114e87bce2"
+        }
+      ]
+    },
+    "local_snapshot": "/Users/tylergee/Library/Application Support/Strata/models/models--mlx-community--Qwen3-0.6B-4bit/snapshots/73e3e38d981303bc594367cd910ea6eb48349da8",
+    "model_id": "qwen3-0.6b",
+    "repo": "mlx-community/Qwen3-0.6B-4bit",
+    "revision": "73e3e38d981303bc594367cd910ea6eb48349da8"
+  },
+  "routes": {
+    "candidate": "Strata batch-one policy using MLX-LM generate_step directly",
+    "control": "MLX-LM BatchGenerator continuous-batching path at batch one"
+  },
+  "runner": "strata-resident-mlx-route-comparison",
+  "schema_version": 1,
+  "software": {
+    "mlx": "0.31.1",
+    "mlx_lm": "0.31.2",
+    "python": "3.13.5"
+  },
+  "target_id": "commoncompute-apple-m1-16gb-model-ladder-v1",
+  "weight_residency": {
+    "manager": "mlx-lm",
+    "model_load_lazy": false,
+    "semantics": "fully materialized warm model; no explicit or OS-managed offload",
+    "ssd_offload_parameter": "disabled",
+    "strata_managed_paging": false
+  },
+  "workload": {
+    "batch_size": 1,
+    "output_tokens_per_sequence": 32,
+    "prefill_step_size": 2048,
+    "prefix_cache": false,
+    "prompt_tokens_per_sequence": 512,
+    "repetitions_per_route": 3,
+    "sampling": "greedy",
+    "warmups_per_route": 1
+  }
+}

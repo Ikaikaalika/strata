@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "hardware": {
+    "chip": "Apple M1",
+    "cpu_logical_cores": 8,
+    "gpu_recommended_working_set_bytes": 12713115648,
+    "macos_build": "25F84",
+    "macos_version": "26.5.2",
+    "unified_memory_bytes": 17179869184
+  },
+  "lanes": {
+    "ane": {
+      "available": false,
+      "compile_attempted": false,
+      "compiler_class": "_ANEInMemoryModel",
+      "descriptor_class": "_ANEInMemoryModelDescriptor",
+      "discovered": true,
+      "dispatch_attempted": false,
+      "evidence_kind": "hardware",
+      "execution_verified": false,
+      "numeric_verified": false,
+      "required_surface_satisfied": true,
+      "schedulable_compute_units": []
+    },
+    "cpu_reference": {
+      "evidence_kind": "correctness",
+      "operations": [
+        "linear",
+        "normalization",
+        "residual",
+        "activation",
+        "logits"
+      ],
+      "optimized": false
+    },
+    "metal": {
+      "device_name": "Apple M1",
+      "dispatch_success": true,
+      "dtype": "float32",
+      "evidence_kind": "hardware",
+      "numerical_max_error": 2.384185791015625e-07,
+      "operation": "rmsnorm_residual_f32",
+      "shape": [
+        64,
+        1024
+      ],
+      "timing": {
+        "average_dispatch_wall_time_ms": 0.84222915,
+        "measured_iterations": 20,
+        "method": "serial wall clock around commit plus waitUntilCompleted; excludes library load, allocation, and warmup",
+        "total_wall_time_ms": 16.844583,
+        "warmup_iterations": 3
+      }
+    }
+  },
+  "limitations": [
+    "The Metal probe is a fixed-shape float32 correctness baseline, not an optimized LLM kernel.",
+    "The ANE private runtime is discovered but no graph has been compiled or dispatched.",
+    "No real model, SSD throughput, token throughput, or energy result is included."
+  ]
+}

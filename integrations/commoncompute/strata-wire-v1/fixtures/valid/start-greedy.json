@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "message_type": "start",
+  "request_id": "req-fixture-0001",
+  "task_id": "task-fixture-0001",
+  "operation": "llm.generate",
+  "runtime_revision": "1111111111111111111111111111111111111111111111111111111111111111",
+  "created_at_unix_ms": 1787630400000,
+  "deadline_unix_ms": 1787630460000,
+  "model": {
+    "id": "llama-3.2-1b",
+    "revision": "08231374eeacb049a0eade7922910865b8fce912",
+    "artifact_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "adapter_id": "llama",
+    "quantization": "mlx-4bit-group64"
+  },
+  "messages": [
+    {"role": "system", "content": "Answer concisely."},
+    {"role": "user", "content": "Reply with exactly: ok"}
+  ],
+  "sampling": {
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "seed": 7,
+    "stop": []
+  },
+  "objective": {
+    "workload_class": "interactive",
+    "context_tokens": 512,
+    "max_output_tokens": 32,
+    "batch_size": 1,
+    "target_ttft_ms": 750.0,
+    "min_decode_tokens_per_second": 25.0
+  },
+  "memory": {
+    "max_runtime_memory_bytes": 4294967296,
+    "max_resident_weight_bytes": 1073741824,
+    "ssd_offload": "disabled"
+  },
+  "deployment_mode": "supported"
+}

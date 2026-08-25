@@ -73,6 +73,16 @@ class MLXWeights:
         """Check if a parameter exists in the manifest."""
         return name in self.manifest
 
+    def tensor_metadata(self, name: str) -> Dict[str, Any]:
+        """Return shape and dtype without reading tensor data."""
+        if name not in self.manifest:
+            raise KeyError(f"Parameter {name!r} is not present in the manifest")
+        meta = self.manifest[name]
+        if meta.get("packed") == "mxfp4":
+            raise NotImplementedError("mxfp4 metadata is not supported yet")
+        dtype = str(meta["dtype"]).replace("torch.", "")
+        return {"shape": tuple(meta["shape"]), "dtype": dtype}
+
     def load_param_to_device(self, name: str) -> mx.array:
         """
         Load a parameter from disk to MLX device.
@@ -276,6 +286,7 @@ class SafeTensorMLXReader:
             "F32": mx.float32,
             "F16": mx.float16,
             "BF16": mx.bfloat16,
+            "U32": mx.uint32,
             "I32": mx.int32,
             "I8": mx.int8,
         }
@@ -284,6 +295,7 @@ class SafeTensorMLXReader:
             "F32": np.float32,
             "F16": np.float16,
             "BF16": np.uint16,  # bfloat16 stored as uint16
+            "U32": np.uint32,
             "I32": np.int32,
             "I8": np.int8,
         }
@@ -378,6 +390,8 @@ class MLXMoEWeightsLoader:
                 f"Neither {index_path} nor {single_file_path} found"
             )
 
+        self.weight_map = dict(weight_map)
+
         # Parse weight map to group by layer/expert
         import re
         for manifest_name, filename in weight_map.items():
@@ -392,6 +406,39 @@ class MLXMoEWeightsLoader:
                 self.manifest[base][attr_path] = filename
 
         self.offloaded_map = {}
+
+    def _reader_for_tensor(self, name: str) -> SafeTensorMLXReader:
+        if name not in self.weight_map:
+            raise KeyError(f"Parameter {name!r} is not present in the weight map")
+        filename = self.weight_map[name]
+        if filename not in self.safetensors:
+            filepath = os.path.join(self.path, filename)
+            self.safetensors[filename] = SafeTensorMLXReader(filepath)
+        return self.safetensors[filename]
+
+    def load_tensor(self, name: str) -> mx.array:
+        """Load any indexed tensor, including embeddings and final norm."""
+
+        return self._reader_for_tensor(name).get_tensor(name)
+
+    def tensor_metadata_any(self, name: str) -> Dict[str, Any]:
+        """Return metadata for any indexed safetensor without reading payload."""
+
+        info = self._reader_for_tensor(name).header[name]
+        dtype_map = {
+            "F32": "float32",
+            "F16": "float16",
+            "BF16": "bfloat16",
+            "U32": "uint32",
+            "I32": "int32",
+            "I8": "int8",
+        }
+        start, end = info["data_offsets"]
+        return {
+            "shape": tuple(info["shape"]),
+            "dtype": dtype_map[info["dtype"]],
+            "nbytes": int(end - start),
+        }
 
     def load_dict_to_device(self, base: str) -> Dict[str, mx.array]:
         """
@@ -466,15 +513,42 @@ class MLXMoEWeightsLoader:
         if attr_path not in self.manifest[base]:
             raise KeyError(f"Parameter '{attr_path}' not found in base '{base}'")
 
-        filename = self.manifest[base][attr_path]
+        return self.load_tensor(name)
 
-        # Lazy-load safetensors file
+    def tensor_metadata(self, name: str) -> Dict[str, Any]:
+        """Return safetensor metadata without reading the tensor payload."""
+        import re
+
+        match = re.search(r"(model\.layers\.\d+\.mlp\.experts\.\d+\.)", name)
+        if not match:
+            match = re.search(r"(model\.layers\.\d+\.)", name)
+        if not match:
+            raise KeyError(f"Parameter {name!r} does not match an indexed layer")
+
+        base = match.group(1)
+        attr_path = name.replace(base, "")
+        if base not in self.manifest or attr_path not in self.manifest[base]:
+            raise KeyError(f"Parameter {name!r} is not present in the manifest")
+
+        filename = self.manifest[base][attr_path]
         if filename not in self.safetensors:
             filepath = os.path.join(self.path, filename)
             self.safetensors[filename] = SafeTensorMLXReader(filepath)
-
-        reader = self.safetensors[filename]
-        return reader.get_tensor(name)
+        info = self.safetensors[filename].header[name]
+        dtype_map = {
+            "F32": "float32",
+            "F16": "float16",
+            "BF16": "bfloat16",
+            "U32": "uint32",
+            "I32": "int32",
+            "I8": "int8",
+        }
+        start, end = info["data_offsets"]
+        return {
+            "shape": tuple(info["shape"]),
+            "dtype": dtype_map[info["dtype"]],
+            "nbytes": int(end - start),
+        }
 
     def preload_layer_safetensors(self, base: str):
         """

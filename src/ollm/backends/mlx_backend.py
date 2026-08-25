@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from .base import Backend, BackendError
-from .mlx_ops import require_mx, online_chunked_grouped_attention_rope_no_mask_mx
+from .mlx_ops import require_mx, online_chunked_grouped_attention_mx
 
 try:  # pragma: no cover - optional dependency
     import mlx.core as mx
@@ -86,4 +86,11 @@ class MLXBackend(Backend):
 
     def attention_kernel(self):
         require_mx()
-        return online_chunked_grouped_attention_rope_no_mask_mx
+        return online_chunked_grouped_attention_mx
+
+    def capabilities(self):
+        if mx is None:
+            return super().capabilities()
+        from .mlx_governor import mlx_capabilities
+
+        return mlx_capabilities()

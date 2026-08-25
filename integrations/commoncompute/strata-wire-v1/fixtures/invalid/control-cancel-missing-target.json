@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "message_type": "control",
+  "control_id": "control-invalid-0001",
+  "action": "cancel",
+  "issued_at_unix_ms": 1787630400500
+}

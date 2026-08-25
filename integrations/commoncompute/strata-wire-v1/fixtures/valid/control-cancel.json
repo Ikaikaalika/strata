@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "message_type": "control",
+  "control_id": "control-fixture-0001",
+  "action": "cancel",
+  "target_request_id": "req-fixture-0001",
+  "issued_at_unix_ms": 1787630400500
+}
