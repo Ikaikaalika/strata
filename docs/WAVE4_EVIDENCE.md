@@ -89,4 +89,3 @@ PYTHONPATH=src /usr/bin/python3 benchmarks/benchmark_model_planning.py --iterati
 
 The first command is synthetic evidence. The second is serialized L2 hardware
 evidence. Neither command uses `/Volumes/Tyler HDD` as an SSD target.
-

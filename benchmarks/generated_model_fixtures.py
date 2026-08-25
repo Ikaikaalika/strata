@@ -56,7 +56,6 @@ def generated_dense_manifest() -> PortableModelManifest:
         ),
     )
 
-
 def generated_gpt_oss_20b_manifest() -> PortableModelManifest:
     return PortableModelManifest(
         schema_version=1,
@@ -103,4 +102,3 @@ def generated_gpt_oss_20b_manifest() -> PortableModelManifest:
             prompt_protocol=PromptProtocol.HARMONY,
         ),
     )
-

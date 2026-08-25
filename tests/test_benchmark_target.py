@@ -112,4 +112,3 @@ def test_checked_in_darkbloom_target_has_ten_percent_performance_gates():
             assert gate == pytest.approx(baseline * 1.10)
         else:
             assert gate == pytest.approx(baseline * 0.90)
-

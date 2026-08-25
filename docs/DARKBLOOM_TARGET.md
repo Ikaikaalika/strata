@@ -163,4 +163,3 @@ provider gate of at least 272 aggregate token/s for the reproduced Gemma B8
 workload, at least 99.5 percent successful terminal receipts under a 24-hour
 soak, and then a per-online-Mac fleet-throughput gate before comparing total
 daily traffic.
-

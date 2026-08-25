@@ -110,4 +110,3 @@ class PrefillVsDecode(Scene):
         final_note.to_edge(DOWN)
         self.play(Write(final_note))
         self.wait(2)
-
