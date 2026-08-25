@@ -49,6 +49,22 @@ No network access or model download is required for these tests. Real-model
 throughput and memory claims are intentionally separate from this deterministic
 correctness baseline.
 
+### Model-path status
+
+| Model or path | Current status |
+| --- | --- |
+| `deepseek-coder-1.3b` | Verified end-to-end MLX smoke path |
+| `deepseek-coder-6.7b` | Loader path exists; model weights and local validation are required |
+| `llama3-1B-chat`, `llama3-3B-chat`, `llama3-8B-chat` | Compatibility loader uses `mlx-lm`; Hugging Face access and local validation are required |
+| Pinned Qwen, Llama, and Gemma benchmark fixtures | Evidence-gated resident-route planning is verified; serialized results are not a universal hardware claim |
+| `qwen3-next-80B`, `gemma3-12B` | Architecture targets; not implemented in the current compatibility loader |
+| `gpt-oss-20B`, `gpt-oss-120B` | Manifest and planning targets; full MXFP4 execution is not implemented |
+
+The following remain targets rather than shipped capabilities: a persistent
+production XPC server, multi-request continuous batching, complete native
+Metal/ANE model execution, production SSD paging, and the separate
+`strata_llm` distribution.
+
 > Storage boundary: `/Volumes/Tyler HDD` is the source checkout, not an SSD.
 > Strata must not use it for SSD offload, SSD benchmarking, or model/cache
 > placement intended to represent SSD behavior. SSD experiments require a
@@ -179,7 +195,8 @@ state machine, hardware profile, and explicit limitations.
 
 ## Local setup
 
-Strata targets Apple Silicon and Python 3.10 or newer.
+Strata targets macOS on Apple Silicon with Python 3.10 or newer. The supported
+compatibility path requires MLX and `mlx-lm`; CUDA and PyTorch are not required.
 
 ```bash
 python3 -m venv strata_env
@@ -192,6 +209,16 @@ Run the deterministic suite from the repository root:
 ```bash
 PYTHONPATH=src python -m pytest -q
 ```
+
+The smallest model smoke test is:
+
+```bash
+python quick_demo.py
+```
+
+Model downloads use Hugging Face. Authenticate before loading gated models and
+place downloaded weights on a volume with enough free space; do not use the
+checkout HDD as an SSD-performance test target.
 
 The custom model adapters do not download weights during unit tests. Loading a
 real model is a separate operation and may require Hugging Face authentication,
