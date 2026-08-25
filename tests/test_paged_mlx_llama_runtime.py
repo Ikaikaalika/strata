@@ -59,4 +59,4 @@ def test_paged_runtime_rejects_hdd_model_path() -> None:
         max_resident_weight_bytes=512 * 1024 * 1024,
     )
     with pytest.raises(ValueError, match="Tyler HDD"):
-        PagedMLXLlamaRuntime.load(Path.cwd(), policy)
+        PagedMLXLlamaRuntime.load(Path("/Volumes/Tyler HDD/strata"), policy)
