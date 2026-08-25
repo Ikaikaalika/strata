@@ -12,7 +12,9 @@ try:
     from ollm.generation import greedy_generate_mx
     from ollm.llama_mlx import (
         MLXLlamaForCausalLM,
+        MLXLlamaDecoderLayer,
         MLXRotaryEmbedding,
+        _linear,
         apply_rotary_pos_emb_mlx,
     )
     from ollm.mlx_kvcache import MLXKVCache
@@ -172,6 +174,39 @@ class MLXGenerationCorrectnessTest(unittest.TestCase):
         tensor_events = [event for event in tracer.events if event.kind == "tensor"]
         self.assertTrue(tensor_events)
         self.assertTrue(all(event.byte_size > 0 for event in tensor_events))
+
+    def test_quantized_linear_matches_mlx_primitive_and_expands_layer_manifest(self):
+        source = mx.arange(1024, dtype=mx.float32).reshape(32, 32) / 1024.0
+        packed, scales, biases = mx.quantize(source, group_size=32, bits=4)
+        inputs = mx.arange(64, dtype=mx.float32).reshape(2, 32) / 64.0
+
+        actual = _linear(
+            inputs,
+            packed,
+            scales,
+            biases,
+            group_size=32,
+            bits=4,
+            mode="affine",
+        )
+        expected = mx.quantized_matmul(
+            inputs,
+            packed,
+            scales,
+            biases,
+            group_size=32,
+            bits=4,
+            mode="affine",
+        )
+        mx.eval(actual, expected)
+
+        self.assertTrue(np.array_equal(np.array(actual), np.array(expected)))
+        config = tiny_config()
+        config.quantization = {"group_size": 32, "bits": 4}
+        manifest = MLXLlamaDecoderLayer(config, 0)._layer_param_manifest_names()
+        self.assertIn("self_attn.q_proj.scales", manifest)
+        self.assertIn("self_attn.q_proj.biases", manifest)
+        self.assertIn("mlp.down_proj.scales", manifest)
 
     def test_deepseek_cached_decode_matches_full_causal_forward(self):
         self.assert_cached_decode_matches_full_forward(self._deepseek_model())

@@ -124,6 +124,7 @@ def build_mlx_dense_pipeline(
     budget_bytes: int,
     tracer: Optional[Any] = None,
     prefetch_distance: int = 1,
+    prefetch_workers: int = 1,
 ) -> DenseLayerPipeline:
     """Build a persistent, budgeted MLX decoder-layer pipeline."""
     layer_manifests = [layer._layer_param_manifest_names() for layer in layers]
@@ -145,7 +146,12 @@ def build_mlx_dense_pipeline(
 
     residency = ResidencyManager(budget_bytes, on_evict=on_evict)
     store = LoaderGroupTensorStore(loader)
-    scheduler = PrefetchScheduler(store, residency, tracer=tracer)
+    scheduler = PrefetchScheduler(
+        store,
+        residency,
+        tracer=tracer,
+        max_workers=prefetch_workers,
+    )
     return DenseLayerPipeline(
         model_spec,
         plan,

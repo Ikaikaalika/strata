@@ -33,6 +33,7 @@ FP32 accumulation, and output `[64, 256]`.
 It reports a native scalar CPU oracle, untiled and threadgroup-tiled direct-Metal
 wall/device times, numerical error, hardware identity, revision, warmups,
 iterations, and timing boundaries as JSON. The tiled variant stages a
-16-output by 8-token tile over 32-wide reduction slices. Both variants remain
-learning kernels. This is generated-fixture L2 kernel evidence, not a model
-tokens-per-second claim.
+16-output by 8-token tile over 32-wide reduction slices. A phase-program proxy
+also encodes 16 independent tiled projections into one command buffer to
+measure submission amortization. All variants remain learning kernels. This is
+generated-fixture L2 kernel evidence, not a model tokens-per-second claim.

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "message_type": "start",
+  "request_id": "req-invalid-deadline",
+  "task_id": "task-invalid-deadline",
+  "operation": "llm.generate",
+  "runtime_revision": "1111111111111111111111111111111111111111111111111111111111111111",
+  "created_at_unix_ms": 1787630460000,
+  "deadline_unix_ms": 1787630400000,
+  "model": {
+    "id": "llama-3.2-1b",
+    "revision": "08231374eeacb049a0eade7922910865b8fce912",
+    "artifact_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "adapter_id": "llama",
+    "quantization": "mlx-4bit-group64"
+  },
+  "messages": [{"role": "user", "content": "Hello"}],
+  "sampling": {"temperature": 0.0, "top_p": 1.0, "seed": null, "stop": []},
+  "objective": {"workload_class": "interactive", "context_tokens": 512, "max_output_tokens": 32, "batch_size": 1},
+  "memory": {"max_runtime_memory_bytes": 4294967296, "ssd_offload": "disabled"},
+  "deployment_mode": "supported"
+}

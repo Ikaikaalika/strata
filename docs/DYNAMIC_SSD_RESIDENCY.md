@@ -4,7 +4,8 @@ Status: target native architecture with an executable Python control-plane
 specification. The current repository implements admission modes, immutable
 weight packs, exact-range reads, byte-budgeted residency, pinned leases,
 prefetch, LRU eviction, and safe budget resizing. Native Metal I/O and a
-real-model SSD result are not yet implemented.
+qualified cold-SSD native result are not yet implemented. The current
+real-model result is a warm-state Python/MLX paging laboratory measurement.
 
 ## User-visible option
 
@@ -20,20 +21,128 @@ The runtime resolves this preference to the concrete `full` or `paged` mode
 during admission. `paged` is explicit permission to spill. `auto` retains the
 legacy `allow_weight_spill` permission so existing callers remain fail closed.
 
-Target public request shape:
+Public request shape:
 
 ```json
 {
-  "residency": {
+  "ssd_offload": {
     "mode": "auto",
     "max_resident_weight_bytes": 8589934592,
-    "storage_target_id": "approved-internal-ssd"
+    "storage_target_id": "approved-internal-ssd",
+    "prefetch_distance": 1,
+    "io_workers": 1
   }
 }
 ```
 
-The public request contains an opaque approved target ID, never an arbitrary
+The executable `SSDOffloadPolicy` accepts `disabled`, `auto`, or `required`.
+`disabled` requires full residency; `auto` permits paging only through qualified
+admission; `required` selects capacity mode even when it cannot meet the normal
+latency objective. The public request contains an opaque approved target ID, never an arbitrary
 filesystem path. The host resolves the ID inside its model-storage policy.
+
+## Apple M1 Llama paging result
+
+Hardware evidence captured 2026-08-25 on the pinned Common Compute Llama 3.2
+1B 4-bit artifact. The explicit total weight cap was 256 MiB: 147,755,008 bytes
+of embedding/norm weights remained pinned and 120,680,448 bytes were available
+to the 547,487,744-byte decoder-layer set.
+
+| Metric | MLX-LM full | Strata paged lab | Change |
+|---|---:|---:|---:|
+| Decode | 69.94 tok/s | 3.75 tok/s | -94.64% |
+| TTFT | 560.76 ms | 1,115.73 ms | 98.97% slower |
+| Peak MLX memory | 1.211 GB | 0.592 GB | **51.14% lower** |
+| Exact greedy tokens | reference | pass | no regression |
+
+Each paged repetition loaded 70,078,431,232 layer bytes: the complete layer set
+once per generated token. Mean scheduler load work was 27,385.98 ms and
+compute-visible acquire stall was 11,786.10 ms. There were zero resident hits;
+ordinary LRU cannot preserve reuse across a repeated cyclic scan when the full
+dense layer set does not fit.
+
+Raw result:
+[`apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_256mib_v1.json`](../benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_256mib_v1.json).
+
+This proves controlled capacity paging and token parity in the Python/MLX lab.
+It is not a native-runtime, cold-SSD bandwidth, or performance-win claim. The
+adaptive consequence is:
+
+- fitting dense models use full residency;
+- `auto` rejects paging when the measured storage ceiling misses the declared
+  decode objective;
+- `required` may admit the same plan as disclosed capacity mode;
+- MoE paging remains promising because selected experts can have temporal and
+  batch reuse that a full dense-layer cycle does not.
+
+### Recursive residency improvement
+
+The zero-hit trace motivated a pinned tier. With a 384 MiB total cap, Strata
+kept five decoder layers pinned and preserved room for the current plus one
+prefetched rolling layer. Against the original 256 MiB all-LRU plan:
+
+| Metric | All LRU | Pinned five | Improvement |
+|---|---:|---:|---:|
+| Decode | 3.75 tok/s | 4.70 tok/s | **25.44%** |
+| Inter-token latency | 268.14 ms | 212.84 ms | **20.62%** |
+| TTFT | 1,115.73 ms | 1,065.09 ms | 4.54% |
+| Layer bytes/repetition | 70.08 GB | 48.18 GB | 31.25% |
+| Peak MLX memory | 0.592 GB | 0.728 GB | 23.13% more |
+
+The improved plan still uses 39.84% less peak MLX memory than fully resident
+MLX-LM, but remains 93.28% slower in decode, so it is not promoted as the
+default. The runtime now derives the maximum safe pinned-layer count from the
+resident budget and prefetch distance automatically.
+
+Raw improved result:
+[`apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_384mib_pin5_v1.json`](../benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_384mib_pin5_v1.json).
+
+### Flexible parameter tuning
+
+Paging speed is now a measured policy decision over four bounded parameters:
+
+| Parameter | Effect |
+|---|---|
+| Resident-weight cap | Trades warm layers and traffic against unified-memory use |
+| Pinned-layer count | May be explicit or the maximum safe prefix derived from the cap |
+| Prefetch distance | Trades look-ahead overlap against extra rolling slots and reads |
+| I/O workers | Bounds concurrent range loads; more workers are not assumed faster |
+
+The selector applies mandatory exact-token parity plus optional peak-memory,
+TTFT, and minimum-decode constraints. Among eligible measurements it uses
+configurable logarithmic decode/TTFT/memory weights. The result is scoped to
+the exact model, hardware, OS build, and workload fingerprint.
+
+On the full 512/128 protocol, the throughput-first M1 capacity profile is a
+640 MiB cap, zero prefetch distance, one I/O worker, and fourteen automatically
+pinned layers:
+
+| Metric | 384 MiB pinned-five | Tuned 640 MiB | Change |
+|---|---:|---:|---:|
+| Decode | 4.73 tok/s | **6.36 tok/s** | **34.46% faster** |
+| Inter-token latency | 211.83 ms | **161.06 ms** | **23.97% lower** |
+| TTFT | 1,047.84 ms | **1,038.61 ms** | **0.88% lower** |
+| Layer bytes/repetition | 48.18 GB | **8.76 GB** | **81.82% lower** |
+| Peak MLX memory | 0.728 GB | 1.002 GB | 37.57% more |
+
+The tuned profile preserved exact MLX-LM greedy tokens. It uses 17.24% less
+peak MLX memory than full-resident MLX-LM but remains 90.92% slower in decode.
+It is therefore promoted only as the throughput-first `required` paging
+profile under an approximately 1.05 GB peak-memory objective. Full residency
+remains the speed choice whenever admission says the model fits.
+
+The two-worker candidate initially exposed a completed-prefetch eviction race.
+The scheduler now reloads a demanded group fail-closed under the same byte cap;
+a deterministic regression test covers that interleaving. After the fix,
+two workers with distance two remained slower on this fingerprint because the
+extra rolling traffic and contention outweighed overlap.
+
+Raw evidence:
+
+- [`apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd0_io1_v1.json`](../benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd0_io1_v1.json)
+- [`apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd1_io1_v1.json`](../benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd1_io1_v1.json)
+- [`apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_tuning_decision_v1.json`](../benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_tuning_decision_v1.json)
+- [`apple_m1_strata_paged_640mib_pd0_vs_mlx_llama_3_2_1b_v1.json`](../benchmarks/results/apple_m1_strata_paged_640mib_pd0_vs_mlx_llama_3_2_1b_v1.json)
 
 ## Physical data path
 
@@ -188,6 +297,10 @@ placement intended to represent SSD behavior, and offload performance claims.
 | Hard-budget LRU, pinning, eviction, resizing | `src/ollm/scheduling/residency_manager.py` |
 | Async prefetch and stall accounting | `src/ollm/scheduling/prefetch_scheduler.py` |
 | Dense next-layer overlap | `src/ollm/scheduling/dense_pipeline.py` |
+| Public SSD parameter | `src/ollm/core/ssd_offload.py` |
+| Quantized paged Llama laboratory | `src/ollm/runtime/paged_mlx_llama.py` |
+| Real-model paging benchmark | `benchmarks/benchmark_strata_paged_mlx.py` |
+| Objective-driven paging tuner | `src/ollm/planning/paging_tuner.py` and `benchmarks/tune_strata_paged_mlx.py` |
 
 ## Native implementation sequence
 

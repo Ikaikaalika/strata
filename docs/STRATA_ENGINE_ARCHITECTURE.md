@@ -13,6 +13,9 @@ integrations. The public product boundary is specified in
 [`STANDALONE_RUNTIME.md`](STANDALONE_RUNTIME.md). Common Compute is the first
 proving-ground integration; its provider, fleet, XPC, billing, and network
 boundaries are specified in [`COMMON_COMPUTE_RUNTIME.md`](COMMON_COMPUTE_RUNTIME.md).
+The capability-driven model contract, Common Compute catalog bridge, family
+lowerings, and GPT-OSS specialization are frozen in
+[`MODEL_ADAPTIVE_ARCHITECTURE.md`](MODEL_ADAPTIVE_ARCHITECTURE.md).
 
 ## 1. Mission and optimization target
 
@@ -51,8 +54,13 @@ C(P) =
 The current planner does not yet implement this multi-term score. It selects a
 whole-graph backend independently for prefill and decode, admits non-MLX
 targets only with matching correctness evidence, and uses comparable hardware
-tokens-per-second evidence when available. The equation defines the target
-planner, not current behavior.
+tokens-per-second evidence when available. `RuntimePerformancePolicy` now
+enforces a configurable improvement margin, target allowlist, public/private
+ANE boundary, and a strict full-resident `maximum_speed` profile. The equation
+defines the remaining multi-term target planner.
+
+The concrete maximum-speed parameters and native performance route are in
+[`MAXIMUM_SPEED_RUNTIME.md`](MAXIMUM_SPEED_RUNTIME.md).
 
 ## 2. Non-negotiable invariants
 
@@ -284,6 +292,7 @@ in which they were proven.
 | `AdaptiveExecutionPlan` | `src/ollm/core/adaptive_plan.py` | Phase-specific backend segments keyed to model and hardware |
 | `EvidenceRecord` | `src/ollm/core/evidence.py` | Correctness, synthetic, or hardware observation |
 | `TensorRef`, `WeightGroup`, `ModelSpec` | `src/ollm/core/` | Storage references and atomic residency units |
+| `PortableModelManifest` and semantic specs | `src/ollm/core/model_manifest.py` | Immutable artifact, architecture, attention, MoE, tokenizer, and capability identity |
 
 The native implementation should mirror these types with a versioned wire
 schema and cross-language golden fixtures before it accepts customer work.
@@ -339,6 +348,10 @@ The adapter must explicitly define attention type, head geometry, rotary or
 positional encoding, normalization, activation, dense/MoE structure,
 quantization, tied weights, logits behavior, and KV update semantics. Unknown
 operations fail closed to the whole-model MLX path.
+
+The versioned manifest and architecture-class rules are defined in
+[`MODEL_ADAPTIVE_ARCHITECTURE.md`](MODEL_ADAPTIVE_ARCHITECTURE.md). Model IDs
+select pinned artifacts but never select backend behavior directly.
 
 ### 8.3 Model-slot lifecycle
 
@@ -852,9 +865,10 @@ correctness evidence.
 
 ### 15.3 Performance eligibility
 
-Only serialized hardware measurements with the same timing boundary may rank
-correct candidates. Synthetic evidence can validate scheduler behavior, but it
-cannot select a production hardware plan.
+Only serialized hardware measurements with `timing_scope=end_to_end_phase` may
+rank correct candidates. The timing includes layout conversion, dispatch,
+synchronization, and readback. Synthetic and kernel-only evidence can validate
+scheduler or backend behavior, but cannot select a production hardware plan.
 
 ### 15.4 Segmentation target
 

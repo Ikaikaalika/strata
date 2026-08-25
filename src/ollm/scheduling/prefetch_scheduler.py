@@ -62,7 +62,7 @@ class WeightLease:
 
 
 class PrefetchScheduler:
-    """Load dense weight groups ahead of demand using one I/O worker."""
+    """Load dense weight groups ahead of demand using bounded I/O workers."""
 
     def __init__(
         self,
@@ -182,7 +182,24 @@ class PrefetchScheduler:
                 else:
                     self._prefetch_waits += 1
                     cache_status = "prefetch_wait"
-            value = self.residency.pin(group.group_id)
+            try:
+                value = self.residency.pin(group.group_id)
+            except KeyError:
+                # With multiple workers and a tight budget, another completed
+                # prefetch may evict this unpinned result between future.result
+                # and pin(). Correctness must not depend on completion order:
+                # reload the demanded group synchronously under the same cap.
+                if not self.residency.reserve(group.group_id, group.nbytes):
+                    snapshot = self.residency.snapshot()
+                    raise BudgetExceededError(
+                        f"cannot reload evicted prefetch {group.group_id!r} "
+                        f"inside a {snapshot.budget_bytes}-byte budget"
+                    )
+                self._load_reserved(group, phase, "prefetch_evicted_reload")
+                value = self.residency.pin(group.group_id)
+                cache_status = "prefetch_evicted_reload"
+                with self._lock:
+                    self._cold_misses += 1
         elif self.residency.is_resident(group.group_id):
             value = self.residency.pin(group.group_id)
             cache_status = "resident_hit"

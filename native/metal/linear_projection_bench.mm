@@ -21,6 +21,7 @@ constexpr uint32_t kInputWidth = 256;
 constexpr uint32_t kOutputWidth = 256;
 constexpr uint32_t kWarmupIterations = 5;
 constexpr uint32_t kMeasuredIterations = 50;
+constexpr uint32_t kPhaseDispatchCount = 16;
 constexpr double kMaximumAllowedError = 0.01;
 
 struct Distribution {
@@ -270,14 +271,19 @@ int main(int argc, const char *argv[]) {
     id<MTLBuffer> tiledOutputBuffer =
         [device newBufferWithLength:outputCount * sizeof(Float16)
                             options:shared];
+    id<MTLBuffer> phaseOutputBuffer =
+        [device newBufferWithLength:outputCount * sizeof(Float16) *
+                                    kPhaseDispatchCount
+                            options:shared];
     if (inputBuffer == nil || weightBuffer == nil || outputBuffer == nil ||
-        tiledOutputBuffer == nil) {
+        tiledOutputBuffer == nil || phaseOutputBuffer == nil) {
       return Fail(@"failed to allocate shared Metal buffers", deviceName);
     }
 
     auto dispatchOnce = [&](id<MTLComputePipelineState> selectedPipeline,
                             id<MTLBuffer> selectedOutput) -> NSDictionary * {
       @autoreleasepool {
+        const auto started = std::chrono::steady_clock::now();
         id<MTLCommandBuffer> commandBuffer = [queue commandBuffer];
         if (commandBuffer == nil) {
           return @{@"failure" : @"failed to create Metal command buffer"};
@@ -301,7 +307,6 @@ int main(int argc, const char *argv[]) {
             threadsPerThreadgroup:MTLSizeMake(16, 8, 1)];
         [encoder endEncoding];
 
-        const auto started = std::chrono::steady_clock::now();
         [commandBuffer commit];
         [commandBuffer waitUntilCompleted];
         const auto ended = std::chrono::steady_clock::now();
@@ -309,6 +314,60 @@ int main(int argc, const char *argv[]) {
           return @{
             @"failure" : commandBuffer.error.localizedDescription
                 ?: @"Metal command failed"
+          };
+        }
+        const double wallMilliseconds =
+            std::chrono::duration<double, std::milli>(ended - started).count();
+        double gpuMilliseconds = 0.0;
+        if (commandBuffer.GPUEndTime >= commandBuffer.GPUStartTime &&
+            commandBuffer.GPUStartTime > 0.0) {
+          gpuMilliseconds =
+              (commandBuffer.GPUEndTime - commandBuffer.GPUStartTime) * 1000.0;
+        }
+        return @{
+          @"wall_ms" : @(wallMilliseconds),
+          @"gpu_ms" : @(gpuMilliseconds),
+        };
+      }
+    };
+
+    auto dispatchPhase = [&]() -> NSDictionary * {
+      @autoreleasepool {
+        const auto started = std::chrono::steady_clock::now();
+        id<MTLCommandBuffer> commandBuffer = [queue commandBuffer];
+        if (commandBuffer == nil) {
+          return @{ @"failure" : @"failed to create phase command buffer" };
+        }
+        id<MTLComputeCommandEncoder> encoder =
+            [commandBuffer computeCommandEncoder];
+        if (encoder == nil) {
+          return @{ @"failure" : @"failed to create phase compute encoder" };
+        }
+        [encoder setComputePipelineState:tiledPipeline];
+        [encoder setBuffer:inputBuffer offset:0 atIndex:0];
+        [encoder setBuffer:weightBuffer offset:0 atIndex:1];
+        uint32_t tokens = kTokenCount;
+        uint32_t inputWidth = kInputWidth;
+        uint32_t outputWidth = kOutputWidth;
+        [encoder setBytes:&tokens length:sizeof(tokens) atIndex:3];
+        [encoder setBytes:&inputWidth length:sizeof(inputWidth) atIndex:4];
+        [encoder setBytes:&outputWidth length:sizeof(outputWidth) atIndex:5];
+        const size_t outputBytes = outputCount * sizeof(Float16);
+        for (uint32_t dispatch = 0; dispatch < kPhaseDispatchCount; ++dispatch) {
+          [encoder setBuffer:phaseOutputBuffer
+                     offset:size_t(dispatch) * outputBytes
+                    atIndex:2];
+          [encoder dispatchThreads:MTLSizeMake(kOutputWidth, kTokenCount, 1)
+              threadsPerThreadgroup:MTLSizeMake(16, 8, 1)];
+        }
+        [encoder endEncoding];
+        [commandBuffer commit];
+        [commandBuffer waitUntilCompleted];
+        const auto ended = std::chrono::steady_clock::now();
+        if (commandBuffer.status != MTLCommandBufferStatusCompleted) {
+          return @{
+            @"failure" : commandBuffer.error.localizedDescription
+                ?: @"Metal phase command failed"
           };
         }
         const double wallMilliseconds =
@@ -336,16 +395,24 @@ int main(int argc, const char *argv[]) {
       if (tiledSample[@"failure"] != nil) {
         return Fail(tiledSample[@"failure"], deviceName);
       }
+      NSDictionary *phaseSample = dispatchPhase();
+      if (phaseSample[@"failure"] != nil) {
+        return Fail(phaseSample[@"failure"], deviceName);
+      }
     }
 
     std::vector<double> gpuWallSamples;
     std::vector<double> gpuDeviceSamples;
     std::vector<double> tiledWallSamples;
     std::vector<double> tiledDeviceSamples;
+    std::vector<double> phaseWallSamples;
+    std::vector<double> phaseDeviceSamples;
     gpuWallSamples.reserve(kMeasuredIterations);
     gpuDeviceSamples.reserve(kMeasuredIterations);
     tiledWallSamples.reserve(kMeasuredIterations);
     tiledDeviceSamples.reserve(kMeasuredIterations);
+    phaseWallSamples.reserve(kMeasuredIterations);
+    phaseDeviceSamples.reserve(kMeasuredIterations);
     for (uint32_t iteration = 0; iteration < kMeasuredIterations; ++iteration) {
       NSDictionary *sample = dispatchOnce(pipeline, outputBuffer);
       if (sample[@"failure"] != nil) {
@@ -366,15 +433,28 @@ int main(int argc, const char *argv[]) {
       if (tiledMilliseconds > 0.0) {
         tiledDeviceSamples.push_back(tiledMilliseconds);
       }
+      NSDictionary *phaseSample = dispatchPhase();
+      if (phaseSample[@"failure"] != nil) {
+        return Fail(phaseSample[@"failure"], deviceName);
+      }
+      phaseWallSamples.push_back([phaseSample[@"wall_ms"] doubleValue]);
+      const double phaseMilliseconds = [phaseSample[@"gpu_ms"] doubleValue];
+      if (phaseMilliseconds > 0.0) {
+        phaseDeviceSamples.push_back(phaseMilliseconds);
+      }
     }
 
     const Float16 *actual = static_cast<const Float16 *>(outputBuffer.contents);
     const Float16 *tiledActual =
         static_cast<const Float16 *>(tiledOutputBuffer.contents);
+    const Float16 *phaseActual =
+        static_cast<const Float16 *>(phaseOutputBuffer.contents);
     double maxError = 0.0;
     double sumError = 0.0;
     double tiledMaxError = 0.0;
     double tiledSumError = 0.0;
+    double phaseMaxError = 0.0;
+    double phaseSumError = 0.0;
     for (size_t index = 0; index < outputCount; ++index) {
       const double errorValue =
           std::abs(double(float(actual[index])) -
@@ -386,17 +466,28 @@ int main(int argc, const char *argv[]) {
                    double(float(reference[index])));
       tiledMaxError = std::max(tiledMaxError, tiledErrorValue);
       tiledSumError += tiledErrorValue;
+      for (uint32_t dispatch = 0; dispatch < kPhaseDispatchCount; ++dispatch) {
+        const double phaseErrorValue = std::abs(
+            double(float(phaseActual[size_t(dispatch) * outputCount + index])) -
+            double(float(reference[index])));
+        phaseMaxError = std::max(phaseMaxError, phaseErrorValue);
+        phaseSumError += phaseErrorValue;
+      }
     }
     const double meanError = sumError / double(outputCount);
     const double tiledMeanError = tiledSumError / double(outputCount);
+    const double phaseMeanError =
+        phaseSumError / double(outputCount * kPhaseDispatchCount);
     const bool correctnessPassed =
         std::isfinite(maxError) && maxError <= kMaximumAllowedError &&
         std::isfinite(tiledMaxError) &&
-        tiledMaxError <= kMaximumAllowedError;
+        tiledMaxError <= kMaximumAllowedError &&
+        std::isfinite(phaseMaxError) &&
+        phaseMaxError <= kMaximumAllowedError;
     if (!correctnessPassed) {
       return Fail([NSString stringWithFormat:
-          @"Metal result exceeded maximum error: untiled %.9f tiled %.9f",
-          maxError, tiledMaxError], deviceName);
+          @"Metal result exceeded maximum error: untiled %.9f tiled %.9f phase %.9f",
+          maxError, tiledMaxError, phaseMaxError], deviceName);
     }
 
     const Distribution cpu = Summarize(cpuSamples);
@@ -404,6 +495,12 @@ int main(int argc, const char *argv[]) {
     const Distribution gpuDevice = Summarize(gpuDeviceSamples);
     const Distribution tiledWall = Summarize(tiledWallSamples);
     const Distribution tiledDevice = Summarize(tiledDeviceSamples);
+    const Distribution phaseWall = Summarize(phaseWallSamples);
+    const Distribution phaseDevice = Summarize(phaseDeviceSamples);
+    const double phaseWallPerProjection =
+        phaseWall.median / double(kPhaseDispatchCount);
+    const double phaseDevicePerProjection =
+        phaseDevice.median / double(kPhaseDispatchCount);
     const std::string osBuild = SysctlString("kern.osversion");
     EmitJSON(@{
       @"schema_version" : @1,
@@ -446,6 +543,8 @@ int main(int argc, const char *argv[]) {
         @"untiled_mean_abs_error" : @(meanError),
         @"tiled_max_abs_error" : @(tiledMaxError),
         @"tiled_mean_abs_error" : @(tiledMeanError),
+        @"phase_max_abs_error" : @(phaseMaxError),
+        @"phase_mean_abs_error" : @(phaseMeanError),
       },
       @"warmup_iterations" : @(kWarmupIterations),
       @"measured_iterations" : @(kMeasuredIterations),
@@ -462,7 +561,7 @@ int main(int argc, const char *argv[]) {
           @"gpu_device_timing" : DistributionJSON(gpuDevice),
           @"median_wall_gflops" : @(GFLOPs(gpuWall.median)),
           @"median_device_gflops" : @(GFLOPs(gpuDevice.median)),
-          @"timing_boundary" : @"fresh command buffer encode, commit, GPU execution, and wait; persistent pipeline and buffers; excludes compilation, allocation, and warmup",
+          @"timing_boundary" : @"fresh command buffer and encoder creation, encode, commit, GPU execution, and wait; persistent pipeline and buffers; excludes compilation, allocation, and warmup",
           @"kernel" : @"one output element per thread; untiled correctness baseline",
         },
         @"metal_direct_tiled" : @{
@@ -470,7 +569,7 @@ int main(int argc, const char *argv[]) {
           @"gpu_device_timing" : DistributionJSON(tiledDevice),
           @"median_wall_gflops" : @(GFLOPs(tiledWall.median)),
           @"median_device_gflops" : @(GFLOPs(tiledDevice.median)),
-          @"timing_boundary" : @"fresh command buffer encode, commit, GPU execution, and wait; persistent pipeline and buffers; excludes compilation, allocation, and warmup",
+          @"timing_boundary" : @"fresh command buffer and encoder creation, encode, commit, GPU execution, and wait; persistent pipeline and buffers; excludes compilation, allocation, and warmup",
           @"kernel" : @"16-output by 8-token threadgroup tile with 32-wide staged K slices",
           @"median_wall_latency_reduction_percent_vs_untiled" :
               @(100.0 * (gpuWall.median - tiledWall.median) / gpuWall.median),
@@ -478,10 +577,25 @@ int main(int argc, const char *argv[]) {
               @(100.0 * (gpuDevice.median - tiledDevice.median) /
                 gpuDevice.median),
         },
+        @"metal_tiled_phase_program" : @{
+          @"dispatches_per_command_buffer" : @(kPhaseDispatchCount),
+          @"total_wall_timing" : DistributionJSON(phaseWall),
+          @"total_gpu_device_timing" : DistributionJSON(phaseDevice),
+          @"median_wall_ms_per_projection" : @(phaseWallPerProjection),
+          @"median_gpu_device_ms_per_projection" : @(phaseDevicePerProjection),
+          @"median_wall_gflops" : @(GFLOPs(phaseWallPerProjection)),
+          @"median_device_gflops" : @(GFLOPs(phaseDevicePerProjection)),
+          @"median_wall_latency_reduction_percent_vs_single_tiled" :
+              @(100.0 * (tiledWall.median - phaseWallPerProjection) /
+                tiledWall.median),
+          @"timing_boundary" : @"one command buffer and compute encoder containing sixteen independent tiled projections; reports total and amortized per-projection latency; includes encode, commit, GPU execution, and wait",
+          @"optimization_role" : @"command submission amortization proxy for a persistent phase program",
+        },
       },
       @"limitations" : @[
         @"The CPU lane is a scalar correctness reference and does not represent Accelerate or BNNS performance.",
         @"Both Metal kernels are learning baselines, not production transformer kernels.",
+        @"The phase-program lane repeats one independent projection sixteen times; it measures dispatch amortization, not a transformer layer graph or token throughput.",
         @"The fixed shape matches the bounded ANE prefill envelope but this executable does not dispatch ANE.",
         @"This generated fixture is not a token-throughput or real-model benchmark.",
       ],

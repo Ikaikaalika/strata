@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    {
+      "target_id": "commoncompute-apple-m1-16gb-model-ladder-v1",
+      "model_id": "qwen3-0.6b",
+      "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+      "mlx_version": "0.31.1",
+      "mlx_lm_version": "0.31.2",
+      "prompt_tokens": 512,
+      "output_tokens": 128,
+      "prefill_step_size": 2048,
+      "route": "direct_single_sequence",
+      "exact_greedy_token_parity": true,
+      "end_to_end_improvement_percent": 10.012981593074407,
+      "evidence_path": "benchmarks/results/apple_m1_strata_resident_routes_qwen3_0_6b_b1_512_128_v1.json"
+    },
+    {
+      "target_id": "commoncompute-apple-m1-16gb-model-ladder-v1",
+      "model_id": "llama-3.2-1b",
+      "revision": "08231374eeacb049a0eade7922910865b8fce912",
+      "mlx_version": "0.31.1",
+      "mlx_lm_version": "0.31.2",
+      "prompt_tokens": 512,
+      "output_tokens": 32,
+      "prefill_step_size": 2048,
+      "route": "direct_single_sequence",
+      "exact_greedy_token_parity": true,
+      "end_to_end_improvement_percent": 4.934149558171521,
+      "evidence_path": "benchmarks/results/apple_m1_strata_resident_routes_llama_3_2_1b_b1_512_32_v1.json"
+    },
+    {
+      "target_id": "commoncompute-apple-m1-16gb-model-ladder-v1",
+      "model_id": "gemma-3-1b",
+      "revision": "15fed4eafb456c6fcb2a1165f19ac609670ed14b",
+      "mlx_version": "0.31.1",
+      "mlx_lm_version": "0.31.2",
+      "prompt_tokens": 512,
+      "output_tokens": 128,
+      "prefill_step_size": 2048,
+      "route": "direct_single_sequence",
+      "exact_greedy_token_parity": true,
+      "end_to_end_improvement_percent": 11.628816924903438,
+      "evidence_path": "benchmarks/results/apple_m1_strata_resident_routes_gemma_3_1b_b1_512_128_v1.json"
+    }
+  ]
+}

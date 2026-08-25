@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-08-25T03:29:55Z",
+  "evidence_kind": "hardware_qualification",
+  "runner": "strata-ane-capability",
+  "hardware": {
+    "chip": "Apple M1",
+    "architecture": "arm64",
+    "macos_version": "26.5.2",
+    "macos_build": "25F84"
+  },
+  "operation": {
+    "kind": "fp16_projection",
+    "physical_shape": [1, 256, 1, 64],
+    "logical_input_shape": [64, 256],
+    "logical_weight_shape": [256, 256],
+    "dtype": "float16"
+  },
+  "lifecycle": {
+    "private_frameworks_loaded": true,
+    "mil_generated": true,
+    "descriptor_created": true,
+    "model_created": true,
+    "compile_succeeded": true,
+    "load_succeeded": true,
+    "iosurfaces_created": true,
+    "dispatch_succeeded": true,
+    "readback_finite": true,
+    "numeric_verified": true,
+    "max_abs_error": 0.0,
+    "tolerance": 0.002,
+    "cleanup_error": ""
+  },
+  "measurement": {
+    "warmups": 0,
+    "iterations": 1,
+    "dispatch_ms": 0.40400028228759766,
+    "timing_scope": "private evaluateWithQoS call only",
+    "excluded": [
+      "process startup",
+      "MIL generation",
+      "compile",
+      "model load and unload",
+      "IOSurface allocation",
+      "layout conversion",
+      "readback",
+      "full prefill or decode phase"
+    ]
+  },
+  "planner_eligible": false,
+  "claim_boundary": "Live private-ANE compile, dispatch, readback, and numerical qualification for one fixed projection. This is not full-model LLM, throughput, energy, or end-to-end phase evidence."
+}

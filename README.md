@@ -42,6 +42,8 @@ The offline test suite and serialized local M1 probes currently verify:
   for one fixed fp16 projection on the local M1
 - Exact StrataIR lowering into that fixed callable ANE prefill segment
 - Weight-pack ranges loaded through the real residency and prefetch pipeline
+- Evidence-gated resident MLX batch-one routing for exact Qwen, Llama, and
+  Gemma workloads, with safe continuous-batch fallback
 
 No network access or model download is required for these tests. Real-model
 throughput and memory claims are intentionally separate from this deterministic
@@ -85,6 +87,9 @@ product boundary, implementation stack, portable-model/capsule split, and
 compute-engine ownership. See
 [docs/PERFORMANCE_CONTRACT.md](docs/PERFORMANCE_CONTRACT.md) for the benchmark
 vector, evidence ladder, competitor baselines, and promotion gates.
+See [docs/MAXIMUM_SPEED_RUNTIME.md](docs/MAXIMUM_SPEED_RUNTIME.md) for the
+full-resident SSD-off policy, ANE toggles, shared MLX speedup gate, and native
+route to a model-wide MLX-LM win.
 The first named external scorecard is
 [docs/DARKBLOOM_TARGET.md](docs/DARKBLOOM_TARGET.md), with fail-closed
 machine-readable M4 Max gates under `benchmarks/targets/`.
@@ -100,6 +105,11 @@ See [docs/STRATA_ENGINE_ARCHITECTURE.md](docs/STRATA_ENGINE_ARCHITECTURE.md)
 for the high-detail internal engine design: modules and ownership, request and
 model state machines, continuous batching, KV and weight memory accounting,
 backend handoffs, failure recovery, evidence, and implementation order.
+
+See [docs/MODEL_ADAPTIVE_ARCHITECTURE.md](docs/MODEL_ADAPTIVE_ARCHITECTURE.md)
+for the capability-driven model manifest, Common Compute catalog bridge,
+architecture-family lowering, SoC placement policy, and first-class GPT-OSS
+20B/120B plan.
 
 ## Strata Governor
 
@@ -134,23 +144,31 @@ state machine, hardware profile, and explicit limitations.
 | `src/ollm/generation.py` | Shared prefill and incremental decode loop |
 | `src/ollm/tracing.py` | Runtime-neutral tensor and operation trace records |
 | `src/ollm/core/` | Runtime-neutral tensor, group, capability, and plan contracts |
+| `src/ollm/core/model_manifest.py` | Versioned architecture, tokenizer, artifact, and model identity contracts |
 | `src/ollm/core/platform.py` | Common Compute service objective, live-state, storage, and admission contracts |
+| `src/ollm/core/runtime_policy.py` | Maximum-speed, SSD, ANE, backend allowlist, and MLX speedup policy |
 | `src/ollm/planning/adaptive_planner.py` | Evidence-gated prefill/decode target selection |
 | `src/ollm/storage/` | Cold tensor-store and manifest adapters |
 | `src/ollm/storage/weight_pack.py` | Versioned aligned pack, checksums, exact reads, and mmap |
 | `src/ollm/storage/weight_pack_store.py` | Pack-backed group loading for residency and prefetch |
 | `src/ollm/scheduling/` | Residency manager, prefetch scheduler, and dense pipeline |
 | `src/ollm/backends/mlx_governor.py` | MLX hardware profile and governor builder |
+| `src/ollm/runtime/resident_mlx.py` | Evidence-gated resident MLX single-sequence versus continuous-batch routing |
 | `docs/STANDALONE_RUNTIME.md` | Standalone library, CLI, daemon, adapter, and native SoC architecture |
 | `docs/PERFORMANCE_CONTRACT.md` | Benchmark dimensions, evidence ladder, suites, and promotion gates |
+| `docs/MAXIMUM_SPEED_RUNTIME.md` | Strict full-resident fast profile and intelligent ANE participation |
 | `docs/DARKBLOOM_TARGET.md` | Exact Darkbloom comparison matrix and performance architecture |
 | `docs/DYNAMIC_SSD_RESIDENCY.md` | Auto/full/paged weight policy, native Metal I/O path, and safe resizing |
 | `docs/AGENTIC_ENGINEERING.md` | Agent roles, evidence ladder, and integration gates |
 | `docs/COMMON_COMPUTE_RUNTIME.md` | Common Compute boundary, adaptive objective, and native-runtime roadmap |
 | `docs/STRATA_ENGINE_ARCHITECTURE.md` | Detailed Strata engine modules, state machines, hot path, and build order |
+| `docs/MODEL_ADAPTIVE_ARCHITECTURE.md` | Dynamic model manifest, catalog bridge, family lowerings, and GPT-OSS design |
+| `docs/COMMON_COMPUTE_MODEL_BENCHMARKS.md` | Pinned M1 model ladder, MLX-LM runner, and Darkbloom comparison boundary |
+| `integrations/commoncompute/strata-wire-v1/` | Portable v1 request/control/event/receipt contract, Swift reference types, golden fixtures, verifier, and integration gates |
 | `docs/WAVE1_EVIDENCE.md` | Local M1 CPU, Metal, and ANE evidence and limitations |
 | `docs/WAVE2_EVIDENCE.md` | Adaptive planner, weight pack, and direct-ANE projection proof |
 | `docs/WAVE3_EVIDENCE.md` | Callable ANE segment and pack-backed residency evidence |
+| `docs/WAVE4_EVIDENCE.md` | Strict model manifests, logical GPT-OSS KV planning, and Metal phase-program evidence |
 | `native/ane/` | Isolated private-runtime discovery and opt-in projection worker |
 | `native/metal/linear_projection_bench.mm` | Generated-fixture native CPU/direct-Metal projection benchmark |
 | `src/ollm/backends/ane_executor.py` | Bounded fixed-shape ANE request client |

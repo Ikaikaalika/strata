@@ -23,6 +23,7 @@ from ..core.capabilities import OperationEnvelope, RuntimeCapabilities
 from ..core.evidence import EvidenceKind, EvidenceRecord
 from ..core.hardware import HardwareProfile
 from ..core.ir import IROperation, InferencePhase, StrataIRGraph, TensorRole, TensorSpec
+from ..core.runtime_policy import RuntimePerformancePolicy
 
 
 _PHASES = (InferencePhase.PREFILL, InferencePhase.DECODE)
@@ -106,7 +107,9 @@ class AdaptivePlanner:
         hardware: HardwareProfile,
         capabilities: Mapping[BackendTarget, RuntimeCapabilities],
         evidence: Sequence[EvidenceRecord] = (),
+        policy: RuntimePerformancePolicy | None = None,
     ) -> PlannerResult:
+        active_policy = policy or RuntimePerformancePolicy.maximum_speed()
         self._validate_request(
             model_id=model_id,
             model_hash=model_hash,
@@ -131,6 +134,7 @@ class AdaptivePlanner:
                 phase=phase,
                 capability=normalized_capabilities.get(target),
                 evidence=evidence,
+                policy=active_policy,
             )
             for phase in _PHASES
             for target in _TARGET_ORDER
@@ -143,7 +147,11 @@ class AdaptivePlanner:
                 for evaluation in evaluations
                 if evaluation.phase is phase
             )
-            selected_targets[phase] = self._select_target(phase, phase_evaluations)
+            selected_targets[phase] = self._select_target(
+                phase,
+                phase_evaluations,
+                active_policy,
+            )
 
         selected_plan = self._make_plan(
             graph=graph,
@@ -155,6 +163,7 @@ class AdaptivePlanner:
             context_max_tokens=context_max_tokens,
             hardware=hardware,
             phase_targets=selected_targets,
+            policy=active_policy,
         )
 
         mlx_fallback_plan = None
@@ -180,6 +189,7 @@ class AdaptivePlanner:
                     context_max_tokens=context_max_tokens,
                     hardware=hardware,
                     phase_targets=fallback_targets,
+                    policy=active_policy,
                 )
 
         return PlannerResult(selected_plan, mlx_fallback_plan, evaluations)
@@ -243,12 +253,15 @@ class AdaptivePlanner:
         phase: InferencePhase,
         capability: RuntimeCapabilities | None,
         evidence: Sequence[EvidenceRecord],
+        policy: RuntimePerformancePolicy,
     ) -> CandidateEvaluation:
         reasons = self._capability_rejection_reasons(
             graph,
             hardware,
             phase,
+            target,
             capability,
+            policy,
         )
         capability_eligible = not reasons
 
@@ -302,12 +315,18 @@ class AdaptivePlanner:
         graph: StrataIRGraph,
         hardware: HardwareProfile,
         phase: InferencePhase,
+        target: BackendTarget,
         capability: RuntimeCapabilities | None,
+        policy: RuntimePerformancePolicy,
     ) -> list[str]:
+        policy_reason = policy.target_rejection_reason(target, capability)
         if capability is None:
-            return ["capabilities not supplied"]
+            reasons = ["capabilities not supplied"]
+            if policy_reason is not None:
+                reasons.append(policy_reason)
+            return reasons
 
-        reasons: list[str] = []
+        reasons: list[str] = [] if policy_reason is None else [policy_reason]
         if not capability.compute_units:
             reasons.append("no executable compute units")
         else:
@@ -475,6 +494,8 @@ class AdaptivePlanner:
             target=target,
             phase=phase,
         ):
+            if record.metadata.get("timing_scope") != "end_to_end_phase":
+                continue
             for measurement in record.measurements:
                 if (
                     measurement.name == "tokens_per_second"
@@ -521,6 +542,7 @@ class AdaptivePlanner:
         self,
         phase: InferencePhase,
         evaluations: Sequence[CandidateEvaluation],
+        policy: RuntimePerformancePolicy,
     ) -> BackendTarget:
         by_target = {evaluation.target: evaluation for evaluation in evaluations}
         executable = [
@@ -546,7 +568,8 @@ class AdaptivePlanner:
                 for evaluation in executable
                 if evaluation.target is not BackendTarget.MLX
                 and evaluation.hardware_tokens_per_second is not None
-                and evaluation.hardware_tokens_per_second > baseline_score
+                and evaluation.hardware_tokens_per_second
+                >= baseline_score * (1.0 + policy.minimum_speedup_percent / 100.0)
             ]
             if not measured_alternatives:
                 return BackendTarget.MLX
@@ -590,6 +613,7 @@ class AdaptivePlanner:
         context_max_tokens: int,
         hardware: HardwareProfile,
         phase_targets: Mapping[InferencePhase, BackendTarget],
+        policy: RuntimePerformancePolicy,
     ) -> AdaptiveExecutionPlan:
         plan_id = self._plan_id(
             graph=graph,
@@ -601,6 +625,7 @@ class AdaptivePlanner:
             context_max_tokens=context_max_tokens,
             hardware=hardware,
             phase_targets=phase_targets,
+            policy=policy,
         )
         operation_ids = tuple(operation.operation_id for operation in graph.operations)
         segments = tuple(
@@ -640,6 +665,7 @@ class AdaptivePlanner:
         context_max_tokens: int,
         hardware: HardwareProfile,
         phase_targets: Mapping[InferencePhase, BackendTarget],
+        policy: RuntimePerformancePolicy,
     ) -> str:
         targets = "-".join(
             f"{phase.value}-{phase_targets[phase].value}" for phase in _PHASES
@@ -654,6 +680,7 @@ class AdaptivePlanner:
             "model_id": model_id,
             "operation_ids": [operation.operation_id for operation in graph.operations],
             "quantization": quantization,
+            "runtime_policy": policy.identity_digest,
             "targets": targets,
         }
         digest = hashlib.sha256(

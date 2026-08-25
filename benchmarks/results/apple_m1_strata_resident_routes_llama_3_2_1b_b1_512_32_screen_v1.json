@@ -1,0 +1,399 @@
+{
+  "candidate_runs": [
+    {
+      "end_to_end_output_tokens_per_second": 30.81460082569199,
+      "inter_token_latency_ms": 16.24012505635619,
+      "token_ids": [
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531
+      ],
+      "ttft_ms": 533.4266659338027,
+      "wall_time_seconds": 1.0384687499608845
+    },
+    {
+      "end_to_end_output_tokens_per_second": 31.255458501322995,
+      "inter_token_latency_ms": 15.286165988072753,
+      "token_ids": [
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531
+      ],
+      "ttft_ms": 546.4138750685379,
+      "wall_time_seconds": 1.023821167065762
+    },
+    {
+      "end_to_end_output_tokens_per_second": 31.027069926111942,
+      "inter_token_latency_ms": 16.01429097354412,
+      "token_ids": [
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531
+      ],
+      "ttft_ms": 532.2674589697272,
+      "wall_time_seconds": 1.0313574590254575
+    }
+  ],
+  "captured_at_utc": "2026-08-25T03:44:27.924081+00:00",
+  "claim_boundary": "Paired warm hardware evidence for Strata route selection over the pinned MLX-LM compatibility backend; not a native Metal, ANE, SSD, provider, or Darkbloom comparison.",
+  "comparison": {
+    "batch_one_route_promotion_passed": true,
+    "candidate_repetition_token_invariance": true,
+    "candidate_summary": {
+      "end_to_end_output_tokens_per_second": {
+        "maximum": 31.255458501322995,
+        "mean": 31.032376417708974,
+        "median": 31.027069926111942,
+        "minimum": 30.81460082569199
+      },
+      "inter_token_latency_ms": {
+        "maximum": 16.24012505635619,
+        "mean": 15.846860672657689,
+        "median": 16.01429097354412,
+        "minimum": 15.286165988072753
+      },
+      "ttft_ms": {
+        "maximum": 546.4138750685379,
+        "mean": 537.3693333240226,
+        "median": 533.4266659338027,
+        "minimum": 532.2674589697272
+      },
+      "wall_time_seconds": {
+        "maximum": 1.0384687499608845,
+        "mean": 1.031215792017368,
+        "median": 1.0313574590254575,
+        "minimum": 1.023821167065762
+      }
+    },
+    "control_repetition_token_invariance": true,
+    "control_summary": {
+      "end_to_end_output_tokens_per_second": {
+        "maximum": 30.282399927662322,
+        "mean": 29.569323620390577,
+        "median": 29.676196775376834,
+        "minimum": 28.74937415813257
+      },
+      "inter_token_latency_ms": {
+        "maximum": 16.325625008903444,
+        "mean": 16.046111355535686,
+        "median": 16.04387501720339,
+        "minimum": 15.768834040500224
+      },
+      "ttft_ms": {
+        "maximum": 586.468750028871,
+        "mean": 574.1009863559157,
+        "median": 573.5917499987409,
+        "minimum": 562.2424590401351
+      },
+      "wall_time_seconds": {
+        "maximum": 1.113067707978189,
+        "mean": 1.0826974720306073,
+        "median": 1.0783052910119295,
+        "minimum": 1.0567194171017036
+      }
+    },
+    "exact_greedy_token_parity": true,
+    "median_improvement_percent": {
+      "end_to_end_output_tokens_per_second": 4.5520427060113215,
+      "inter_token_latency_ms": 0.18439462802812712,
+      "ttft_ms": 7.002381757587395,
+      "wall_time_seconds": 4.353853438149606
+    },
+    "promotion_thresholds": {
+      "minimum_end_to_end_improvement_percent": 2.0,
+      "minimum_inter_token_improvement_percent": -2.0,
+      "minimum_ttft_improvement_percent": 0.0
+    }
+  },
+  "control_runs": [
+    {
+      "end_to_end_output_tokens_per_second": 28.74937415813257,
+      "inter_token_latency_ms": 16.325625008903444,
+      "token_ids": [
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531
+      ],
+      "ttft_ms": 586.468750028871,
+      "wall_time_seconds": 1.113067707978189
+    },
+    {
+      "end_to_end_output_tokens_per_second": 29.676196775376834,
+      "inter_token_latency_ms": 16.04387501720339,
+      "token_ids": [
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531
+      ],
+      "ttft_ms": 573.5917499987409,
+      "wall_time_seconds": 1.0783052910119295
+    },
+    {
+      "end_to_end_output_tokens_per_second": 30.282399927662322,
+      "inter_token_latency_ms": 15.768834040500224,
+      "token_ids": [
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531,
+        29531
+      ],
+      "ttft_ms": 562.2424590401351,
+      "wall_time_seconds": 1.0567194171017036
+    }
+  ],
+  "evidence_kind": "hardware",
+  "hardware": {
+    "architecture": "arm64",
+    "chip": "Apple M1",
+    "macos_build": "25F84",
+    "macos_version": "26.5.2",
+    "thermal_state_after_run": "nominal",
+    "unified_memory_bytes": 17179869184
+  },
+  "measurement": {
+    "download_timed": false,
+    "model_load_timed": false,
+    "run_order": [
+      [
+        "control",
+        "candidate"
+      ],
+      [
+        "candidate",
+        "control"
+      ],
+      [
+        "control",
+        "candidate"
+      ]
+    ],
+    "timing_boundary": "host wall clock immediately before route iteration through requested final token"
+  },
+  "model": {
+    "artifact": {
+      "activation_dtype": "bfloat16",
+      "hidden_size": 2048,
+      "model_type": "llama",
+      "num_attention_heads": 32,
+      "num_hidden_layers": 16,
+      "num_key_value_heads": 8,
+      "weight_quantization": {
+        "bits": 4,
+        "group_size": 64
+      },
+      "weights": [
+        {
+          "bytes": 695283921,
+          "filename": "model.safetensors",
+          "sha256": "35e396644bca888eec399f9c0f843ec7fa78b8f8c5e06841661be62b4edf96dd"
+        }
+      ]
+    },
+    "local_snapshot": "/Users/tylergee/Library/Application Support/Strata/models/models--mlx-community--Llama-3.2-1B-Instruct-4bit/snapshots/08231374eeacb049a0eade7922910865b8fce912",
+    "model_id": "llama-3.2-1b",
+    "repo": "mlx-community/Llama-3.2-1B-Instruct-4bit",
+    "revision": "08231374eeacb049a0eade7922910865b8fce912"
+  },
+  "routes": {
+    "candidate": "Strata batch-one policy using MLX-LM generate_step directly",
+    "control": "MLX-LM BatchGenerator continuous-batching path at batch one"
+  },
+  "runner": "strata-resident-mlx-route-comparison",
+  "schema_version": 1,
+  "software": {
+    "mlx": "0.31.1",
+    "mlx_lm": "0.31.2",
+    "python": "3.13.5"
+  },
+  "target_id": "commoncompute-apple-m1-16gb-model-ladder-v1",
+  "weight_residency": {
+    "manager": "mlx-lm",
+    "model_load_lazy": false,
+    "semantics": "fully materialized warm model; no explicit or OS-managed offload",
+    "ssd_offload_parameter": "disabled",
+    "strata_managed_paging": false
+  },
+  "workload": {
+    "batch_size": 1,
+    "output_tokens_per_sequence": 32,
+    "prefill_step_size": 2048,
+    "prefix_cache": false,
+    "prompt_tokens_per_sequence": 512,
+    "repetitions_per_route": 3,
+    "sampling": "greedy",
+    "warmups_per_route": 1
+  }
+}

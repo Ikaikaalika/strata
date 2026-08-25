@@ -112,6 +112,71 @@ class AdaptiveAdmissionPolicyTest(unittest.TestCase):
         self.assertIs(decision.residency_mode, ResidencyMode.PAGED)
         self.assertEqual(decision.storage_target_id, "fast-ssd")
 
+    def test_auto_paging_rejects_storage_ceiling_below_decode_objective(self):
+        decision = self.policy.decide(
+            hardware=self.hardware,
+            platform=platform(
+                self.hardware,
+                available_memory_bytes=6 * GIB,
+                storage_targets=(
+                    StorageTarget(
+                        "approved-ssd",
+                        StorageMedium.INTERNAL_SSD,
+                        True,
+                        100 * GIB,
+                        2 * GIB,
+                    ),
+                ),
+            ),
+            objective=objective(
+                allow_weight_spill=True,
+                min_decode_tokens_per_second=8.0,
+            ),
+            demand=demand(
+                model_weight_bytes=10 * GIB,
+                paging_bytes_per_decode_token=GIB,
+            ),
+        )
+
+        self.assertFalse(decision.admitted)
+        self.assertEqual(
+            decision.reasons,
+            (AdmissionReason.SSD_THROUGHPUT_BOUND,),
+        )
+
+    def test_required_paging_admits_capacity_mode_and_discloses_ceiling(self):
+        decision = self.policy.decide(
+            hardware=self.hardware,
+            platform=platform(
+                self.hardware,
+                available_memory_bytes=6 * GIB,
+                storage_targets=(
+                    StorageTarget(
+                        "approved-ssd",
+                        StorageMedium.INTERNAL_SSD,
+                        True,
+                        100 * GIB,
+                        2 * GIB,
+                    ),
+                ),
+            ),
+            objective=objective(
+                residency_preference=ResidencyPreference.PAGED,
+                min_decode_tokens_per_second=8.0,
+            ),
+            demand=demand(
+                model_weight_bytes=10 * GIB,
+                paging_bytes_per_decode_token=GIB,
+            ),
+        )
+
+        self.assertTrue(decision.admitted)
+        self.assertEqual(decision.estimated_storage_decode_ceiling_tps, 2.0)
+        self.assertEqual(
+            decision.reasons,
+            (AdmissionReason.SSD_PAGING, AdmissionReason.SSD_THROUGHPUT_BOUND),
+        )
+
     def test_explicit_paged_mode_uses_ssd_even_when_full_residency_fits(self):
         decision = self.policy.decide(
             hardware=self.hardware,

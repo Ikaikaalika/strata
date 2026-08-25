@@ -12,6 +12,7 @@ Build and run without third-party dependencies:
 make -C native/ane
 native/ane/build/strata-ane-probe
 native/ane/build/strata-ane-probe --execute-projection
+native/ane/build/strata-ane-probe --benchmark-projection
 ```
 
 The worker also exposes one bounded callable request protocol:
@@ -34,6 +35,11 @@ checks these copies before private execution. Reported `dispatch_ms` measures
 only `evaluateWithQoS:options:request:error:`. It excludes request/file I/O,
 layout copies, MIL generation, compilation, model load/unload, readback, and
 atomic output publication.
+
+`--benchmark-projection` compiles and loads the fixed program once, reuses the
+request and IOSurfaces, performs five warmups, and records fifty serialized
+`evaluateWithQoS` calls. It remains a projection dispatch benchmark, not a
+transformer or full-phase LLM benchmark, and is never planner eligible.
 
 The probe emits one JSON document to stdout in either mode. A failure at any
 private lifecycle stage is evidence, not availability: the JSON records the

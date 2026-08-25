@@ -296,6 +296,11 @@ which token step joins which batch.
 
 ## Model compatibility and specialization
 
+The catalog-to-engine contract and architecture-family matrix are canonical in
+[`MODEL_ADAPTIVE_ARCHITECTURE.md`](MODEL_ADAPTIVE_ARCHITECTURE.md). Common
+Compute catalog status remains separate from Strata compatibility and local
+hardware qualification.
+
 ```mermaid
 flowchart TD
     MANIFEST["Pinned model manifest"] --> ADAPTER["Model adapter registry"]

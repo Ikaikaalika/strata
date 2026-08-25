@@ -1,6 +1,7 @@
 import unittest
 
 from ollm.core import (
+    ANEExecutionMode,
     BackendTarget,
     ComputeUnit,
     EvidenceKind,
@@ -12,6 +13,7 @@ from ollm.core import (
     OperationEnvelope,
     OperationKind,
     RuntimeCapabilities,
+    RuntimePerformancePolicy,
     StrataIRGraph,
     TensorRole,
     TensorSpec,
@@ -82,6 +84,7 @@ def _evidence(kind, target, phase, value, hardware, *, sequence=0, **scope_overr
         "batch_size": 1,
         "context_min_tokens": 0,
         "context_max_tokens": 2048,
+        "timing_scope": "end_to_end_phase",
     }
     scope.update(scope_overrides)
     return EvidenceRecord(
@@ -183,6 +186,125 @@ class AdaptivePlannerTest(unittest.TestCase):
             metal.rejection_reasons,
         )
 
+    def test_public_auto_policy_never_promotes_direct_private_ane(self):
+        hardware = _hardware()
+        evidence = tuple(
+            _evidence(kind, target, phase, value, hardware)
+            for phase in (InferencePhase.PREFILL, InferencePhase.DECODE)
+            for target, kind, value in (
+                (BackendTarget.MLX, EvidenceKind.HARDWARE, 10.0),
+                (BackendTarget.ANE, EvidenceKind.CORRECTNESS, 1.0),
+                (BackendTarget.ANE, EvidenceKind.HARDWARE, 100.0),
+            )
+        )
+
+        result = _build(
+            AdaptivePlanner(),
+            {
+                BackendTarget.MLX: _capability(BackendTarget.MLX),
+                BackendTarget.ANE: _capability(BackendTarget.ANE),
+            },
+            evidence,
+        )
+
+        self.assertTrue(
+            all(segment.target is BackendTarget.MLX for segment in result.plan.segments)
+        )
+        self.assertIn(
+            "private ANE requires private_research policy",
+            result.evaluation(
+                BackendTarget.ANE, InferencePhase.PREFILL
+            ).rejection_reasons,
+        )
+
+    def test_speedup_margin_filters_small_wins_for_every_alternative(self):
+        hardware = _hardware()
+        evidence = tuple(
+            _evidence(kind, target, phase, value, hardware)
+            for phase in (InferencePhase.PREFILL, InferencePhase.DECODE)
+            for target, kind, value in (
+                (BackendTarget.MLX, EvidenceKind.HARDWARE, 100.0),
+                (BackendTarget.METAL, EvidenceKind.CORRECTNESS, 1.0),
+                (BackendTarget.METAL, EvidenceKind.HARDWARE, 104.0),
+            )
+        )
+
+        conservative = _build(
+            AdaptivePlanner(),
+            {
+                BackendTarget.MLX: _capability(BackendTarget.MLX),
+                BackendTarget.METAL: _capability(BackendTarget.METAL),
+            },
+            evidence,
+            policy=RuntimePerformancePolicy.maximum_speed(
+                minimum_speedup_percent=5.0
+            ),
+        )
+        permissive = _build(
+            AdaptivePlanner(),
+            {
+                BackendTarget.MLX: _capability(BackendTarget.MLX),
+                BackendTarget.METAL: _capability(BackendTarget.METAL),
+            },
+            evidence,
+            policy=RuntimePerformancePolicy.maximum_speed(
+                minimum_speedup_percent=2.0
+            ),
+        )
+
+        self.assertTrue(
+            all(
+                segment.target is BackendTarget.MLX
+                for segment in conservative.plan.segments
+            )
+        )
+        self.assertTrue(
+            all(
+                segment.target is BackendTarget.METAL
+                for segment in permissive.plan.segments
+            )
+        )
+
+    def test_shared_speed_gate_can_promote_each_verified_runtime_target(self):
+        hardware = _hardware()
+        for target in (
+            BackendTarget.CPU,
+            BackendTarget.METAL,
+            BackendTarget.COREML,
+            BackendTarget.ANE,
+        ):
+            with self.subTest(target=target.value):
+                evidence = tuple(
+                    _evidence(kind, candidate_target, phase, value, hardware)
+                    for phase in (InferencePhase.PREFILL, InferencePhase.DECODE)
+                    for candidate_target, kind, value in (
+                        (BackendTarget.MLX, EvidenceKind.HARDWARE, 100.0),
+                        (target, EvidenceKind.CORRECTNESS, 1.0),
+                        (target, EvidenceKind.HARDWARE, 110.0),
+                    )
+                )
+                policy = (
+                    RuntimePerformancePolicy.maximum_speed(
+                        ane_execution=ANEExecutionMode.PRIVATE_RESEARCH,
+                        allow_private_apis=True,
+                    )
+                    if target is BackendTarget.ANE
+                    else RuntimePerformancePolicy.maximum_speed()
+                )
+                result = _build(
+                    AdaptivePlanner(),
+                    {
+                        BackendTarget.MLX: _capability(BackendTarget.MLX),
+                        target: _capability(target),
+                    },
+                    evidence,
+                    policy=policy,
+                )
+
+                self.assertTrue(
+                    all(segment.target is target for segment in result.plan.segments)
+                )
+
     def test_private_ane_discovery_with_zero_operations_never_executes(self):
         ane_discovery = RuntimeCapabilities(
             compute_units=(ComputeUnit.ANE,),
@@ -259,6 +381,10 @@ class AdaptivePlannerTest(unittest.TestCase):
                 BackendTarget.ANE: _capability(BackendTarget.ANE),
             },
             evidence,
+            policy=RuntimePerformancePolicy.maximum_speed(
+                ane_execution=ANEExecutionMode.PRIVATE_RESEARCH,
+                allow_private_apis=True,
+            ),
         )
         selected = result.plan.segments_by_phase()
         self.assertIs(
@@ -307,6 +433,53 @@ class AdaptivePlannerTest(unittest.TestCase):
             },
             correctness + synthetic,
         )
+        self.assertTrue(
+            all(segment.target is BackendTarget.MLX for segment in result.plan.segments)
+        )
+
+    def test_kernel_only_timing_cannot_displace_end_to_end_mlx(self):
+        hardware = _hardware()
+        evidence = (
+            _evidence(
+                EvidenceKind.HARDWARE,
+                BackendTarget.MLX,
+                InferencePhase.PREFILL,
+                20.0,
+                hardware,
+            ),
+            _evidence(
+                EvidenceKind.HARDWARE,
+                BackendTarget.MLX,
+                InferencePhase.DECODE,
+                10.0,
+                hardware,
+            ),
+            _evidence(
+                EvidenceKind.CORRECTNESS,
+                BackendTarget.METAL,
+                InferencePhase.PREFILL,
+                1.0,
+                hardware,
+            ),
+            _evidence(
+                EvidenceKind.HARDWARE,
+                BackendTarget.METAL,
+                InferencePhase.PREFILL,
+                1000.0,
+                hardware,
+                timing_scope="kernel_dispatch",
+            ),
+        )
+
+        result = _build(
+            AdaptivePlanner(),
+            {
+                BackendTarget.MLX: _capability(BackendTarget.MLX),
+                BackendTarget.METAL: _capability(BackendTarget.METAL),
+            },
+            evidence,
+        )
+
         self.assertTrue(
             all(segment.target is BackendTarget.MLX for segment in result.plan.segments)
         )

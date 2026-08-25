@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "target_id": "strata-apple-m1-runtime-comparison-v1",
+  "hardware": {
+    "chip": "Apple M1",
+    "unified_memory_bytes": 17179869184,
+    "macos_build": "25F84"
+  },
+  "oracle_runtime": "mlx-lm-baseline",
+  "models": [
+    "qwen3-0.6b",
+    "llama-3.2-1b",
+    "gemma-3-1b"
+  ],
+  "runtimes": [
+    {
+      "runtime_id": "mlx-lm-baseline",
+      "evidence_level": "L4-control",
+      "status": "measured",
+      "model_ids": ["qwen3-0.6b", "llama-3.2-1b", "gemma-3-1b"],
+      "result_files": [
+        "benchmarks/results/apple_m1_mlx_qwen3_0_6b_b1_512_128_v1.json",
+        "benchmarks/results/apple_m1_mlx_llama_3_2_1b_b1_512_128_v1.json",
+        "benchmarks/results/apple_m1_mlx_gemma_3_1b_b1_512_128_v1.json"
+      ]
+    },
+    {
+      "runtime_id": "strata-resident-mlx-route-selector",
+      "evidence_level": "L4-compatibility-route",
+      "status": "measured-route-promotions-not-native-backend",
+      "model_ids": ["qwen3-0.6b", "llama-3.2-1b", "gemma-3-1b"],
+      "result_files": [
+        "benchmarks/results/apple_m1_strata_resident_routes_qwen3_0_6b_b1_512_128_v1.json",
+        "benchmarks/results/apple_m1_strata_resident_routes_llama_3_2_1b_b1_512_32_v1.json",
+        "benchmarks/results/apple_m1_strata_resident_routes_llama_3_2_1b_b1_512_128_v1.json",
+        "benchmarks/results/apple_m1_strata_resident_routes_gemma_3_1b_b1_512_128_v1.json"
+      ]
+    },
+    {
+      "runtime_id": "strata-paged-mlx-lab",
+      "evidence_level": "L4-laboratory",
+      "status": "measured-capability-not-promoted",
+      "model_ids": ["llama-3.2-1b"],
+      "result_files": [
+        "benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_256mib_v1.json",
+        "benchmarks/results/apple_m1_strata_paged_vs_mlx_llama_3_2_1b_v1.json",
+        "benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_384mib_pin5_v1.json",
+        "benchmarks/results/apple_m1_strata_paged_384mib_pin5_vs_mlx_llama_3_2_1b_v1.json",
+        "benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd0_io1_v1.json",
+        "benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_cap640_pd1_io1_v1.json",
+        "benchmarks/results/apple_m1_strata_paged_mlx_llama_3_2_1b_b1_512_128_tuning_decision_v1.json",
+        "benchmarks/results/apple_m1_strata_paged_640mib_pd0_vs_mlx_llama_3_2_1b_v1.json"
+      ]
+    },
+    {
+      "runtime_id": "strata-native-metal",
+      "evidence_level": "L2-generated-kernel",
+      "status": "not-yet-full-model",
+      "model_ids": [],
+      "result_files": ["benchmarks/results/apple_m1_phase_program_v1.json"]
+    },
+    {
+      "runtime_id": "strata-ane-research",
+      "evidence_level": "L2-bounded-projection-hardware-qualification",
+      "status": "qualified-not-planner-eligible-not-yet-full-model",
+      "model_ids": [],
+      "result_files": [
+        "benchmarks/results/apple_m1_ane_projection_qualification_2026_08_25.json",
+        "benchmarks/results/apple_m1_ane_resident_projection_benchmark_2026_08_25.json"
+      ]
+    },
+    {
+      "runtime_id": "ollama",
+      "evidence_level": "none",
+      "status": "client-installed-daemon-inactive-no-exact-artifact",
+      "model_ids": [],
+      "result_files": []
+    },
+    {
+      "runtime_id": "llama.cpp-metal",
+      "evidence_level": "none",
+      "status": "runtime-not-installed-no-exact-gguf-artifact",
+      "model_ids": [],
+      "result_files": []
+    }
+  ]
+}

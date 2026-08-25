@@ -42,6 +42,21 @@ class ControlledStore:
         return {group.tensors[0].name: FakeTensor(group.order + 1)}
 
 
+class EvictBeforeFirstPinResidency(ResidencyManager):
+    """Model a concurrent prefetch evicting a completed unpinned result."""
+
+    def __init__(self, budget_bytes, target):
+        super().__init__(budget_bytes)
+        self.target = target
+        self.armed = True
+
+    def pin(self, key):
+        if self.armed and key == self.target:
+            self.armed = False
+            self.evict(key)
+        return super().pin(key)
+
+
 def group(index, nbytes=4):
     return WeightGroup(
         group_id=f"layer.{index}",
@@ -181,6 +196,21 @@ class RuntimeContractTest(unittest.TestCase):
         snapshot = scheduler.snapshot()
         self.assertEqual(snapshot.prefetch_skips, 1)
         self.assertEqual(snapshot.cold_misses, 2)
+
+    def test_evicted_completed_prefetch_is_reloaded_on_demand(self):
+        target = group(0)
+        store = ControlledStore()
+        residency = EvictBeforeFirstPinResidency(4, target.group_id)
+        scheduler = PrefetchScheduler(store, residency, max_workers=2)
+        try:
+            self.assertTrue(scheduler.prefetch(target, phase="decode"))
+            with scheduler.acquire(target, phase="decode") as weights:
+                self.assertEqual(weights["weight"].value, 1)
+        finally:
+            scheduler.close()
+
+        self.assertEqual(store.loads, [target.group_id, target.group_id])
+        self.assertEqual(scheduler.snapshot().cold_misses, 1)
 
 
 class MLXGovernorProfileTest(unittest.TestCase):

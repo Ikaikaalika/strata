@@ -27,6 +27,7 @@ static const NSUInteger kWeightBytes = kWeightElements * sizeof(_Float16);
 static const NSUInteger kMaxLinearRequestBytes = 16 * 1024;
 static const double kNumericTolerance = 0.002;
 static const unsigned int kANEQoS = 21;
+static NSArray<NSNumber *> *gProjectionDispatchSamples = nil;
 
 static NSString *SysctlString(const char *name) {
     size_t size = 0;
@@ -524,8 +525,17 @@ static NSMutableDictionary<NSString *, id> *InitialExecutionEvidence(BOOL reques
     } mutableCopy];
 }
 
-static NSDictionary<NSString *, id> *RunProjectionProof(BOOL executionSurfaceSatisfied) {
+static NSDictionary<NSString *, id> *RunProjectionProof(
+    BOOL executionSurfaceSatisfied,
+    NSUInteger warmupCount,
+    NSUInteger measurementCount
+) {
     NSMutableDictionary<NSString *, id> *evidence = InitialExecutionEvidence(YES);
+    gProjectionDispatchSamples = nil;
+    if (measurementCount == 0) {
+        RecordFailure(evidence, @"benchmark", @"measurement count must be positive");
+        return evidence;
+    }
     if (!executionSurfaceSatisfied) {
         RecordFailure(evidence, @"execution_surface", @"required request or IOSurface selector is missing");
         return evidence;
@@ -722,22 +732,33 @@ static NSDictionary<NSString *, id> *RunProjectionProof(BOOL executionSurfaceSat
         evidence[@"request_created"] = @YES;
         evidence[@"last_successful_stage"] = @"request_created";
 
-        error = nil;
         evidence[@"dispatch_attempted"] = @YES;
-        CFAbsoluteTime dispatchStart = CFAbsoluteTimeGetCurrent();
-        ok = ((BOOL(*)(id, SEL, unsigned int, id, id, NSError **))objc_msgSend)(
-            model,
-            sel_registerName("evaluateWithQoS:options:request:error:"),
-            kANEQoS,
-            @{},
-            request,
-            &error
-        );
-        evidence[@"dispatch_ms"] = @((CFAbsoluteTimeGetCurrent() - dispatchStart) * 1000.0);
-        if (!ok) {
-            RecordFailure(evidence, @"dispatch", ErrorDescription(error, @"private ANE evaluate returned false"));
-            goto cleanup;
+        NSMutableArray<NSNumber *> *dispatchSamples =
+            [NSMutableArray arrayWithCapacity:measurementCount];
+        NSUInteger totalDispatches = warmupCount + measurementCount;
+        for (NSUInteger dispatchIndex = 0; dispatchIndex < totalDispatches; dispatchIndex++) {
+            error = nil;
+            CFAbsoluteTime dispatchStart = CFAbsoluteTimeGetCurrent();
+            ok = ((BOOL(*)(id, SEL, unsigned int, id, id, NSError **))objc_msgSend)(
+                model,
+                sel_registerName("evaluateWithQoS:options:request:error:"),
+                kANEQoS,
+                @{},
+                request,
+                &error
+            );
+            double dispatchMS = (CFAbsoluteTimeGetCurrent() - dispatchStart) * 1000.0;
+            if (!ok) {
+                RecordFailure(evidence, @"dispatch", ErrorDescription(
+                    error, @"private ANE evaluate returned false"));
+                goto cleanup;
+            }
+            if (dispatchIndex >= warmupCount) {
+                [dispatchSamples addObject:@(dispatchMS)];
+            }
         }
+        gProjectionDispatchSamples = [dispatchSamples copy];
+        evidence[@"dispatch_ms"] = dispatchSamples.firstObject;
         evidence[@"dispatch_succeeded"] = @YES;
         evidence[@"last_successful_stage"] = @"dispatch_succeeded";
 
@@ -1227,7 +1248,11 @@ cleanup:
     return result;
 }
 
-static NSDictionary<NSString *, id> *BuildReport(BOOL executeProjection) {
+static NSDictionary<NSString *, id> *BuildReport(
+    BOOL executeProjection,
+    NSUInteger warmupCount,
+    NSUInteger measurementCount
+) {
     NSMutableArray<NSString *> *errors = [NSMutableArray array];
 
     NSDictionary<NSString *, id> *aneFramework = LoadFramework(
@@ -1305,7 +1330,8 @@ static NSDictionary<NSString *, id> *BuildReport(BOOL executeProjection) {
         surfaceObjectClassPresent && requestFactoryPresent && surfaceObjectFactoryPresent;
 
     NSDictionary<NSString *, id> *execution = executeProjection ?
-        RunProjectionProof(executionSurfaceSatisfied) : InitialExecutionEvidence(NO);
+        RunProjectionProof(executionSurfaceSatisfied, warmupCount, measurementCount) :
+        InitialExecutionEvidence(NO);
     NSString *executionError = execution[@"error"];
     if (executionError.length > 0) {
         [errors addObject:[NSString stringWithFormat:@"projection proof: %@", executionError]];
@@ -1368,21 +1394,100 @@ static NSDictionary<NSString *, id> *BuildReport(BOOL executeProjection) {
     };
 }
 
+static NSDictionary<NSString *, id> *BuildProjectionBenchmarkReport(
+    NSDictionary<NSString *, id> *qualification,
+    NSUInteger warmupCount
+) {
+    NSDictionary<NSString *, id> *execution = qualification[@"execution"];
+    NSArray<NSNumber *> *samples = gProjectionDispatchSamples ?: @[];
+    NSArray<NSNumber *> *ordered = [samples sortedArrayUsingComparator:
+        ^NSComparisonResult(NSNumber *left, NSNumber *right) {
+            return [left compare:right];
+        }];
+    double sum = 0.0;
+    for (NSNumber *sample in samples) {
+        sum += sample.doubleValue;
+    }
+    NSUInteger count = ordered.count;
+    NSUInteger p95Index = count == 0 ? 0 : (NSUInteger)ceil(0.95 * count) - 1;
+    id unavailable = [NSNull null];
+    id median = unavailable;
+    if (count > 0) {
+        median = count % 2 == 1 ? ordered[count / 2] :
+            @((ordered[count / 2 - 1].doubleValue +
+               ordered[count / 2].doubleValue) / 2.0);
+    }
+    NSDictionary<NSString *, id> *distribution = @{
+        @"minimum": count > 0 ? ordered.firstObject : unavailable,
+        @"median": median,
+        @"p95": count > 0 ? ordered[p95Index] : unavailable,
+        @"mean": count > 0 ? @(sum / count) : unavailable,
+        @"maximum": count > 0 ? ordered.lastObject : unavailable,
+    };
+    BOOL success = [execution[@"execution_verified"] boolValue] && count > 0;
+    return @{
+        @"schema_version": @1,
+        @"report": @"strata-ane-resident-projection-benchmark",
+        @"evidence_kind": @"hardware",
+        @"platform": qualification[@"platform"],
+        @"operation": @{
+            @"kind": @"fp16_projection",
+            @"logical_input_shape": @[@(kProjectionSpatial), @(kProjectionChannels)],
+            @"logical_weight_shape": @[@(kProjectionChannels), @(kProjectionChannels)],
+            @"physical_shape": @[@1, @(kProjectionChannels), @1, @(kProjectionSpatial)],
+            @"dtype": @"float16",
+        },
+        @"resident_lifecycle": @{
+            @"compile_once": execution[@"compile_succeeded"],
+            @"load_once": execution[@"load_succeeded"],
+            @"request_reused": @YES,
+            @"iosurfaces_reused": @YES,
+            @"warmups": @(warmupCount),
+            @"iterations": @(count),
+        },
+        @"correctness": @{
+            @"numeric_verified": execution[@"numeric_verified"],
+            @"max_abs_error": execution[@"max_abs_error"],
+            @"tolerance": execution[@"tolerance"],
+        },
+        @"dispatch_ms": distribution,
+        @"timing_scope": @"evaluateWithQoS only on one compiled and loaded model with reused IOSurfaces and request",
+        @"planner_eligible": @NO,
+        @"success": @(success),
+        @"error": execution[@"error"],
+        @"cleanup_error": execution[@"cleanup_error"],
+        @"claim_boundary": @"Fixed projection warm-dispatch evidence only; excludes full LLM phase, layout bridges, sampling, and backend handoffs.",
+    };
+}
+
 int main(int argc, const char *argv[]) {
     @autoreleasepool {
         BOOL executeProjection = NO;
+        BOOL benchmarkProjection = NO;
         NSString *linearRequestPath = nil;
         if (argc == 2 && strcmp(argv[1], "--execute-projection") == 0) {
             executeProjection = YES;
+        } else if (argc == 2 && strcmp(argv[1], "--benchmark-projection") == 0) {
+            executeProjection = YES;
+            benchmarkProjection = YES;
         } else if (argc == 3 && strcmp(argv[1], "--execute-linear-request") == 0) {
             linearRequestPath = [NSString stringWithUTF8String:argv[2]];
         } else if (argc != 1) {
             fprintf(stderr,
-                "usage: strata-ane-probe [--execute-projection | --execute-linear-request <request.json>]\n");
+                "usage: strata-ane-probe [--execute-projection | --benchmark-projection | --execute-linear-request <request.json>]\n");
             return 64;
         }
-        NSDictionary<NSString *, id> *report = linearRequestPath == nil ?
-            BuildReport(executeProjection) : RunLinearRequest(linearRequestPath);
+        NSDictionary<NSString *, id> *report = nil;
+        if (linearRequestPath != nil) {
+            report = RunLinearRequest(linearRequestPath);
+        } else {
+            NSDictionary<NSString *, id> *qualification = BuildReport(
+                executeProjection,
+                benchmarkProjection ? 5 : 0,
+                benchmarkProjection ? 50 : 1);
+            report = benchmarkProjection ?
+                BuildProjectionBenchmarkReport(qualification, 5) : qualification;
+        }
         NSError *error = nil;
         NSData *json = [NSJSONSerialization dataWithJSONObject:report options:0 error:&error];
         if (json == nil) {

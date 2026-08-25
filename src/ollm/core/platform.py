@@ -74,6 +74,7 @@ class AdmissionReason(str, Enum):
     FULL_RESIDENCY_REQUIRED = "full_residency_required"
     SPILL_DISABLED = "spill_disabled"
     NO_QUALIFIED_SSD = "no_qualified_ssd"
+    SSD_THROUGHPUT_BOUND = "ssd_throughput_bound"
 
 
 @dataclass(frozen=True)
@@ -139,6 +140,7 @@ class RuntimeDemand:
     temporary_bytes: int
     minimum_weight_window_bytes: int
     storage_bytes_required: int = 0
+    paging_bytes_per_decode_token: int = 0
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -148,6 +150,7 @@ class RuntimeDemand:
             "temporary_bytes",
             "minimum_weight_window_bytes",
             "storage_bytes_required",
+            "paging_bytes_per_decode_token",
         ):
             if getattr(self, field_name) < 0:
                 raise ValueError(f"{field_name} must not be negative")
@@ -246,6 +249,7 @@ class AdmissionDecision:
     storage_target_id: Optional[str]
     private_backends_allowed: bool
     reasons: Tuple[AdmissionReason, ...]
+    estimated_storage_decode_ceiling_tps: Optional[float] = None
 
     def __post_init__(self) -> None:
         if self.memory_budget_bytes < 0:
@@ -273,6 +277,16 @@ class AdmissionDecision:
             and self.storage_target_id is not None
         ):
             raise ValueError("only paged decisions may select storage")
+        if (
+            self.estimated_storage_decode_ceiling_tps is not None
+            and self.estimated_storage_decode_ceiling_tps <= 0
+        ):
+            raise ValueError("storage decode ceiling must be positive when provided")
+        if (
+            self.residency_mode is not ResidencyMode.PAGED
+            and self.estimated_storage_decode_ceiling_tps is not None
+        ):
+            raise ValueError("only paged decisions may have a storage decode ceiling")
 
 
 @dataclass(frozen=True)
@@ -394,6 +408,27 @@ class AdaptiveAdmissionPolicy:
                 private_allowed,
                 AdmissionReason.NO_QUALIFIED_SSD,
             )
+        storage_ceiling = self._storage_decode_ceiling(target, demand)
+        throughput_bound = (
+            storage_ceiling is not None
+            and objective.min_decode_tokens_per_second is not None
+            and storage_ceiling < objective.min_decode_tokens_per_second
+        )
+        if (
+            throughput_bound
+            and objective.residency_preference is not ResidencyPreference.PAGED
+        ):
+            return self._reject(
+                budget,
+                weight_budget,
+                private_allowed,
+                AdmissionReason.SSD_THROUGHPUT_BOUND,
+            )
+        reasons = (
+            (AdmissionReason.SSD_PAGING, AdmissionReason.SSD_THROUGHPUT_BOUND)
+            if throughput_bound
+            else (AdmissionReason.SSD_PAGING,)
+        )
         return AdmissionDecision(
             admitted=True,
             memory_budget_bytes=budget,
@@ -401,7 +436,21 @@ class AdaptiveAdmissionPolicy:
             residency_mode=ResidencyMode.PAGED,
             storage_target_id=target.target_id,
             private_backends_allowed=private_allowed,
-            reasons=(AdmissionReason.SSD_PAGING,),
+            reasons=reasons,
+            estimated_storage_decode_ceiling_tps=storage_ceiling,
+        )
+
+    @staticmethod
+    def _storage_decode_ceiling(
+        target: StorageTarget,
+        demand: RuntimeDemand,
+    ) -> Optional[float]:
+        if demand.paging_bytes_per_decode_token <= 0:
+            return None
+        assert target.measured_read_bytes_per_second is not None
+        return (
+            target.measured_read_bytes_per_second
+            / demand.paging_bytes_per_decode_token
         )
 
     def _memory_budget(

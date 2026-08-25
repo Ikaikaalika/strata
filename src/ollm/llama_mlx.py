@@ -37,6 +37,43 @@ loader = None
 stats = None
 
 
+def _quantization_parameters(config: Any) -> Tuple[Optional[int], Optional[int], str]:
+    quantization = getattr(config, "quantization", None) or getattr(
+        config, "quantization_config", None
+    )
+    if not isinstance(quantization, dict):
+        return None, None, "affine"
+    return (
+        int(quantization["group_size"]),
+        int(quantization["bits"]),
+        str(quantization.get("mode", "affine")),
+    )
+
+
+def _linear(
+    x: Any,
+    weight: Any,
+    scales: Any,
+    biases: Any,
+    *,
+    group_size: Optional[int],
+    bits: Optional[int],
+    mode: str,
+) -> Any:
+    if scales is None:
+        return mx.matmul(x, weight.T)
+    return mx.quantized_matmul(
+        x,
+        weight,
+        scales,
+        biases,
+        transpose=True,
+        group_size=group_size,
+        bits=bits,
+        mode=mode,
+    )
+
+
 class MLXRMSNorm:
     """RMS Normalization for MLX (Metal optimized)."""
 
@@ -156,6 +193,7 @@ class MLXLlamaAttention:
         head_dim: int,
         layer_idx: int,
         tracer: Optional[Any] = None,
+        quantization: Tuple[Optional[int], Optional[int], str] = (None, None, "affine"),
     ):
         self.hidden_size = hidden_size
         self.num_heads = num_heads
@@ -163,12 +201,21 @@ class MLXLlamaAttention:
         self.head_dim = head_dim
         self.layer_idx = layer_idx
         self.tracer = tracer
+        self.group_size, self.bits, self.quantization_mode = quantization
 
         # Weights will be loaded dynamically
         self.q_proj_weight = None
         self.k_proj_weight = None
         self.v_proj_weight = None
         self.o_proj_weight = None
+        self.q_proj_scales = None
+        self.q_proj_biases = None
+        self.k_proj_scales = None
+        self.k_proj_biases = None
+        self.v_proj_scales = None
+        self.v_proj_biases = None
+        self.o_proj_scales = None
+        self.o_proj_biases = None
 
     def __call__(
         self,
@@ -207,9 +254,18 @@ class MLXLlamaAttention:
         started_at = time.perf_counter()
 
         # Project to Q, K, V
-        query_states = mx.matmul(hidden_states, self.q_proj_weight.T)
-        key_states = mx.matmul(hidden_states, self.k_proj_weight.T)
-        value_states = mx.matmul(hidden_states, self.v_proj_weight.T)
+        query_states = _linear(
+            hidden_states, self.q_proj_weight, self.q_proj_scales, self.q_proj_biases,
+            group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+        )
+        key_states = _linear(
+            hidden_states, self.k_proj_weight, self.k_proj_scales, self.k_proj_biases,
+            group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+        )
+        value_states = _linear(
+            hidden_states, self.v_proj_weight, self.v_proj_scales, self.v_proj_biases,
+            group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+        )
 
         # Reshape for multi-head attention
         query_states = query_states.reshape(
@@ -254,7 +310,10 @@ class MLXLlamaAttention:
         # Reshape and project output
         attn_output = attn_output.transpose(0, 2, 1, 3)
         attn_output = attn_output.reshape(batch_size, seq_len, -1)
-        attn_output = mx.matmul(attn_output, self.o_proj_weight.T)
+        attn_output = _linear(
+            attn_output, self.o_proj_weight, self.o_proj_scales, self.o_proj_biases,
+            group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+        )
 
         if self.tracer is not None:
             mx.eval(attn_output)
@@ -286,7 +345,12 @@ class MLXLlamaAttention:
 class MLXLlamaMLP:
     """MLX-native Llama MLP with chunked computation."""
 
-    def __init__(self, hidden_size: int, intermediate_size: int):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+        quantization: Tuple[Optional[int], Optional[int], str] = (None, None, "affine"),
+    ):
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
 
@@ -294,6 +358,13 @@ class MLXLlamaMLP:
         self.gate_proj_weight = None
         self.up_proj_weight = None
         self.down_proj_weight = None
+        self.gate_proj_scales = None
+        self.gate_proj_biases = None
+        self.up_proj_scales = None
+        self.up_proj_biases = None
+        self.down_proj_scales = None
+        self.down_proj_biases = None
+        self.group_size, self.bits, self.quantization_mode = quantization
 
     def __call__(self, x: mx.array) -> mx.array:
         """
@@ -306,7 +377,7 @@ class MLXLlamaMLP:
             Output tensor [batch, seq_len, hidden_size]
         """
         # Use optimized version if available
-        if METAL_OPTIMIZED:
+        if METAL_OPTIMIZED and self.gate_proj_scales is None:
             return optimized_mlp_chunked(
                 x,
                 self.gate_proj_weight,
@@ -321,10 +392,19 @@ class MLXLlamaMLP:
 
         if seq_len <= chunk_size:
             # Small enough to process at once
-            gate = mx.matmul(x, self.gate_proj_weight.T)
+            gate = _linear(
+                x, self.gate_proj_weight, self.gate_proj_scales, self.gate_proj_biases,
+                group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+            )
             gate = optimized_silu(gate) if METAL_OPTIMIZED else gate * mx.sigmoid(gate)
-            up = mx.matmul(x, self.up_proj_weight.T)
-            out = mx.matmul(gate * up, self.down_proj_weight.T)
+            up = _linear(
+                x, self.up_proj_weight, self.up_proj_scales, self.up_proj_biases,
+                group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+            )
+            out = _linear(
+                gate * up, self.down_proj_weight, self.down_proj_scales, self.down_proj_biases,
+                group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+            )
             return out
 
         # Process in chunks
@@ -333,10 +413,19 @@ class MLXLlamaMLP:
             end = min(i + chunk_size, seq_len)
             x_chunk = x[:, i:end, :]
 
-            gate = mx.matmul(x_chunk, self.gate_proj_weight.T)
+            gate = _linear(
+                x_chunk, self.gate_proj_weight, self.gate_proj_scales, self.gate_proj_biases,
+                group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+            )
             gate = optimized_silu(gate) if METAL_OPTIMIZED else gate * mx.sigmoid(gate)
-            up = mx.matmul(x_chunk, self.up_proj_weight.T)
-            out_chunk = mx.matmul(gate * up, self.down_proj_weight.T)
+            up = _linear(
+                x_chunk, self.up_proj_weight, self.up_proj_scales, self.up_proj_biases,
+                group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+            )
+            out_chunk = _linear(
+                gate * up, self.down_proj_weight, self.down_proj_scales, self.down_proj_biases,
+                group_size=self.group_size, bits=self.bits, mode=self.quantization_mode,
+            )
 
             chunks.append(out_chunk)
 
@@ -351,6 +440,7 @@ class MLXLlamaDecoderLayer:
         self.config = config
 
         # Initialize components
+        quantization = _quantization_parameters(config)
         self.self_attn = MLXLlamaAttention(
             hidden_size=config.hidden_size,
             num_heads=config.num_attention_heads,
@@ -358,11 +448,13 @@ class MLXLlamaDecoderLayer:
             head_dim=config.hidden_size // config.num_attention_heads,
             layer_idx=layer_idx,
             tracer=tracer,
+            quantization=quantization,
         )
 
         self.mlp = MLXLlamaMLP(
             hidden_size=config.hidden_size,
-            intermediate_size=config.intermediate_size
+            intermediate_size=config.intermediate_size,
+            quantization=quantization,
         )
 
         self.input_layernorm = MLXRMSNorm(
@@ -378,7 +470,7 @@ class MLXLlamaDecoderLayer:
     def _layer_param_manifest_names(self) -> Dict[str, str]:
         """Get manifest names for this layer's parameters."""
         base = f"model.layers.{self.layer_idx}"
-        return {
+        manifest = {
             "self_attn.q_proj.weight": f"{base}.self_attn.q_proj.weight",
             "self_attn.k_proj.weight": f"{base}.self_attn.k_proj.weight",
             "self_attn.v_proj.weight": f"{base}.self_attn.v_proj.weight",
@@ -389,26 +481,67 @@ class MLXLlamaDecoderLayer:
             "input_layernorm.weight": f"{base}.input_layernorm.weight",
             "post_attention_layernorm.weight": f"{base}.post_attention_layernorm.weight",
         }
+        if self.self_attn.group_size is not None:
+            for prefix in (
+                "self_attn.q_proj",
+                "self_attn.k_proj",
+                "self_attn.v_proj",
+                "self_attn.o_proj",
+                "mlp.gate_proj",
+                "mlp.up_proj",
+                "mlp.down_proj",
+            ):
+                manifest[f"{prefix}.scales"] = f"{base}.{prefix}.scales"
+                manifest[f"{prefix}.biases"] = f"{base}.{prefix}.biases"
+        return manifest
 
     def _assign_layer_weight(self, attr_path: str, tensor: Any) -> None:
         if attr_path.startswith("self_attn."):
             param_name = attr_path.replace("self_attn.", "")
             if param_name == "q_proj.weight":
                 self.self_attn.q_proj_weight = tensor
+            elif param_name == "q_proj.scales":
+                self.self_attn.q_proj_scales = tensor
+            elif param_name == "q_proj.biases":
+                self.self_attn.q_proj_biases = tensor
             elif param_name == "k_proj.weight":
                 self.self_attn.k_proj_weight = tensor
+            elif param_name == "k_proj.scales":
+                self.self_attn.k_proj_scales = tensor
+            elif param_name == "k_proj.biases":
+                self.self_attn.k_proj_biases = tensor
             elif param_name == "v_proj.weight":
                 self.self_attn.v_proj_weight = tensor
+            elif param_name == "v_proj.scales":
+                self.self_attn.v_proj_scales = tensor
+            elif param_name == "v_proj.biases":
+                self.self_attn.v_proj_biases = tensor
             elif param_name == "o_proj.weight":
                 self.self_attn.o_proj_weight = tensor
+            elif param_name == "o_proj.scales":
+                self.self_attn.o_proj_scales = tensor
+            elif param_name == "o_proj.biases":
+                self.self_attn.o_proj_biases = tensor
         elif attr_path.startswith("mlp."):
             param_name = attr_path.replace("mlp.", "")
             if param_name == "gate_proj.weight":
                 self.mlp.gate_proj_weight = tensor
+            elif param_name == "gate_proj.scales":
+                self.mlp.gate_proj_scales = tensor
+            elif param_name == "gate_proj.biases":
+                self.mlp.gate_proj_biases = tensor
             elif param_name == "up_proj.weight":
                 self.mlp.up_proj_weight = tensor
+            elif param_name == "up_proj.scales":
+                self.mlp.up_proj_scales = tensor
+            elif param_name == "up_proj.biases":
+                self.mlp.up_proj_biases = tensor
             elif param_name == "down_proj.weight":
                 self.mlp.down_proj_weight = tensor
+            elif param_name == "down_proj.scales":
+                self.mlp.down_proj_scales = tensor
+            elif param_name == "down_proj.biases":
+                self.mlp.down_proj_biases = tensor
         elif attr_path == "input_layernorm.weight":
             self.input_layernorm.weight = tensor
         elif attr_path == "post_attention_layernorm.weight":
@@ -454,9 +587,23 @@ class MLXLlamaDecoderLayer:
         self.self_attn.k_proj_weight = None
         self.self_attn.v_proj_weight = None
         self.self_attn.o_proj_weight = None
+        self.self_attn.q_proj_scales = None
+        self.self_attn.q_proj_biases = None
+        self.self_attn.k_proj_scales = None
+        self.self_attn.k_proj_biases = None
+        self.self_attn.v_proj_scales = None
+        self.self_attn.v_proj_biases = None
+        self.self_attn.o_proj_scales = None
+        self.self_attn.o_proj_biases = None
         self.mlp.gate_proj_weight = None
         self.mlp.up_proj_weight = None
         self.mlp.down_proj_weight = None
+        self.mlp.gate_proj_scales = None
+        self.mlp.gate_proj_biases = None
+        self.mlp.up_proj_scales = None
+        self.mlp.up_proj_biases = None
+        self.mlp.down_proj_scales = None
+        self.mlp.down_proj_biases = None
 
     def __call__(
         self,
@@ -520,6 +667,8 @@ class MLXLlamaModel:
         tracer: Optional[Any] = None,
         weight_loader: Optional[Any] = None,
         memory_budget_bytes: Optional[int] = None,
+        prefetch_distance: int = 1,
+        prefetch_workers: int = 1,
     ):
         self.config = config
         self.padding_idx = config.pad_token_id
@@ -527,6 +676,11 @@ class MLXLlamaModel:
 
         # Embedding (loaded from HF model)
         self.embed_tokens_weight = None  # Set externally
+        self.embed_tokens_scales = None
+        self.embed_tokens_biases = None
+        self.group_size, self.bits, self.quantization_mode = _quantization_parameters(
+            config
+        )
 
         # Decoder layers
         self.layers = [
@@ -549,6 +703,8 @@ class MLXLlamaModel:
 
         # LM head (set externally)
         self.lm_head_weight = None
+        self.lm_head_scales = None
+        self.lm_head_biases = None
         self.layer_pipeline = None
         if memory_budget_bytes is not None:
             if weight_loader is None:
@@ -561,7 +717,25 @@ class MLXLlamaModel:
                 loader=weight_loader,
                 budget_bytes=memory_budget_bytes,
                 tracer=tracer,
+                prefetch_distance=prefetch_distance,
+                prefetch_workers=prefetch_workers,
             )
+
+    def embed_tokens(self, input_ids: Any) -> Any:
+        if self.embed_tokens_scales is None:
+            return self.embed_tokens_weight[input_ids]
+        return mx.dequantize(
+            self.embed_tokens_weight[input_ids],
+            self.embed_tokens_scales[input_ids],
+            (
+                None
+                if self.embed_tokens_biases is None
+                else self.embed_tokens_biases[input_ids]
+            ),
+            group_size=self.group_size,
+            bits=self.bits,
+            mode=self.quantization_mode,
+        )
 
     def __call__(
         self,
@@ -583,7 +757,7 @@ class MLXLlamaModel:
         batch_size, seq_len = input_ids.shape
 
         # Embed tokens
-        hidden_states = self.embed_tokens_weight[input_ids]
+        hidden_states = self.embed_tokens(input_ids)
 
         active_cache = past_key_values if use_cache else None
 
@@ -672,6 +846,8 @@ class MLXLlamaForCausalLM:
         tracer: Optional[Any] = None,
         weight_loader: Optional[Any] = None,
         memory_budget_bytes: Optional[int] = None,
+        prefetch_distance: int = 1,
+        prefetch_workers: int = 1,
     ):
         self.config = config
         self.model = MLXLlamaModel(
@@ -679,6 +855,8 @@ class MLXLlamaForCausalLM:
             tracer=tracer,
             weight_loader=weight_loader,
             memory_budget_bytes=memory_budget_bytes,
+            prefetch_distance=prefetch_distance,
+            prefetch_workers=prefetch_workers,
         )
         self.vocab_size = config.vocab_size
 
@@ -706,7 +884,30 @@ class MLXLlamaForCausalLM:
         )
 
         # Project to vocabulary
-        logits = mx.matmul(hidden_states, self.model.lm_head_weight.T)
+        head_weight = (
+            self.model.embed_tokens_weight
+            if self.model.lm_head_weight is None
+            else self.model.lm_head_weight
+        )
+        head_scales = (
+            self.model.embed_tokens_scales
+            if self.model.lm_head_scales is None
+            else self.model.lm_head_scales
+        )
+        head_biases = (
+            self.model.embed_tokens_biases
+            if self.model.lm_head_biases is None
+            else self.model.lm_head_biases
+        )
+        logits = _linear(
+            hidden_states,
+            head_weight,
+            head_scales,
+            head_biases,
+            group_size=self.model.group_size,
+            bits=self.model.bits,
+            mode=self.model.quantization_mode,
+        )
 
         return logits
 

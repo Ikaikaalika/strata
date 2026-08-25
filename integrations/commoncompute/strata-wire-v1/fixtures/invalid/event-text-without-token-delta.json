@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "message_type": "event",
+  "request_id": "req-fixture-0001",
+  "sequence": 1,
+  "kind": "text_delta",
+  "emitted_at_unix_ms": 1787630400520,
+  "text_delta": "ok"
+}

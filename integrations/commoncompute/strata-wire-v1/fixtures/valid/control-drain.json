@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "message_type": "control",
+  "control_id": "control-fixture-0002",
+  "action": "drain",
+  "issued_at_unix_ms": 1787630400600
+}
