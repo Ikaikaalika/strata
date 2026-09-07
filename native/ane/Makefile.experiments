@@ -1,0 +1,27 @@
+CLANG ?= xcrun clang
+BUILD_DIR ?= build/experiments
+SANITIZERS ?= undefined
+LAYOUT_FLAGS ?=
+OBJC_FLAGS := -fobjc-arc -Wall -Wextra -Werror -Wno-unused-function -O3 $(LAYOUT_FLAGS)
+FRAMEWORKS := -framework Foundation -framework IOSurface
+
+.PHONY: all test
+all: $(BUILD_DIR)/prefill-chain-bench $(BUILD_DIR)/swiglu-bench $(BUILD_DIR)/test-tensor-layout
+
+$(BUILD_DIR):
+	mkdir -p "$(BUILD_DIR)"
+
+$(BUILD_DIR)/prefill-chain-bench: prefill_chain_bench.m strata_ane_probe.m | $(BUILD_DIR)
+	$(CLANG) $(OBJC_FLAGS) $(FRAMEWORKS) $< -o "$@"
+
+$(BUILD_DIR)/swiglu-bench: swiglu_bench.m strata_ane_probe.m tensor_layout.h | $(BUILD_DIR)
+	$(CLANG) $(OBJC_FLAGS) $(FRAMEWORKS) $< -o "$@"
+
+$(BUILD_DIR)/test-tensor-layout: test_tensor_layout.c tensor_layout.h | $(BUILD_DIR)
+	$(CLANG) -std=c11 -Wall -Wextra -Werror -O2 $(LAYOUT_FLAGS) -fsanitize=$(SANITIZERS) $< -o "$@"
+
+test: all
+	"$(BUILD_DIR)/test-tensor-layout"
+
+$(BUILD_DIR)/layout-bench: layout_bench.c tensor_layout.h | $(BUILD_DIR)
+	$(CLANG) -std=c11 -Wall -Wextra -Werror -O3 -DSTRATA_USE_NEON_TRANSPOSE $< -o "$@"

@@ -19,6 +19,20 @@ remain staged work.
 > The installable distribution is named `strata-llm`. The Python import
 > namespace remains `ollm` temporarily for compatibility.
 
+## Building in public
+
+The existing [public Strata repository](https://github.com/Ikaikaalika/strata)
+is the home for development, including measured wins, rejected candidates and
+unfinished architecture work. CommonCompute is the intended first integration;
+publishing an experiment is not a provider-app release or production promotion.
+
+Start with the [build-in-public guide](docs/BUILD_IN_PUBLIC.md),
+[bounded native search](docs/design/BOUNDED_ARCHITECTURE_SEARCH.md), and
+[latest native experiment report](docs/experiments/FLEET_NATIVE_OPTIMIZATION_20260907.md).
+The recovered work includes Objective-C direct-ANE experiments, C/ARM64 NEON
+layout kernels, and a C++ capacity planner. The new evidence is component-level;
+it does **not** establish a full-model win over MLX-LM or Darkbloom.
+
 ## Current verified baseline
 
 The offline test suite and serialized local M1 probes currently verify:
@@ -65,10 +79,10 @@ production XPC server, multi-request continuous batching, complete native
 Metal/ANE model execution, production SSD paging, and the separate
 `strata_llm` distribution.
 
-> Storage boundary: `/Volumes/Tyler HDD` is the source checkout, not an SSD.
-> Strata must not use it for SSD offload, SSD benchmarking, or model/cache
-> placement intended to represent SSD behavior. SSD experiments require a
-> separate destination approved by the user.
+> Storage boundary: the original external HDD failed. Active development and
+> experiments now use an approved internal-SSD checkout. Do not access the old
+> HDD or follow preserved symlinks to it. Other contributors must select their
+> own model/cache locations; resident comparisons keep SSD offload disabled.
 
 ## Architecture direction
 

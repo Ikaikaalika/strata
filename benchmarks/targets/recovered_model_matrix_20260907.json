@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-09-07",
+  "scope": "Development targets, not native support or live Common Compute capacity",
+  "hardware": {"chip": "Apple M1", "unified_memory_bytes": 17179869184},
+  "ssd_offload_default": "disabled",
+  "free_space_reserve_gib": 40,
+  "sources": [
+    "https://huggingface.co/models?sort=trending",
+    "Hugging Face public model metadata via hf models info, observed 2026-09-07",
+    "/Users/tylergee/Documents/commoncomputeai/apps/api-v2/src/data/modelManifest.ts"
+  ],
+  "models": [
+    {
+      "repository": "mlx-community/Qwen3-0.6B-4bit",
+      "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+      "model_type": "qwen3",
+      "family": "dense_gqa_swiglu",
+      "license": "apache-2.0",
+      "priority": "local_native_canary",
+      "status": "downloaded_mlx_baseline_measured_native_ffn_component_tested",
+      "native_full_model_qualified": false
+    },
+    {
+      "repository": "mlx-community/Qwen3.5-0.8B-OptiQ-4bit",
+      "revision": "ef60586933bd2cc02b763f77eb8839a5114bbec1",
+      "model_type": "qwen3_5",
+      "family": "hybrid_gated_deltanet_attention",
+      "license": "apache-2.0",
+      "priority": "local_hybrid_canary",
+      "status": "downloaded_mlx_text_baseline_measured",
+      "notes": "Mixed 4/8-bit artifact; optional vision and MTP files are not an inference-support claim.",
+      "native_full_model_qualified": false
+    },
+    {
+      "repository": "mlx-community/Llama-3.2-3B-Instruct-4bit",
+      "revision": "7f0dc925e0d0afb0322d96f9255cfddf2ba5636e",
+      "family": "dense_gqa_swiglu",
+      "license": "llama3.2",
+      "priority": "common_compute_pinned_artifact",
+      "status": "downloaded_mlx_baseline_measured",
+      "common_compute_model_id": "llama-3.2-3b",
+      "common_compute_weight_sha256": "d75e1ee0ea653cc5b76191ec934c7c0d568e94d4e47846619f1f4bc715b7b265",
+      "native_full_model_qualified": false
+    },
+    {
+      "repository": "Qwen/Qwen3.8-27B",
+      "revision": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "model_type": "qwen3_5",
+      "family": "hybrid_gated_deltanet_attention",
+      "license": "apache-2.0",
+      "priority": "current_trending_larger_hardware",
+      "status": "metadata_only",
+      "observed_downloads": 6416358,
+      "observed_likes": 14232,
+      "notes": "Manifest and card establish hybrid architecture despite dense parameter routing. No weights downloaded; not an M1 resident qualification.",
+      "native_full_model_qualified": false
+    },
+    {
+      "repository": "zai-org/GLM-5.3-Flash",
+      "revision": "eb9eb208eb0d988989d07a6a12d0fdeb5f52574a",
+      "model_type": "glm5_next",
+      "architecture": "Glm5NextForConditionalGeneration",
+      "family": "requires_new_manifest_semantic_audit",
+      "license": "mit",
+      "priority": "current_trending_fleet_only",
+      "status": "metadata_only",
+      "observed_downloads": 784005,
+      "observed_likes": 2130,
+      "notes": "Do not reuse old GLM noaux_tc router semantics merely because the brand matches. No weights downloaded.",
+      "native_full_model_qualified": false
+    },
+    {
+      "repository": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "revision": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+      "model_type": "deepseek_v4",
+      "architecture": "DeepseekV4ForCausalLM",
+      "family": "requires_v4_specific_state_attention_router_audit",
+      "license": "mit",
+      "priority": "current_trending_fleet_only",
+      "status": "metadata_only",
+      "observed_downloads": 251611,
+      "observed_likes": 788,
+      "notes": "No V3-to-V4 semantic inference and no weights downloaded.",
+      "native_full_model_qualified": false
+    },
+    {
+      "repository": "google/gemma-4-E2B-it",
+      "revision": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+      "model_type": "gemma4",
+      "architecture": "Gemma4ForConditionalGeneration",
+      "family": "local_global_attention_with_per_layer_embeddings",
+      "license": "apache-2.0",
+      "priority": "next_compact_family_canary",
+      "status": "metadata_only_requires_quantized_artifact_selection",
+      "observed_downloads": 3211180,
+      "observed_likes": 938,
+      "notes": "Effective 2.3B is not total residency: card lists 5.1B including embeddings. Modality support needs separate tests.",
+      "native_full_model_qualified": false
+    },
+    {
+      "repository": "openai/gpt-oss-20b",
+      "revision": "6cee5e81ee83917806bbde320786a8fb61efebee",
+      "model_type": "gpt_oss",
+      "architecture": "GptOssForCausalLM",
+      "family": "moe_harmony_mxfp4_contract",
+      "license": "apache-2.0",
+      "priority": "requested_moe_compatibility",
+      "status": "metadata_only_memory_admission_pending",
+      "observed_downloads": 6493903,
+      "observed_likes": 5003,
+      "notes": "Resident fit is not assumed on this 16 GiB Mac. Keep exact format, attention and routing semantics; GPT-OSS-120B is a separate fleet target.",
+      "native_full_model_qualified": false
+    }
+  ]
+}

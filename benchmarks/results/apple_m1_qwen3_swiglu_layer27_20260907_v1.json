@@ -1,0 +1,232 @@
+{
+  "schema_version": 1,
+  "benchmark": "qwen3-real-swiglu-paired",
+  "success": false,
+  "promotion_eligible": false,
+  "layer": 27,
+  "rounds": 1,
+  "activation_variant": "tanh",
+  "layout_tile": 16,
+  "warmups": 5,
+  "iterations": 20,
+  "seed": 730,
+  "records": [
+    {
+      "resident_with_io_ms_samples": [],
+      "thermal_state": 0,
+      "success": false,
+      "cleanup_ok": true,
+      "promotion_eligible": false,
+      "rtol": 0.02,
+      "atol": 0.01,
+      "load_ms": 19.991125002503395,
+      "max_scaled_error": 2.4261218533381976,
+      "max_abs_error": 0.25,
+      "benchmark": "direct-ane-qwen3-swiglu",
+      "compile_ms": 74.49125000089407,
+      "schema_version": 1,
+      "platform": {
+        "build": "25G83",
+        "os": "macOS",
+        "architecture": "arm64",
+        "chip": "Apple M1",
+        "version": "26.6.2"
+      },
+      "warmups": 5,
+      "claim_boundary": "One real-weight FFN with captured activations, not full-model prefill or decode",
+      "iterations": 20,
+      "width": 1024,
+      "intermediate": 3072,
+      "relative_l2": 0.0004283957336162842,
+      "tokens": 64,
+      "layout_tile": 16,
+      "worst_element": {
+        "index": 27661,
+        "actual": -0.9033203125,
+        "expected": -0.83837890625
+      },
+      "error": "MLX FP16 reference tolerance exceeded",
+      "verified_direct_ane_dispatches": 1,
+      "activation_variant": "tanh",
+      "dispatch_ms_samples": [],
+      "stderr": "",
+      "variant": "ane_fused",
+      "round": 0,
+      "order": [
+        "ane_fused",
+        "mlx_fp16_compiled",
+        "mlx_quantized_compiled"
+      ]
+    }
+  ],
+  "summaries": [],
+  "ssd_offload": "disabled",
+  "software": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.31.3",
+    "numpy": "2.5.3"
+  },
+  "probe_sha256": "700044c2c0ca4d69d9ff60088627d8152e283099d4c7d8dc4c1a14b3cf4d500a",
+  "sources": {
+    "benchmarks/compare_ane_swiglu.py": "152cac864fe63f9a074d5b9477c00d7983592815a0939395f91fc697a1b7b840",
+    "benchmarks/recovered_mlx_baseline.py": "a5bd61c24915a309384b18df4618ae3b93c7921b46fca5353a7d7f4f92148e35",
+    "native/ane/swiglu_bench.m": "c470a08173531fa446dd569f01f92518e48f195f9d714937aae935fa0dcadaa5",
+    "native/ane/strata_ane_probe.m": "6e14b7b44f3df352821cc7fe32e059b53ed0efbf2efe02b49a23aa4d5167f042",
+    "native/ane/tensor_layout.h": "c873e71e5c01c291b71f9054e42b804dc3ad046ecd2f73122f7dfdf1ad2400c7"
+  },
+  "gate": {
+    "fp16_reference_atol": 0.01,
+    "fp16_reference_rtol": 0.02,
+    "quantized_relative_l2_max": 0.025
+  },
+  "claim_boundary": "One FFN, captured Qwen3 activation, FP16-expanded weights vs same quantized artifact; excludes attention, model-wide errors, caches, API serving and energy. Compile/load reported separately, not timed as resident execution.",
+  "artifact": {
+    "repository": "mlx-community/Qwen3-0.6B-4bit",
+    "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+    "files": [
+      {
+        "name": "added_tokens.json",
+        "sha256": "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680",
+        "bytes": 707
+      },
+      {
+        "name": "config.json",
+        "sha256": "15d3ac26c043ae477273ed5802ee0f0b33bb14f18c9d3dd70910c02d906e3f1f",
+        "bytes": 937
+      },
+      {
+        "name": "merges.txt",
+        "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+        "bytes": 1671853
+      },
+      {
+        "name": "model.safetensors",
+        "sha256": "392e8d466d56100ada00eb82031fb854297fc9e389b7d303eba3af114e87bce2",
+        "bytes": 335450584
+      },
+      {
+        "name": "model.safetensors.index.json",
+        "sha256": "7b294141456f6904936db03c00bca50fb5f6198f652fe8483f9cd2a1018accfb",
+        "bytes": 49731
+      },
+      {
+        "name": "special_tokens_map.json",
+        "sha256": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd",
+        "bytes": 613
+      },
+      {
+        "name": "tokenizer.json",
+        "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+        "bytes": 11422654
+      },
+      {
+        "name": "tokenizer_config.json",
+        "sha256": "253153d0738ceb4c668d2eff957714dd2bea0b56de772a9fdccd96cbf517e6a0",
+        "bytes": 9706
+      },
+      {
+        "name": "vocab.json",
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+        "bytes": 2776833
+      }
+    ]
+  },
+  "hardware_before": {
+    "chip": "Apple M1",
+    "unified_memory_bytes": 17179869184,
+    "architecture": "arm64",
+    "macos_version": "26.6.2",
+    "macos_build": "25G83",
+    "thermal_state_after_run": "nominal"
+  },
+  "fixtures": [
+    {
+      "tokens": 64,
+      "prompt_token_ids": [
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220,
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220,
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220,
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220
+      ],
+      "original_activation_dtype": "mlx.core.bfloat16",
+      "tested_activation_dtype": "float16",
+      "input_sha256": "f224410fd44ce9571d4d10e4faab882d382874711221637af1e6bb01154106ca",
+      "weight_sha256": [
+        "19281dd6f5be2dc083936b7fc65192d7e270613d002e2d7fe0a3c11515a4901f",
+        "ed4188ef9b6008fa2ce63323b9bdc147f51da369c59827a4c9dce64377ea2250",
+        "c740c95da768c80c96bb78386024f7a0aa2a58389ce9493127f0e684f2f43b8c"
+      ],
+      "fp16_vs_original_bf16": {
+        "max_abs": 6.0,
+        "max_scaled": 13.02490234375,
+        "relative_l2": 0.004217188339680433
+      },
+      "fp16_vs_quantized_fp16": {
+        "max_abs": 2.51123046875,
+        "max_scaled": 4.742171287536621,
+        "relative_l2": 0.001271299785003066
+      }
+    }
+  ],
+  "error": "native gate failed: MLX FP16 reference tolerance exceeded"
+}

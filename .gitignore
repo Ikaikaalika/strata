@@ -10,3 +10,11 @@ build/
 *.egg-info/
 src/ollm.egg-info
 animations/rendered/
+
+# Internal-SSD recovery tooling; never stage packages or interpreter binaries.
+/.venv/
+/.cache/
+/.local/
+
+# Unreviewed historical recovery candidates stay local until individually audited.
+/recovery/

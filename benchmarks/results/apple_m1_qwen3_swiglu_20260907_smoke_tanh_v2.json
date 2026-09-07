@@ -1,0 +1,435 @@
+{
+  "schema_version": 1,
+  "benchmark": "qwen3-real-swiglu-paired",
+  "success": true,
+  "promotion_eligible": false,
+  "layer": 0,
+  "rounds": 1,
+  "activation_variant": "tanh",
+  "warmups": 5,
+  "iterations": 20,
+  "seed": 730,
+  "records": [
+    {
+      "success": true,
+      "cleanup_ok": true,
+      "promotion_eligible": false,
+      "rtol": 0.02,
+      "atol": 0.01,
+      "load_ms": 19.30733333528042,
+      "max_scaled_error": 0.14340055548846758,
+      "max_abs_error": 0.0029296875,
+      "benchmark": "direct-ane-qwen3-swiglu",
+      "compile_ms": 94.28045833855867,
+      "schema_version": 1,
+      "platform": {
+        "build": "25G83",
+        "os": "macOS",
+        "architecture": "arm64",
+        "chip": "Apple M1",
+        "version": "26.6.2"
+      },
+      "warmups": 5,
+      "claim_boundary": "One real-weight FFN with captured activations, not full-model prefill or decode",
+      "iterations": 20,
+      "width": 1024,
+      "intermediate": 3072,
+      "verified_direct_ane_dispatches": 25,
+      "tokens": 64,
+      "resident_with_io_ms_samples": [
+        0.5736666619777679,
+        0.5555833354592323,
+        0.5636250004172325,
+        0.5547083392739296,
+        0.5633750036358833,
+        0.5595000013709068,
+        0.5581250041723251,
+        0.5684583336114883,
+        0.8047916665673256,
+        0.6730833351612091,
+        0.5930000022053719,
+        0.6312916725873947,
+        0.6700833365321159,
+        0.5740833356976509,
+        0.5722916722297668,
+        0.5727083384990692,
+        0.5833749994635582,
+        0.588749997317791,
+        0.5959166660904884,
+        0.5875416770577431
+      ],
+      "thermal_state": 0,
+      "dispatch_ms_samples": [
+        0.5160416662693024,
+        0.5002916753292084,
+        0.508250005543232,
+        0.4998333379626274,
+        0.5082499980926514,
+        0.5042500048875809,
+        0.5032499954104424,
+        0.5132916644215584,
+        0.7430000007152557,
+        0.613958328962326,
+        0.5360833406448364,
+        0.570874996483326,
+        0.6118749976158142,
+        0.5185000002384186,
+        0.5144166648387909,
+        0.5150416642427444,
+        0.5230416655540466,
+        0.5268333405256271,
+        0.5342083349823952,
+        0.5281250029802322
+      ],
+      "activation_variant": "tanh",
+      "stderr": "",
+      "variant": "ane_fused",
+      "round": 0,
+      "order": [
+        "ane_fused",
+        "mlx_fp16_compiled",
+        "mlx_quantized_compiled"
+      ],
+      "fp16_error": {
+        "max_abs": 0.0029296875,
+        "max_scaled": 0.14340056478977203,
+        "relative_l2": 0.002553306519985199
+      },
+      "quantized_error": {
+        "max_abs": 0.0038738250732421875,
+        "max_scaled": 0.17059747874736786,
+        "relative_l2": 0.003141407622024417
+      },
+      "original_bf16_error": {
+        "max_abs": 0.021484375,
+        "max_scaled": 0.43498167395591736,
+        "relative_l2": 0.006330931093543768
+      }
+    },
+    {
+      "dispatch_ms_samples": [
+        1.293625,
+        3.504334,
+        1.331083,
+        1.276542,
+        1.314416,
+        1.052542,
+        1.060834,
+        1.052125,
+        1.061458,
+        1.068042,
+        1.035209,
+        2.680917,
+        0.983,
+        0.94325,
+        0.949583,
+        0.930084,
+        0.968167,
+        0.942125,
+        0.96975,
+        1.1705
+      ],
+      "resident_with_io_ms_samples": [
+        1.13525,
+        1.119833,
+        1.121167,
+        1.042417,
+        0.935167,
+        0.937,
+        0.953583,
+        1.711625,
+        2.070708,
+        1.256209,
+        0.996125,
+        0.985541,
+        0.964584,
+        1.007625,
+        0.953,
+        0.951583,
+        0.933666,
+        0.857208,
+        0.873041,
+        0.879292
+      ],
+      "variant": "mlx_fp16_compiled",
+      "tokens": 64,
+      "round": 0,
+      "order": [
+        "ane_fused",
+        "mlx_fp16_compiled",
+        "mlx_quantized_compiled"
+      ],
+      "fp16_error": {
+        "max_abs": 0.0,
+        "max_scaled": 0.0,
+        "relative_l2": 0.0
+      },
+      "quantized_error": {
+        "max_abs": 0.0018154382705688477,
+        "max_scaled": 0.12403859198093414,
+        "relative_l2": 0.00195439625531435
+      },
+      "original_bf16_error": {
+        "max_abs": 0.01953125,
+        "max_scaled": 0.5036630034446716,
+        "relative_l2": 0.005804616492241621
+      }
+    },
+    {
+      "dispatch_ms_samples": [
+        3.876792,
+        1.621417,
+        1.578209,
+        1.563209,
+        1.445709,
+        1.461,
+        1.48075,
+        2.996084,
+        1.401041,
+        1.391292,
+        1.384916,
+        1.299958,
+        1.257125,
+        1.237125,
+        1.232958,
+        1.248625,
+        1.388667,
+        3.171375,
+        1.42475,
+        1.355584
+      ],
+      "resident_with_io_ms_samples": [
+        1.318833,
+        1.529667,
+        1.301667,
+        1.290333,
+        1.294,
+        1.277458,
+        1.291417,
+        1.266375,
+        2.86975,
+        1.33375,
+        1.308333,
+        1.305959,
+        1.296083,
+        1.2895,
+        1.279833,
+        1.253541,
+        1.270541,
+        1.260584,
+        1.407667,
+        2.629333
+      ],
+      "variant": "mlx_quantized_compiled",
+      "tokens": 64,
+      "round": 0,
+      "order": [
+        "ane_fused",
+        "mlx_fp16_compiled",
+        "mlx_quantized_compiled"
+      ],
+      "fp16_error": {
+        "max_abs": 0.0018154382705688477,
+        "max_scaled": 0.12373163551092148,
+        "relative_l2": 0.0019544516690075397
+      },
+      "quantized_error": {
+        "max_abs": 0.0,
+        "max_scaled": 0.0,
+        "relative_l2": 0.0
+      },
+      "original_bf16_error": {
+        "max_abs": 0.019183874130249023,
+        "max_scaled": 0.5039787888526917,
+        "relative_l2": 0.006076997146010399
+      }
+    }
+  ],
+  "summaries": [
+    {
+      "tokens": 64,
+      "resident_with_io_ms": {
+        "ane_fused": 0.5738749988377094,
+        "mlx_fp16_compiled": 0.9750624999999999,
+        "mlx_quantized_compiled": 1.2950415
+      },
+      "mlx_quantized_over_ane": 2.256661298406266,
+      "mlx_fp16_over_ane": 1.6990851700715845
+    }
+  ],
+  "ssd_offload": "disabled",
+  "software": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.31.3",
+    "numpy": "2.5.3"
+  },
+  "probe_sha256": "5e17bb59aa33a84b8bf820b7c749015f551df66469fd0295e3232f148c57a82e",
+  "sources": {
+    "benchmarks/compare_ane_swiglu.py": "59d966da82119ee35941d739fb1459249fe1a6e34d8898f68e61ed4281f4befb",
+    "benchmarks/recovered_mlx_baseline.py": "e2b8a6246969405ab2c27169a930c8c538bf3e0f24362457b06d6ca3646e4652",
+    "native/ane/swiglu_bench.m": "ee85b8708c9e9aa625f43f7f473711793c1121efa8c34a78672555085209a92b",
+    "native/ane/strata_ane_probe.m": "6e14b7b44f3df352821cc7fe32e059b53ed0efbf2efe02b49a23aa4d5167f042"
+  },
+  "gate": {
+    "fp16_reference_atol": 0.01,
+    "fp16_reference_rtol": 0.02,
+    "quantized_relative_l2_max": 0.025
+  },
+  "claim_boundary": "One FFN, captured Qwen3 activation, FP16-expanded weights vs same quantized artifact; excludes attention, model-wide errors, caches, API serving and energy. Compile/load reported separately, not timed as resident execution.",
+  "artifact": {
+    "repository": "mlx-community/Qwen3-0.6B-4bit",
+    "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+    "files": [
+      {
+        "name": "added_tokens.json",
+        "sha256": "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680",
+        "bytes": 707
+      },
+      {
+        "name": "config.json",
+        "sha256": "15d3ac26c043ae477273ed5802ee0f0b33bb14f18c9d3dd70910c02d906e3f1f",
+        "bytes": 937
+      },
+      {
+        "name": "merges.txt",
+        "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+        "bytes": 1671853
+      },
+      {
+        "name": "model.safetensors",
+        "sha256": "392e8d466d56100ada00eb82031fb854297fc9e389b7d303eba3af114e87bce2",
+        "bytes": 335450584
+      },
+      {
+        "name": "model.safetensors.index.json",
+        "sha256": "7b294141456f6904936db03c00bca50fb5f6198f652fe8483f9cd2a1018accfb",
+        "bytes": 49731
+      },
+      {
+        "name": "special_tokens_map.json",
+        "sha256": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd",
+        "bytes": 613
+      },
+      {
+        "name": "tokenizer.json",
+        "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+        "bytes": 11422654
+      },
+      {
+        "name": "tokenizer_config.json",
+        "sha256": "253153d0738ceb4c668d2eff957714dd2bea0b56de772a9fdccd96cbf517e6a0",
+        "bytes": 9706
+      },
+      {
+        "name": "vocab.json",
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+        "bytes": 2776833
+      }
+    ]
+  },
+  "hardware_before": {
+    "chip": "Apple M1",
+    "unified_memory_bytes": 17179869184,
+    "architecture": "arm64",
+    "macos_version": "26.6.2",
+    "macos_build": "25G83",
+    "thermal_state_after_run": "nominal"
+  },
+  "fixtures": [
+    {
+      "tokens": 64,
+      "prompt_token_ids": [
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220,
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220,
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220,
+        840,
+        20772,
+        1246,
+        264,
+        6366,
+        11364,
+        264,
+        4128,
+        1614,
+        9934,
+        11,
+        3019,
+        553,
+        3019,
+        13,
+        220
+      ],
+      "original_activation_dtype": "mlx.core.bfloat16",
+      "tested_activation_dtype": "float16",
+      "input_sha256": "98c66746c0e657900d9588fd93a4cd59a87b782e19520f841ce3baade9d61f2f",
+      "weight_sha256": [
+        "5fb7a21b9e555075be48417cd325cfa59a8d1624380cbed8f8484cc1285ca120",
+        "6d64b4ccd9a812efecfb6e41437df6d9ef99cbb699dbad0d8027b20f217cbce6",
+        "223bf8e440cda279eefb5509a7e38b8101a4545e5bc03047cac8a46865e4bb02"
+      ],
+      "fp16_vs_original_bf16": {
+        "max_abs": 0.01953125,
+        "max_scaled": 0.5036630034446716,
+        "relative_l2": 0.005804616492241621
+      },
+      "fp16_vs_quantized_fp16": {
+        "max_abs": 0.0018154382705688477,
+        "max_scaled": 0.12403859198093414,
+        "relative_l2": 0.00195439625531435
+      }
+    }
+  ],
+  "hardware_after": {
+    "chip": "Apple M1",
+    "unified_memory_bytes": 17179869184,
+    "architecture": "arm64",
+    "macos_version": "26.6.2",
+    "macos_build": "25G83",
+    "thermal_state_after_run": "nominal"
+  }
+}

@@ -1,0 +1,442 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-09-07",
+  "scope": "Pinned upstream release metadata, not Strata support; weight bytes sum root shards only, excludes caches/scratch and nonroot assets; packed safetensors parameter counts are not logical parameter counts",
+  "models": [
+    {
+      "id": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "sha": "7872f01b1d1fe23eabc4c98b48bffcef5a386062",
+      "last_modified": "2026-08-01T03:07:41+00:00",
+      "created_at": "2026-07-31T07:30:24+00:00",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 1483567488,
+          "I64": 2327040,
+          "F32": 37741630,
+          "F8_E4M3": 6304038912,
+          "I8": 296352743424
+        },
+        "total": 304180418494
+      },
+      "license": "mit",
+      "downloads": 4469466,
+      "likes": 3898,
+      "gated": false,
+      "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-0731",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 166886535336
+    },
+    {
+      "id": "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "sha": "6821d6ad3681a4b137b066b76094fa82ebd0a380",
+      "last_modified": "2026-09-01T09:22:10+00:00",
+      "created_at": "2026-08-31T06:16:18+00:00",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 1949960576,
+          "F32": 37754174,
+          "F8_E4M3": 6304038912,
+          "I8": 296352743424,
+          "I64": 2327040
+        },
+        "total": 304646824126
+      },
+      "license": "mit",
+      "downloads": 251611,
+      "likes": 792,
+      "gated": false,
+      "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 167819404368
+    },
+    {
+      "id": "deepseek-ai/DeepSeek-V4-Pro-0813",
+      "sha": "72e1d3230f6c080a530b0a1d46f8eb4602340597",
+      "last_modified": "2026-08-13T16:28:28+00:00",
+      "created_at": "2026-08-13T03:05:06+00:00",
+      "model_type": "deepseek_v4",
+      "architectures": [
+        "DeepseekV4ForCausalLM"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 2954820352,
+          "I64": 2327040,
+          "F32": 90530058,
+          "F8_E4M3": 23952621568,
+          "I8": 1623497637888
+        },
+        "total": 1650497936906
+      },
+      "license": "mit",
+      "downloads": 159392,
+      "likes": 808,
+      "gated": false,
+      "source": "https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro-0813",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 892744322880
+    },
+    {
+      "id": "google/gemma-4-12B-it",
+      "sha": "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7",
+      "last_modified": "2026-07-20T16:42:08+00:00",
+      "created_at": "2026-05-23T01:17:15+00:00",
+      "model_type": "gemma4_unified",
+      "architectures": [
+        "Gemma4UnifiedForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 11959730224
+        },
+        "total": 11959730224
+      },
+      "license": "apache-2.0",
+      "downloads": 3097481,
+      "likes": 1527,
+      "gated": false,
+      "source": "https://huggingface.co/google/gemma-4-12B-it",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 23919549408
+    },
+    {
+      "id": "google/gemma-4-26B-A4B-it",
+      "sha": "4d7ae4984b7db7de8f8457170b3f1a419ee76d52",
+      "last_modified": "2026-07-20T16:42:12+00:00",
+      "created_at": "2026-03-11T21:25:57+00:00",
+      "model_type": "gemma4",
+      "architectures": [
+        "Gemma4ForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 25805936206
+        },
+        "total": 25805936206
+      },
+      "license": "apache-2.0",
+      "downloads": 8409061,
+      "likes": 1482,
+      "gated": false,
+      "source": "https://huggingface.co/google/gemma-4-26B-A4B-it",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 51612009916
+    },
+    {
+      "id": "google/gemma-4-31B-it",
+      "sha": "842da3794eaa0b77d5f08bae87a17459d91ff475",
+      "last_modified": "2026-07-20T16:42:18+00:00",
+      "created_at": "2026-03-11T18:22:36+00:00",
+      "model_type": "gemma4",
+      "architectures": [
+        "Gemma4ForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 31273088876
+        },
+        "total": 31273088876
+      },
+      "license": "apache-2.0",
+      "downloads": 8553972,
+      "likes": 3735,
+      "gated": false,
+      "source": "https://huggingface.co/google/gemma-4-31B-it",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 62546338248
+    },
+    {
+      "id": "google/gemma-4-E2B-it",
+      "sha": "3e22461f65e89153144f8adb70e3b8c2cc9845a7",
+      "last_modified": "2026-07-20T16:41:56+00:00",
+      "created_at": "2026-03-02T19:58:09+00:00",
+      "model_type": "gemma4",
+      "architectures": [
+        "Gemma4ForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 5123178051
+        },
+        "total": 5123178051
+      },
+      "license": "apache-2.0",
+      "downloads": 3211180,
+      "likes": 938,
+      "gated": false,
+      "source": "https://huggingface.co/google/gemma-4-E2B-it",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 10246621918
+    },
+    {
+      "id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+      "sha": "73d14711bcc77c16df3470856949c3764056b617",
+      "last_modified": "2025-05-22T23:46:12+00:00",
+      "created_at": "2025-04-01T22:17:20+00:00",
+      "model_type": "llama4",
+      "architectures": [
+        "Llama4ForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 401583781376
+        },
+        "total": 401583781376
+      },
+      "license": "other",
+      "downloads": 10442,
+      "likes": 507,
+      "gated": "manual",
+      "source": "https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": "llama4",
+      "root_weight_bytes": 803167703320
+    },
+    {
+      "id": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+      "sha": "92f3b1597a195b523d8d9e5700e57e4fbb8f20d3",
+      "last_modified": "2025-05-22T23:44:50+00:00",
+      "created_at": "2025-04-02T13:34:17+00:00",
+      "model_type": "llama4",
+      "architectures": [
+        "Llama4ForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 108641793536
+        },
+        "total": 108641793536
+      },
+      "license": "other",
+      "downloads": 162521,
+      "likes": 1343,
+      "gated": "manual",
+      "source": "https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": "llama4",
+      "root_weight_bytes": 217283738720
+    },
+    {
+      "id": "openai/gpt-oss-120b",
+      "sha": "b5c939de8f754692c1647ca79fbf85e8c1e70f8a",
+      "last_modified": "2025-08-26T17:25:03+00:00",
+      "created_at": "2025-08-04T22:33:06+00:00",
+      "model_type": "gpt_oss",
+      "architectures": [
+        "GptOssForCausalLM"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 2167371072,
+          "U8": 114661785600
+        },
+        "total": 116829156672
+      },
+      "license": "apache-2.0",
+      "downloads": 5240073,
+      "likes": 5167,
+      "gated": false,
+      "source": "https://huggingface.co/openai/gpt-oss-120b",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 65248893184
+    },
+    {
+      "id": "openai/gpt-oss-20b",
+      "sha": "6cee5e81ee83917806bbde320786a8fb61efebee",
+      "last_modified": "2025-08-26T17:25:47+00:00",
+      "created_at": "2025-08-04T22:33:29+00:00",
+      "model_type": "gpt_oss",
+      "architectures": [
+        "GptOssForCausalLM"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 1804459584,
+          "U8": 19110297600
+        },
+        "total": 20914757184
+      },
+      "license": "apache-2.0",
+      "downloads": 6493903,
+      "likes": 5004,
+      "gated": false,
+      "source": "https://huggingface.co/openai/gpt-oss-20b",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 13761316904
+    },
+    {
+      "id": "Qwen/Qwen3.8-2.4T-A95B",
+      "sha": "207bd685a7e3696cfaff12ded7c6a7ea0f88c996",
+      "last_modified": "2026-08-12T10:24:04+00:00",
+      "created_at": "2026-08-08T01:50:52+00:00",
+      "model_type": "qwen3_5_moe_text",
+      "architectures": [
+        "Qwen3_5MoeForCausalLM"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 2446182725504
+        },
+        "total": 2446182725504
+      },
+      "license": "other",
+      "downloads": 51967,
+      "likes": 1204,
+      "gated": false,
+      "source": "https://huggingface.co/Qwen/Qwen3.8-2.4T-A95B",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": "qwen3.8-max",
+      "root_weight_bytes": 4892365649336
+    },
+    {
+      "id": "Qwen/Qwen3.8-27B",
+      "sha": "1d4bf0f2ff6012fd82039f2fa52739d0dd7c60c0",
+      "last_modified": "2026-08-14T15:00:01+00:00",
+      "created_at": "2026-08-05T08:22:59+00:00",
+      "model_type": "qwen3_5",
+      "architectures": [
+        "Qwen3_5ForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 27781427952
+        },
+        "total": 27781427952
+      },
+      "license": "apache-2.0",
+      "downloads": 6416358,
+      "likes": 14245,
+      "gated": false,
+      "source": "https://huggingface.co/Qwen/Qwen3.8-27B",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 55563006776
+    },
+    {
+      "id": "Qwen/Qwen3.8-Flash-Next",
+      "sha": "de4b8e4d43b917e7706784d8bb445c9af86a3540",
+      "last_modified": "2026-08-27T05:03:36+00:00",
+      "created_at": "2026-08-24T08:24:59+00:00",
+      "model_type": "qwen4_exp",
+      "architectures": [
+        "Qwen4ExpForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 179999981424,
+          "I64": 35
+        },
+        "total": 179999981459
+      },
+      "license": "other",
+      "downloads": 474693,
+      "likes": 4974,
+      "gated": false,
+      "source": "https://huggingface.co/Qwen/Qwen3.8-Flash-Next",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": "qwen-community-1.0",
+      "root_weight_bytes": 360000192888
+    },
+    {
+      "id": "zai-org/GLM-5.3",
+      "sha": "aca966e4e02791568aa6a4ced368624b3d897f42",
+      "last_modified": "2026-09-04T06:41:23+00:00",
+      "created_at": "2026-08-25T06:42:50+00:00",
+      "model_type": "glm_moe_dsa",
+      "architectures": [
+        "GlmMoeDsaForCausalLM"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 2103729152,
+          "F8_E4M3": 751226191872,
+          "F32": 19456
+        },
+        "total": 753329940480
+      },
+      "license": "other",
+      "downloads": 442064,
+      "likes": 1749,
+      "gated": false,
+      "source": "https://huggingface.co/zai-org/GLM-5.3",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": "glm-5.3",
+      "root_weight_bytes": 755632050320
+    },
+    {
+      "id": "zai-org/GLM-5.3-Flash",
+      "sha": "eb9eb208eb0d988989d07a6a12d0fdeb5f52574a",
+      "last_modified": "2026-09-07T12:13:47+00:00",
+      "created_at": "2026-08-25T06:43:14+00:00",
+      "model_type": "glm5_next",
+      "architectures": [
+        "Glm5NextForConditionalGeneration"
+      ],
+      "safetensors": {
+        "parameters": {
+          "BF16": 6926096640,
+          "F8_E4M3": 314396639232,
+          "F32": 295518
+        },
+        "total": 321323031390
+      },
+      "license": "mit",
+      "downloads": 784005,
+      "likes": 2131,
+      "gated": false,
+      "source": "https://huggingface.co/zai-org/GLM-5.3-Flash",
+      "metadata_only": true,
+      "weights_downloaded": false,
+      "native_full_model_qualified": false,
+      "license_name": null,
+      "root_weight_bytes": 328337455672
+    }
+  ]
+}

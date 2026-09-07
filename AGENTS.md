@@ -9,14 +9,20 @@ the Python import namespace `ollm` until a dedicated compatibility migration.
 - Specialist agents receive exclusive writable paths. Do not edit outside the
   assigned paths or commit from a specialist lane.
 - Preserve unrelated dirty work. Do not reset, clean, stash, or rebase it.
+- Strata is built in public at `https://github.com/Ikaikaalika/strata`.
+  Publish reviewed source, tests, designs and non-sensitive experiment evidence.
+  Keep private fleet records, credentials, model weights, environments and
+  unaudited recovery candidates out of Git. See `docs/BUILD_IN_PUBLIC.md`.
 - Do not download packages, repositories, models, or large data until the user
   chooses the destination.
 - Use generated small fixtures before real model weights.
-- Treat `/Volumes/Tyler HDD` as source-checkout storage only. The user has
-  confirmed that it is an HDD. Never use it as an SSD offload target, place
-  model weights or caches there to represent SSD behavior, or run storage
-  qualification benchmarks against it. Obtain a user-approved SSD destination
-  before SSD experiments or large model placement.
+- The external HDD failed. Do not access `/Volumes/Tyler HDD`, including through
+  preserved symlinks. The approved source checkout is
+  `/Users/tylergee/Documents/strata-recovered`; the approved model root is
+  `/Users/tylergee/Library/Application Support/Strata/models`, both on the
+  internal SSD. Other contributors must choose their own SSD locations.
+  Keep a 40 GiB free-space reserve for local experiments. SSD placement does
+  not by itself qualify production model paging.
 
 ## Evidence rules
 
@@ -37,14 +43,15 @@ Label results as correctness, synthetic, or hardware evidence.
 The current known MLX-capable test environment is:
 
 ```sh
-PYTHONPATH=src /usr/bin/python3 -m pytest -q
+PYTHONPATH=src .venv/bin/python -m pytest -q -p no:cacheprovider
 ```
 
-The default Homebrew Python may lack `pytest`; report that as an environment
-gap. Also run:
+The recovered checkout's `.venv` is the locally validated environment, not a
+portable installation requirement. Do not install dependencies silently when
+it is absent; report the gap and obtain a destination first. Also run:
 
 ```sh
-PYTHONPATH=src python3 -m compileall -q src tests benchmarks
+PYTHONPATH=src .venv/bin/python -m compileall -q src tests benchmarks
 git diff --check
 ```
 

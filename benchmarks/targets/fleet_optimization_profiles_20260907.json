@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-09-07",
+  "scope": "Qualification targets only; not live capacity or production runtime configuration",
+  "artifact_audit": "commoncompute_artifact_audit_20260907.json",
+  "release_audit": "family_metadata_20260907.json",
+  "native_runtime_qualified": false,
+  "ssd_offload": "disabled",
+  "fallback": "mlx_llm_when_supported_else_reject",
+  "hardware": {
+    "memory_tiers_gib": [
+      16,
+      18,
+      24,
+      32,
+      36,
+      48,
+      64,
+      96,
+      128,
+      192,
+      256,
+      384,
+      512
+    ],
+    "require_host_probe": true,
+    "inherit_cross_soc_timings": false,
+    "unknown_telemetry_policy": "probe_or_reject",
+    "os_reserve_gib_min": 4,
+    "os_reserve_fraction": 0.125,
+    "ssd_free_reserve_gib": 40
+  },
+  "workloads": {
+    "initial_prompt_tokens": [
+      64,
+      512,
+      2048
+    ],
+    "extended_prompt_tokens": [
+      8192,
+      32768
+    ],
+    "output_tokens": [
+      64,
+      256
+    ],
+    "candidate_concurrency": [
+      1,
+      2,
+      4,
+      8
+    ],
+    "require_complete_state_accounting": true
+  },
+  "families": [
+    {
+      "family": "qwen",
+      "catalog_ids": [
+        "qwen3-0.6b",
+        "qwen3-4b",
+        "qwen3.5-4b",
+        "qwen3.8-27b",
+        "qwen3-coder-30b",
+        "qwen3-next-80b"
+      ],
+      "upstream": [
+        "Qwen/Qwen3.8-27B",
+        "Qwen/Qwen3.8-Flash-Next"
+      ],
+      "priority": "dense_canary_then_hybrid_prefill_then_sparse_moe",
+      "not_aliases": [
+        "qwen3",
+        "qwen3_5",
+        "qwen4_exp"
+      ]
+    },
+    {
+      "family": "gemma",
+      "catalog_ids": [
+        "gemma-4-e2b",
+        "gemma-4-e4b",
+        "gemma-4-12b",
+        "gemma-4-26b-a4b",
+        "gemma-4-31b"
+      ],
+      "upstream": [
+        "google/gemma-4-E2B-it",
+        "google/gemma-4-12B-it",
+        "google/gemma-4-26B-A4B-it",
+        "google/gemma-4-31B-it"
+      ],
+      "priority": "compact_then_local_global_state_and_ple",
+      "not_aliases": [
+        "gemma4",
+        "gemma4_unified"
+      ]
+    },
+    {
+      "family": "glm",
+      "catalog_ids": [
+        "glm-4.7-flash",
+        "glm-4.5-air"
+      ],
+      "upstream": [
+        "zai-org/GLM-5.3-Flash",
+        "zai-org/GLM-5.3"
+      ],
+      "priority": "catalog_moe_then_new_sparse_linear_semantics",
+      "not_aliases": [
+        "glm4_moe_lite",
+        "glm4_moe",
+        "glm_moe_dsa",
+        "glm5_next"
+      ]
+    },
+    {
+      "family": "deepseek",
+      "catalog_ids": [
+        "deepseek-r1-distill-14b"
+      ],
+      "upstream": [
+        "deepseek-ai/DeepSeek-V4-Flash-0731"
+      ],
+      "priority": "distill_compatibility_is_not_v4_coverage",
+      "not_aliases": [
+        "qwen2",
+        "deepseek_v2",
+        "deepseek_v3",
+        "deepseek_v4"
+      ]
+    },
+    {
+      "family": "gpt_oss",
+      "catalog_ids": [
+        "gpt-oss-20b"
+      ],
+      "upstream": [
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b"
+      ],
+      "priority": "mxfp4_moe_and_harmony",
+      "not_aliases": []
+    },
+    {
+      "family": "llama",
+      "catalog_ids": [
+        "llama-3.2-3b",
+        "llama-3.1-8b",
+        "llama-3.3-70b"
+      ],
+      "upstream": [
+        "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+        "meta-llama/Llama-4-Maverick-17B-128E-Instruct"
+      ],
+      "priority": "dense_gqa_then_llama4_moe",
+      "not_aliases": [
+        "llama",
+        "llama4"
+      ]
+    }
+  ],
+  "frontier_not_default": [
+    "Qwen/Qwen3.8-2.4T-A95B",
+    "deepseek-ai/DeepSeek-V4-Pro-0813",
+    "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp"
+  ],
+  "promotion": {
+    "min_mlx_prefill_speedup": 1.25,
+    "min_mlx_decode_speedup": 1.25,
+    "require_full_model_parity": true,
+    "require_tail_latency": true,
+    "require_memory": true,
+    "require_reliability": true,
+    "component_results_can_promote": false
+  }
+}
