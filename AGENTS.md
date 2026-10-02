@@ -18,9 +18,12 @@ the Python import namespace `ollm` until a dedicated compatibility migration.
 - Use generated small fixtures before real model weights.
 - The external HDD failed. Do not access `/Volumes/Tyler HDD`, including through
   preserved symlinks. The approved source checkout is
-  `/Users/tylergee/Documents/strata-recovered`; the approved model root is
-  `/Users/tylergee/Library/Application Support/Strata/models`, both on the
-  internal SSD. Other contributors must choose their own SSD locations.
+  `/Volumes/Tyler HDD 6TB/strata`, on the user-approved replacement drive.
+  `/Users/tylergee/Documents/strata-recovered` remains the validated internal-SSD
+  environment. The approved model root is
+  `/Users/tylergee/Library/Application Support/Strata/models`; keep builds,
+  caches and performance storage on the internal SSD. Other contributors must
+  choose their own SSD locations.
   Keep a 40 GiB free-space reserve for local experiments. SSD placement does
   not by itself qualify production model paging.
 

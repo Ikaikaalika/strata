@@ -1,6 +1,6 @@
 # Bounded native architecture search: internal-SSD recovery iteration
 
-Status: **experimental implementation and measured components; no promoted native full-model runtime**. Updated 2026-09-07. The complete target topology is in [STRATA_NATIVE_RUNTIME_V2.md](STRATA_NATIVE_RUNTIME_V2.md). Current measurements and failures are in [the recovery report](../experiments/RECOVERY_NATIVE_PREFILL_20260907.md).
+Status: **experimental implementation and measured components; no promoted native full-model runtime**. Updated 2026-09-30. The complete target topology is in [STRATA_NATIVE_RUNTIME_V2.md](STRATA_NATIVE_RUNTIME_V2.md). Historical measurements and failures are in [the recovery report](../experiments/RECOVERY_NATIVE_PREFILL_20260907.md). The current bounded step is [catalog and native latency work](../experiments/CATALOG_NATIVE_LATENCY_20260930.md).
 
 ## Authority and evidence
 
@@ -17,7 +17,7 @@ This checkout starts from recovered remote commit `4ecda436ef2e5048c8272512d53c8
 5. **SSD capacity track:** `ssd_offload=disabled` by default. Do not mix paging and resident speed claims. Before paging experiments, require an approved internal-SSD path, at least 40 GiB free-space reserve, bounded bytes outstanding, artifact identities, admission accounting, and measured page/staging stalls. SSD is storage, not execution memory. No new production pager is implemented by this iteration.
 6. **Wrappers after native contracts:** C ABI over the native runtime, then Python, TypeScript, and Swift clients. The current Python scripts stage fixed fixtures and record measurements; the new ANE math and tensor copies execute in Objective-C/C. No production Swift/TypeScript FFN serving wrapper exists yet.
 
-The dead external HDD is excluded from all source, package, model, cache, and benchmark I/O. Use the approved SSD checkout and model root only. Do not follow the preserved failed-HDD symlink.
+The dead `/Volumes/Tyler HDD` is excluded from all I/O, including preserved symlinks. The user-approved replacement source checkout is `/Volumes/Tyler HDD 6TB/strata`; models, builds, caches and performance-sensitive storage remain on approved internal-SSD paths.
 
 ## Candidate contract and limits
 
@@ -89,3 +89,39 @@ rejects SSD paging until a native pager is implemented and independently gated.
 - Implement native Metal attention/projection candidates once their input, output, and state boundaries are verified. Do not claim model coverage from a shared SwiGLU kernel alone.
 
 Definition of done for this iteration is reproducible native component evidence, honest rejections, current pinned baselines, preserved recovery material, and a bounded integration handoff. Definition of done for the product remains the full-runtime gates above.
+
+## September 30 bounded GPU step
+
+Refresh model targets from the dated public CommonCompute catalog observation,
+not the August local ladder or a proposed release list. The
+[current target](../../benchmarks/targets/commoncompute_catalog_20260930.json)
+contains 40 observed preview entries, 20 recommendations and four pending
+additions. Pins are metadata; do not infer native support, provider availability
+or quality from the snapshot. Text and vision use their own MLX controls.
+
+Permit two packed affine-Q4 native Metal projection candidates: SIMD decode
+and tiled prefill, with native scalar and independent FP64/MLX controls.
+Freeze group64, FP16 storage/output, FP32 GPU accumulation and three generated
+cells `[1,1024,128]`, `[7,128,17]`, `[64,1024,128]`. Kernels operate on packed
+weights without a full expanded shadow. These are not MXFP4, MoE, attention,
+recurrent-state or model implementations. Compile with warnings as errors,
+apply resource/finite-output gates and keep all component receipts unpromoted.
+
+Hardware comparisons must pass the 40 GiB internal-SSD reserve and run serially.
+Retain ANE as a separate required engineering lane with its current precision
+rejections; no GPU component win can satisfy the ANE integrated-request gate.
+
+## Model-connected FFN follow-up
+
+The [model-connected native FFN iteration](../experiments/MODEL_CONNECTED_NATIVE_FFN.md)
+permits three bounded candidates: SIMD decode-only, tiled prefill-only, and
+their combined plan. Native Metal fuses gate/up packed projections and SwiGLU,
+with an opt-in, temporary dense Qwen3 adapter using MLX scheduling and unchanged
+attention/KV/down projection. FP16/BF16 execution and complete-model speed remain
+unverified until the reserve and generated/real-weight gates pass.
+
+Use independent arithmetic, generated logits/tokens/KV/parameter accounting,
+then the pinned local 0.6B canary's complete requests with current-run MLX.
+Preserve failed receipts and descriptive Pareto frontiers; all candidates stay
+unpromoted. This implements a bounded experimental evaluator, not the full
+autonomous proposer, independent native engine or serving route registry.

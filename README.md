@@ -29,6 +29,14 @@ publishing an experiment is not a provider-app release or production promotion.
 Start with the [build-in-public guide](docs/BUILD_IN_PUBLIC.md),
 [bounded native search](docs/design/BOUNDED_ARCHITECTURE_SEARCH.md), and
 [latest native experiment report](docs/experiments/FLEET_NATIVE_OPTIMIZATION_20260907.md).
+The [September 30 catalog and latency iteration](docs/experiments/CATALOG_NATIVE_LATENCY_20260930.md)
+adds packed Q4 native Metal decode/prefill candidates, independent numerical
+gates and a paired MLX component harness. Complete-model speed remains unproven.
+The [model-connected FFN follow-up](docs/experiments/MODEL_CONNECTED_NATIVE_FFN.md)
+adds native fused gate/up/SwiGLU candidates and a guarded Qwen3 experimental
+adapter; its generated and complete-model execution gates remain pending.
+The [October 1 publication checks](docs/experiments/PUBLICATION_VALIDATION_20261001.md)
+record fresh regression/native builds and a fix for SSD build paths with spaces.
 The recovered work includes Objective-C direct-ANE experiments, C/ARM64 NEON
 layout kernels, and a C++ capacity planner. The new evidence is component-level;
 it does **not** establish a full-model win over MLX-LM or Darkbloom.
@@ -80,7 +88,8 @@ Metal/ANE model execution, production SSD paging, and the separate
 `strata_llm` distribution.
 
 > Storage boundary: the original external HDD failed. Active development and
-> experiments now use an approved internal-SSD checkout. Do not access the old
+> source now lives on the approved replacement HDD; builds, models, caches and
+> experiments use approved internal-SSD locations. Do not access the old
 > HDD or follow preserved symlinks to it. Other contributors must select their
 > own model/cache locations; resident comparisons keep SSD offload disabled.
 

@@ -1,0 +1,7 @@
+CXX := xcrun clang++
+BUILD_DIR ?= build/q4
+.PHONY: test
+test:
+	mkdir -p "$(BUILD_DIR)"
+	$(CXX) -std=c++20 -O2 -Wall -Wextra -Werror -fsanitize=undefined test_affine_q4.cpp -o "$(BUILD_DIR)/test-affine-q4"
+	"$(BUILD_DIR)/test-affine-q4"

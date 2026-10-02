@@ -1,0 +1,1157 @@
+{
+  "schema_version": 1,
+  "target_id": "commoncompute-catalog-native-latency-20260930",
+  "observed_at_utc": "2026-10-01 04:15:19 UTC",
+  "source_url": "https://api.commoncompute.ai/v1/models",
+  "evidence_kind": "public_catalog_metadata",
+  "pin_source": {
+    "repository": "CommonCompute",
+    "commit": "c78b44a33006c171450cd9364976d091cf3c2cd6",
+    "file": "apps/provider/CommonCompute/Models/MLXCatalogData.swift",
+    "claim": "Source pins only; no provider availability or local artifact verification."
+  },
+  "catalog_models": [
+    {
+      "id": "qwen3-0.6b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3 0.6B (Q4)",
+      "family": "llm",
+      "description": "Smallest current-generation model; classification and routing.",
+      "weightsGb": 0.34,
+      "minMemoryGb": 8,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "smollm3-3b",
+      "workloadId": "mlx_llm",
+      "label": "SmolLM3 3B (Q4)",
+      "family": "llm",
+      "description": "Compact reasoning model with long context.",
+      "weightsGb": 1.73,
+      "minMemoryGb": 8,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "phi-4-mini",
+      "workloadId": "mlx_llm",
+      "label": "Phi-4-mini (Q4)",
+      "family": "llm",
+      "description": "Reasoning-tuned small model from Microsoft.",
+      "weightsGb": 2.16,
+      "minMemoryGb": 8,
+      "license": "mit",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-4b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3 4B Instruct 2507 (Q4)",
+      "family": "llm",
+      "description": "Compact non-thinking instruction model for chat, extraction, and managed LoRA.",
+      "contextLength": 32768,
+      "quantization": "Q4",
+      "paramsB": 4,
+      "weightsGb": 2.26,
+      "minMemoryGb": 8,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "arex-turbo-4b",
+      "workloadId": "mlx_llm",
+      "label": "AREX Turbo (Q4)",
+      "family": "llm",
+      "description": "Agentic deep-research and tool-use model.",
+      "weightsGb": 3.03,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3.5-4b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3.5 4B (Q4)",
+      "family": "llm",
+      "description": "Current-generation small model.",
+      "weightsGb": 3.03,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen2.5-coder-7b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen2.5 Coder 7B (Q4)",
+      "family": "llm",
+      "description": "Code completion and fixes at 8B class.",
+      "weightsGb": 4.28,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "minicpm4-8b",
+      "workloadId": "mlx_llm",
+      "label": "MiniCPM4 8B (Q4)",
+      "family": "llm",
+      "description": "Efficient 8B with strong instruction following.",
+      "weightsGb": 4.6,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-8b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3 8B (Q4)",
+      "family": "llm",
+      "description": "Current-generation general model with a thinking mode.",
+      "weightsGb": 4.61,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3.5-9b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3.5 9B (Q4)",
+      "family": "llm",
+      "description": "Current-generation flagship-class small model.",
+      "weightsGb": 5.95,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "deepseek-r1-distill-14b",
+      "workloadId": "mlx_llm",
+      "label": "DeepSeek-R1 Distill 14B (Q4)",
+      "family": "llm",
+      "description": "Reasoning distillation into Qwen 14B.",
+      "weightsGb": 8.31,
+      "minMemoryGb": 24,
+      "license": "mit",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-14b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3 14B (Q4)",
+      "family": "llm",
+      "description": "Higher-quality 14B for chat and reasoning.",
+      "weightsGb": 8.31,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "gemma-4-12b",
+      "workloadId": "mlx_llm",
+      "label": "Gemma 4 12B (QAT Q4)",
+      "family": "llm",
+      "description": "Current-generation Gemma 4; vision-capable backbone.",
+      "weightsGb": 9,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "gpt-oss-20b",
+      "workloadId": "mlx_llm",
+      "label": "GPT-OSS 20B",
+      "family": "llm",
+      "description": "Open-weight reasoning model from OpenAI.",
+      "weightsGb": 12.08,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "devstral-small",
+      "workloadId": "mlx_llm",
+      "label": "Devstral Small (Q4)",
+      "family": "llm",
+      "description": "Agentic coding model from Mistral.",
+      "weightsGb": 13.26,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "mistral-small-3.2-24b",
+      "workloadId": "mlx_llm",
+      "label": "Mistral Small 3.2 24B (Q4)",
+      "family": "llm",
+      "description": "Current-generation Mistral, vision-capable backbone.",
+      "weightsGb": 13.26,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "mistral-small-3.1-24b",
+      "workloadId": "mlx_llm",
+      "label": "Mistral Small 3.1 24B (Q4)",
+      "family": "llm",
+      "description": "Multilingual 24B with vision-capable backbone.",
+      "weightsGb": 14.09,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "devstral-small-2-24b",
+      "workloadId": "mlx_llm",
+      "label": "Devstral Small 2 24B (Q4)",
+      "family": "llm",
+      "description": "Current-generation agentic coding model.",
+      "weightsGb": 15.1,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "gemma-4-26b-a4b",
+      "workloadId": "mlx_llm",
+      "label": "Gemma 4 26B A4B (Q4)",
+      "family": "llm",
+      "description": "Sparse-MoE Gemma 4; fast for its size.",
+      "weightsGb": 15.34,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3.6-27b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3.6 27B (Q4)",
+      "family": "llm",
+      "description": "Current-generation dense 27B.",
+      "weightsGb": 16.05,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3.8-27b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3.8 27B (Q4)",
+      "family": "llm",
+      "description": "Qwen3.8 dense model for general chat and reasoning.",
+      "weightsGb": 16.05,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-30b-a3b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3 30B A3B (Q4)",
+      "family": "llm",
+      "description": "Sparse-MoE general model.",
+      "weightsGb": 17.18,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-coder-30b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3 Coder 30B A3B (Q4)",
+      "family": "llm",
+      "description": "Sparse-MoE coding model; fast for its quality.",
+      "weightsGb": 17.18,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "gemma-4-31b",
+      "workloadId": "mlx_llm",
+      "label": "Gemma 4 31B (Q4)",
+      "family": "llm",
+      "description": "Largest dense Gemma 4.",
+      "weightsGb": 18.41,
+      "minMemoryGb": 48,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-32b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3 32B (Q4)",
+      "family": "llm",
+      "description": "High-quality 32B for reasoning and chat.",
+      "weightsGb": 18.43,
+      "minMemoryGb": 32,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3.6-35b-a3b-4bit",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3.6 35B A3B (Q4)",
+      "family": "llm",
+      "description": "Current-generation sparse-MoE at 4-bit.",
+      "weightsGb": 20.4,
+      "minMemoryGb": 48,
+      "priceOverrideUsd": {
+        "batch": 0.126,
+        "realtime": 0.252
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3.6-35b-a3b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3.6 35B A3B (8-bit)",
+      "family": "llm",
+      "description": "Current-generation sparse-MoE at 8-bit fidelity.",
+      "weightsGb": 37.72,
+      "minMemoryGb": 64,
+      "priceOverrideUsd": {
+        "batch": 0.308,
+        "realtime": 0.616
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-coder-next",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3-Coder-Next 80B (Q4)",
+      "family": "llm",
+      "description": "Sparse coding model for development and code generation.",
+      "paramsB": 80,
+      "quantization": "Q4",
+      "weightsGb": 44.84,
+      "minMemoryGb": 96,
+      "priceOverrideUsd": {
+        "batch": 0.308,
+        "realtime": 0.616
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-next-80b",
+      "workloadId": "mlx_llm",
+      "label": "Qwen3-Next 80B A3B (Q4)",
+      "family": "llm",
+      "description": "Next-generation sparse architecture, 80B class.",
+      "weightsGb": 44.84,
+      "minMemoryGb": 64,
+      "priceOverrideUsd": {
+        "batch": 0.308,
+        "realtime": 0.616
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "gpt-oss-120b",
+      "workloadId": "mlx_llm",
+      "label": "GPT-OSS 120B (MXFP4)",
+      "family": "llm",
+      "description": "Open-weight reasoning model for high-memory Mac computers.",
+      "paramsB": 120,
+      "quantization": "MXFP4/Q8",
+      "weightsGb": 63.39,
+      "minMemoryGb": 128,
+      "priceOverrideUsd": {
+        "batch": 0.308,
+        "realtime": 0.616
+      },
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen2-vl-2b",
+      "workloadId": "mlx_vlm",
+      "label": "Qwen2-VL 2B (Q4)",
+      "family": "vision",
+      "description": "Default vision model - captioning and visual Q&A.",
+      "weightsGb": 1.25,
+      "minMemoryGb": 16,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-vl-2b",
+      "workloadId": "mlx_vlm",
+      "label": "Qwen3-VL 2B (Q4)",
+      "family": "vision",
+      "description": "Current-generation compact vision model.",
+      "weightsGb": 1.78,
+      "minMemoryGb": 16,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "smolvlm2-2.2b",
+      "workloadId": "mlx_vlm",
+      "label": "SmolVLM2 2.2B",
+      "family": "vision",
+      "description": "Small video- and image-capable VLM.",
+      "weightsGb": 4.49,
+      "minMemoryGb": 16,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-vl-4b",
+      "workloadId": "mlx_vlm",
+      "label": "Qwen3-VL 4B (8-bit)",
+      "family": "vision",
+      "description": "Current-generation vision model at 8-bit fidelity.",
+      "weightsGb": 5.1,
+      "minMemoryGb": 16,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "olmocr-2-7b",
+      "workloadId": "mlx_vlm",
+      "label": "olmOCR-2 7B (Q4)",
+      "family": "vision",
+      "description": "Document OCR to Markdown - tables, equations, reading order.",
+      "weightsGb": 5.64,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen2.5-vl-7b",
+      "workloadId": "mlx_vlm",
+      "label": "Qwen2.5-VL 7B (Q4)",
+      "family": "vision",
+      "description": "Strong general vision model - charts, screenshots, documents.",
+      "weightsGb": 5.64,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen3-vl-8b",
+      "workloadId": "mlx_vlm",
+      "label": "Qwen3-VL 8B (Q4)",
+      "family": "vision",
+      "description": "Current-generation vision model, larger backbone.",
+      "weightsGb": 5.76,
+      "minMemoryGb": 24,
+      "license": "apache-2.0",
+      "status": "preview"
+    },
+    {
+      "id": "qwen2.5-vl-32b",
+      "workloadId": "mlx_vlm",
+      "label": "Qwen2.5-VL 32B (Q4)",
+      "family": "vision",
+      "description": "Largest dense Qwen2.5 vision model.",
+      "weightsGb": 19.81,
+      "minMemoryGb": 48,
+      "license": "apache-2.0",
+      "priceOverrideUsd": {
+        "batch": 0.7,
+        "realtime": 1.4
+      },
+      "status": "preview"
+    },
+    {
+      "id": "qwen3.8-27b-vision-8bit",
+      "workloadId": "mlx_vlm",
+      "label": "Qwen3.8 27B Vision (Q8)",
+      "family": "vision",
+      "description": "Qwen3.8 image understanding at 8-bit precision for Mac computers with 64 GB memory.",
+      "paramsB": 27,
+      "quantization": "Q8",
+      "weightsGb": 29.5,
+      "minMemoryGb": 64,
+      "license": "apache-2.0",
+      "priceOverrideUsd": {
+        "batch": 1.711,
+        "realtime": 3.422
+      },
+      "status": "preview"
+    },
+    {
+      "id": "gemma-4-31b-vision",
+      "workloadId": "mlx_vlm",
+      "label": "Gemma 4 31B Vision (Q8)",
+      "family": "vision",
+      "description": "Gemma 4 for image understanding and visual questions.",
+      "paramsB": 31,
+      "quantization": "Q8",
+      "weightsGb": 33.76,
+      "minMemoryGb": 96,
+      "license": "apache-2.0",
+      "priceOverrideUsd": {
+        "batch": 1.711,
+        "realtime": 3.422
+      },
+      "status": "preview"
+    }
+  ],
+  "artifact_pins": [
+    {
+      "model_id": "qwen3-0.6b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-0.6B-4bit",
+      "revision": "73e3e38d981303bc594367cd910ea6eb48349da8"
+    },
+    {
+      "model_id": "smollm3-3b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/SmolLM3-3B-4bit",
+      "revision": "d3a7e0594d6642dbcfb7d149bed8b0bdf49f95ce"
+    },
+    {
+      "model_id": "phi-4-mini",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Phi-4-mini-instruct-4bit",
+      "revision": "ac1c269cb4222a4e136a3d09edad301056c1f36a"
+    },
+    {
+      "model_id": "qwen3-4b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-4B-Instruct-2507-4bit",
+      "revision": "50d427756c6b1b2fe0c0a10f67fbda1fc8e82c1b"
+    },
+    {
+      "model_id": "arex-turbo-4b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/AREX-Turbo-4bit",
+      "revision": "326bf21331b636e37c612fd6463e85b5be3b3145"
+    },
+    {
+      "model_id": "qwen3.5-4b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3.5-4B-MLX-4bit",
+      "revision": "32f3e8ecf65426fc3306969496342d504bfa13f3"
+    },
+    {
+      "model_id": "qwen2.5-coder-7b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+      "revision": "019cc73c45c770444708a6dd8690c66243cc5c80"
+    },
+    {
+      "model_id": "minicpm4-8b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/MiniCPM4-8B-4bit",
+      "revision": "3aa2a6a4eb0c63f13702237b2cecb2d7e635fb75"
+    },
+    {
+      "model_id": "qwen3-8b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-8B-4bit",
+      "revision": "545dc4251c05440727734bcd94334791f6ab0192"
+    },
+    {
+      "model_id": "qwen3.5-9b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3.5-9B-MLX-4bit",
+      "revision": "938d8919941c6e7efd3c7150eff7fe9d12afa631"
+    },
+    {
+      "model_id": "deepseek-r1-distill-14b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/DeepSeek-R1-Distill-Qwen-14B-4bit",
+      "revision": "b39611728ed604538a2a18212ce33b02f99d8de2"
+    },
+    {
+      "model_id": "qwen3-14b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-14B-4bit",
+      "revision": "a4d9b2df59d2c150bef02fcbe0d91046b7ca33a4"
+    },
+    {
+      "model_id": "gemma-4-12b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+      "revision": "63912b888c04ba2c555f198685d10b05f54cf564"
+    },
+    {
+      "model_id": "gpt-oss-20b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/gpt-oss-20b-MXFP4-Q8",
+      "revision": "773a7da77e569019bb0fd17a554b263738d669a3"
+    },
+    {
+      "model_id": "devstral-small",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Devstral-Small-2507-4bit",
+      "revision": "6682fbe637d71e568137b06512e5dc0fbbbd73b9"
+    },
+    {
+      "model_id": "mistral-small-3.2-24b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Mistral-Small-3.2-24B-Instruct-2506-4bit",
+      "revision": "2a1d5eabfc504747bdc24178394821a1efc0edde"
+    },
+    {
+      "model_id": "mistral-small-3.1-24b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Mistral-Small-3.1-24B-Instruct-2503-4bit",
+      "revision": "46135ef3c556bfed61013d8789bd26af02e416c4"
+    },
+    {
+      "model_id": "devstral-small-2-24b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Devstral-Small-2-24B-Instruct-2512-4bit",
+      "revision": "97228558fcbdd1adefd39d515155db3a894b37f7"
+    },
+    {
+      "model_id": "gemma-4-26b-a4b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/gemma-4-26b-a4b-it-4bit",
+      "revision": "0d77464eeb233a2da68ebf9d7dc4edaac7db956d"
+    },
+    {
+      "model_id": "qwen3.6-27b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3.6-27B-4bit",
+      "revision": "c000ac2c2057d94be3fa931000c31723aac53282"
+    },
+    {
+      "model_id": "qwen3.8-27b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3.8-27B-4bit",
+      "revision": "3e6447f082e89cc7f0bc6e5441afd38dfce760ff"
+    },
+    {
+      "model_id": "qwen3-30b-a3b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-30B-A3B-Instruct-2507-4bit",
+      "revision": "e9675aa3ca5f900ccef55267914466d55ab325fa"
+    },
+    {
+      "model_id": "qwen3-coder-30b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
+      "revision": "6e302ea604ad9ab206367e2c501d1571023e7b6d"
+    },
+    {
+      "model_id": "gemma-4-31b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/gemma-4-31b-it-4bit",
+      "revision": "696d436c404745a59f30e4939a658162b0a9e57f"
+    },
+    {
+      "model_id": "qwen3-32b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-32B-4bit",
+      "revision": "bcaaf7f538adf166c1080a2befdb4f6019f66639"
+    },
+    {
+      "model_id": "qwen3.6-35b-a3b-4bit",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3.6-35B-A3B-4bit",
+      "revision": "38740b847e4cb78f352aba30aa41c76e08e6eb46"
+    },
+    {
+      "model_id": "qwen3.6-35b-a3b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3.6-35B-A3B-8bit",
+      "revision": "e06a74e6236a60c8367e1a3214e83d8b61b637b0"
+    },
+    {
+      "model_id": "qwen3-coder-next",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-Coder-Next-4bit",
+      "revision": "7b9321eabb85ce79625cac3f61ea691e4ea984b5"
+    },
+    {
+      "model_id": "qwen3-next-80b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/Qwen3-Next-80B-A3B-Instruct-4bit",
+      "revision": "d8a069bfa8ae87d3d468412e1034acae19b5892b"
+    },
+    {
+      "model_id": "gpt-oss-120b",
+      "workload_id": "mlx_llm",
+      "repo": "mlx-community/gpt-oss-120b-MXFP4-Q8",
+      "revision": "81e5ac3ad0af6efb1298a8e8c7a10ed2990c137b"
+    },
+    {
+      "model_id": "qwen2-vl-2b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/Qwen2-VL-2B-Instruct-4bit",
+      "revision": "01af461cdb9574acc09084a0ef94e216e142b085"
+    },
+    {
+      "model_id": "qwen3-vl-2b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+      "revision": "9c4f5209e57b31f4b9dfba735de3fb983739c9cc"
+    },
+    {
+      "model_id": "smolvlm2-2.2b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/SmolVLM2-2.2B-Instruct-mlx",
+      "revision": "844516024a1c4400d34489b89ee067d794e432ed"
+    },
+    {
+      "model_id": "qwen3-vl-4b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/Qwen3-VL-4B-Instruct-8bit",
+      "revision": "0943db6e15185b86be368d3cf0704aec740b142b"
+    },
+    {
+      "model_id": "olmocr-2-7b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/olmOCR-2-7B-1025-mlx-4bit",
+      "revision": "c0eaffb7844e795a44e246744cfaba5981a1bf03"
+    },
+    {
+      "model_id": "qwen2.5-vl-7b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/Qwen2.5-VL-7B-Instruct-4bit",
+      "revision": "fdcc572e8b05ba9daeaf71be8c9e4267c826ff9b"
+    },
+    {
+      "model_id": "qwen3-vl-8b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/Qwen3-VL-8B-Instruct-4bit",
+      "revision": "defcdea7cc7a4b0858fea563cbbce171d328e457"
+    },
+    {
+      "model_id": "qwen2.5-vl-32b",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/Qwen2.5-VL-32B-Instruct-4bit",
+      "revision": "926bd4bb494a7d0e187f9b81b3924a31227bd1c7"
+    },
+    {
+      "model_id": "qwen3.8-27b-vision-8bit",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/Qwen3.8-27B-8bit",
+      "revision": "815b83c0df8ffd1d1b5244cf75fd6ef14fca9ef9"
+    },
+    {
+      "model_id": "gemma-4-31b-vision",
+      "workload_id": "mlx_vlm",
+      "repo": "mlx-community/gemma-4-31b-it-8bit",
+      "revision": "f5f3dc92ab4af76724c36c21eb6bedadb3a851be"
+    }
+  ],
+  "recommended_targets": [
+    {
+      "model_id": "qwen3-4b",
+      "workload_id": "mlx_llm",
+      "profile": "default_text",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3-4B-Instruct-2507-4bit",
+        "revision": "50d427756c6b1b2fe0c0a10f67fbda1fc8e82c1b"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen3.5-9b",
+      "workload_id": "mlx_llm",
+      "profile": "general",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3.5-9B-MLX-4bit",
+        "revision": "938d8919941c6e7efd3c7150eff7fe9d12afa631"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "gemma-4-e4b",
+      "workload_id": "mlx_llm",
+      "profile": "compact_gemma",
+      "catalog_state": "proposed_addition",
+      "pin": {
+        "repo": "mlx-community/gemma-4-e4b-it-4bit",
+        "revision": "475b9088d29754a3379866cf5aeb6b41acd313c2"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "ministral-3-8b",
+      "workload_id": "mlx_llm",
+      "profile": "compact_mistral",
+      "catalog_state": "proposed_addition",
+      "pin": null,
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen2.5-coder-7b",
+      "workload_id": "mlx_llm",
+      "profile": "compact_coding",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+        "revision": "019cc73c45c770444708a6dd8690c66243cc5c80"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "gemma-4-12b",
+      "workload_id": "mlx_llm",
+      "profile": "general",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/gemma-4-12B-it-qat-OptiQ-4bit",
+        "revision": "63912b888c04ba2c555f198685d10b05f54cf564"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "gpt-oss-20b",
+      "workload_id": "mlx_llm",
+      "profile": "reasoning",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/gpt-oss-20b-MXFP4-Q8",
+        "revision": "773a7da77e569019bb0fd17a554b263738d669a3"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "glm-4.7-flash",
+      "workload_id": "mlx_llm",
+      "profile": "glm_reasoning_coding",
+      "catalog_state": "proposed_addition",
+      "pin": {
+        "repo": "mlx-community/GLM-4.7-Flash-4bit",
+        "revision": "1454cffb1a21737e162f508e5bc70be9def89276"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "devstral-small-2-24b",
+      "workload_id": "mlx_llm",
+      "profile": "agentic_coding",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Devstral-Small-2-24B-Instruct-2512-4bit",
+        "revision": "97228558fcbdd1adefd39d515155db3a894b37f7"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen3-coder-30b",
+      "workload_id": "mlx_llm",
+      "profile": "coding",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
+        "revision": "6e302ea604ad9ab206367e2c501d1571023e7b6d"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen3.8-27b",
+      "workload_id": "mlx_llm",
+      "profile": "general",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3.8-27B-4bit",
+        "revision": "3e6447f082e89cc7f0bc6e5441afd38dfce760ff"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "gemma-4-26b-a4b",
+      "workload_id": "mlx_llm",
+      "profile": "gemma_moe",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/gemma-4-26b-a4b-it-4bit",
+        "revision": "0d77464eeb233a2da68ebf9d7dc4edaac7db956d"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen3-coder-next",
+      "workload_id": "mlx_llm",
+      "profile": "large_coding",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3-Coder-Next-4bit",
+        "revision": "7b9321eabb85ce79625cac3f61ea691e4ea984b5"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "gpt-oss-120b",
+      "workload_id": "mlx_llm",
+      "profile": "large_reasoning",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/gpt-oss-120b-MXFP4-Q8",
+        "revision": "81e5ac3ad0af6efb1298a8e8c7a10ed2990c137b"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen3-vl-2b",
+      "workload_id": "mlx_vlm",
+      "profile": "compact_vision",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+        "revision": "9c4f5209e57b31f4b9dfba735de3fb983739c9cc"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen3-vl-8b",
+      "workload_id": "mlx_vlm",
+      "profile": "vision",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3-VL-8B-Instruct-4bit",
+        "revision": "defcdea7cc7a4b0858fea563cbbce171d328e457"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "qwen3.8-27b-vision-8bit",
+      "workload_id": "mlx_vlm",
+      "profile": "large_vision",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/Qwen3.8-27B-8bit",
+        "revision": "815b83c0df8ffd1d1b5244cf75fd6ef14fca9ef9"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "gemma-4-31b-vision",
+      "workload_id": "mlx_vlm",
+      "profile": "large_vision",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/gemma-4-31b-it-8bit",
+        "revision": "f5f3dc92ab4af76724c36c21eb6bedadb3a851be"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "olmocr-2-7b",
+      "workload_id": "mlx_vlm",
+      "profile": "document_ocr",
+      "catalog_state": "observed_preview",
+      "pin": {
+        "repo": "mlx-community/olmOCR-2-7B-1025-mlx-4bit",
+        "revision": "c0eaffb7844e795a44e246744cfaba5981a1bf03"
+      },
+      "native_full_model_qualified": false
+    },
+    {
+      "model_id": "glm-ocr",
+      "workload_id": "mlx_vlm",
+      "profile": "compact_document_ocr",
+      "catalog_state": "proposed_addition",
+      "pin": {
+        "repo": "mlx-community/GLM-OCR-4bit",
+        "revision": "97f587506984cc92fa69b2694b4128e53db6b081"
+      },
+      "native_full_model_qualified": false
+    }
+  ],
+  "experimental_targets": [
+    {
+      "upstream_repo": "Qwen/Qwen3.8-Flash-Next",
+      "native_full_model_qualified": false
+    },
+    {
+      "upstream_repo": "zai-org/GLM-5.3-Flash",
+      "native_full_model_qualified": false
+    },
+    {
+      "upstream_repo": "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "native_full_model_qualified": false
+    }
+  ],
+  "internal_canary": {
+    "model_id": "qwen3-0.6b",
+    "repo": "mlx-community/Qwen3-0.6B-4bit",
+    "revision": "73e3e38d981303bc594367cd910ea6eb48349da8",
+    "purpose": "Existing local artifact; first complete-request baseline when reserve passes."
+  },
+  "policy": {
+    "ssd_offload": "disabled",
+    "ane": "auto",
+    "automatic_catalog_retirement": false,
+    "native_runtime_qualified": false,
+    "baseline_runtimes": {
+      "mlx_llm": "mlx_lm",
+      "mlx_vlm": "mlx_vlm"
+    },
+    "metadata_can_promote_runtime": false,
+    "component_results_can_promote_runtime": false,
+    "full_model_gate": {
+      "minimum_prefill_speedup": 1.25,
+      "minimum_decode_speedup": 1.25,
+      "ttft_regression_allowed": false,
+      "p95_regression_allowed": false
+    },
+    "unqualified_models": "Retain exact supported MLX path; do not infer native support from family name or Q4 label."
+  },
+  "workload_matrix": {
+    "prompt_tokens": [
+      128,
+      512,
+      2048,
+      8192
+    ],
+    "output_tokens": [
+      128,
+      256
+    ],
+    "concurrency": [
+      1,
+      4
+    ],
+    "cache_states": [
+      "cold_model",
+      "warm_model_uncached_prompt",
+      "warm_model_repeated_prefix"
+    ],
+    "hardware_memory_tiers_gib": [
+      16,
+      24,
+      32,
+      48,
+      64,
+      96,
+      128,
+      192,
+      256,
+      384,
+      512
+    ],
+    "phases": [
+      "template_tokenize",
+      "model_load",
+      "prefill",
+      "first_token",
+      "decode",
+      "first_content",
+      "stream_completion"
+    ],
+    "metrics": [
+      "ttft_ms",
+      "first_content_ms",
+      "prefill_input_tokens_per_second",
+      "decode_output_tokens_per_second",
+      "complete_request_output_tokens_per_second",
+      "inter_token_p95_ms",
+      "peak_process_footprint_bytes",
+      "weight_state_scratch_bytes",
+      "energy_joules_per_output_token",
+      "thermal_state",
+      "cpu_gpu_ane_handoff_ms",
+      "ssd_stall_ms",
+      "cancellation_latency_ms",
+      "reliability"
+    ],
+    "missing_metrics": null,
+    "claim": "Qualification matrix, not completed hardware benchmarks; run a small admitted subset before expanding."
+  },
+  "native_candidate": {
+    "operation": "affine_q4_projection",
+    "format": "out_in_uint32_little_nibble_affine_q4_group64",
+    "input_dtype": "float16",
+    "output_dtype": "float16",
+    "accumulation_dtype": "float32",
+    "controls": [
+      "independent_fp64_cpu_oracle",
+      "affine_q4_scalar",
+      "mlx_quantized_matmul"
+    ],
+    "variants": [
+      "affine_q4_simd",
+      "affine_q4_tiled"
+    ],
+    "fixture_shapes": [
+      [
+        1,
+        1024,
+        128
+      ],
+      [
+        7,
+        128,
+        17
+      ],
+      [
+        64,
+        1024,
+        128
+      ]
+    ],
+    "bounds": {
+      "rows": 512,
+      "input_width": 8192,
+      "output_width": 8192,
+      "tensor_bytes": 67108864
+    },
+    "excludes": [
+      "MXFP4",
+      "8bit",
+      "arbitrary_group_sizes",
+      "attention",
+      "MoE_router",
+      "recurrent_state",
+      "vision_encoder",
+      "full_model_execution"
+    ],
+    "promotion_eligible": false
+  }
+}
