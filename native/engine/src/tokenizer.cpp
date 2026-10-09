@@ -202,8 +202,8 @@ void Tokenizer::load_model(const Json& model) {
     auto ia = vocab_.find(a), ib = vocab_.find(b), im = vocab_.find(a + b);
     LK_CHECK(ia != vocab_.end() && ib != vocab_.end() && im != vocab_.end(),
              "tokenizer: merge '" + a + " " + b + "' refers to tokens outside the vocabulary");
-    merges_.emplace(pair_key(ia->second, ib->second),
-                    std::make_pair(static_cast<int32_t>(rank), im->second));
+    // A repeated pair keeps its last rank, as tokenizers' merge map does.
+    merges_[pair_key(ia->second, ib->second)] = std::make_pair(static_cast<int32_t>(rank), im->second);
   }
 }
 

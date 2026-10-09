@@ -206,6 +206,22 @@ def test_legacy_string_merges_load_identically(native_cli, tmp_path):
     assert ours == [tok.encode(text).ids for text in TEXTS[:50]]
 
 
+def test_repeated_merges_keep_their_last_rank(native_cli, tmp_path):
+    # tokenizers builds its merge map from the list in order, so a repeated
+    # pair ends up with its last rank: here "a b" drops below "b c".
+    data = {
+        "version": "1.0", "added_tokens": [], "normalizer": None, "pre_tokenizer": None,
+        "post_processor": None, "decoder": None,
+        "model": {"type": "BPE", "vocab": {"a": 0, "b": 1, "c": 2, "ab": 3, "bc": 4},
+                  "merges": [["a", "b"], ["b", "c"], ["a", "b"]]},
+    }
+    (tmp_path / "tokenizer.json").write_text(json.dumps(data), encoding="utf-8")
+    reference = Tokenizer.from_file(str(tmp_path / "tokenizer.json"))
+    assert reference.encode("abc").tokens == ["a", "bc"]
+    ours = _cli(native_cli, "tokenize", "--model", str(tmp_path), "--text", "abcabc")["ids"]
+    assert ours == reference.encode("abcabc").ids == [0, 4, 0, 4]
+
+
 def test_added_token_ids_disagreeing_with_reference_fail_closed(native_cli, tmp_path):
     data = json.loads(gemma_style().to_str())
     data["added_tokens"][-1]["id"] += 3  # tokenizers would silently renumber this token
