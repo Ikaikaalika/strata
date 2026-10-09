@@ -6,24 +6,30 @@
 
 #include "common.h"
 #include "safetensors.h"
+#include "unicode.h"
 
 namespace lokahi {
 namespace {
 
-// Byte length of the UTF-8 sequence starting at text[i]; throws on invalid input.
+// Byte length of the UTF-8 sequence starting at text[i]; throws on malformed input.
 size_t utf8_char_len(std::string_view text, size_t i) {
-  const auto lead = static_cast<unsigned char>(text[i]);
-  size_t len = lead < 0x80 ? 1 : (lead >> 5) == 0x6 ? 2 : (lead >> 4) == 0xE ? 3 : (lead >> 3) == 0x1E ? 4 : 0;
-  LK_CHECK(len != 0 && i + len <= text.size(), "tokenizer: input is not valid UTF-8");
-  for (size_t k = 1; k < len; ++k) {
-    LK_CHECK((static_cast<unsigned char>(text[i + k]) & 0xC0) == 0x80, "tokenizer: input is not valid UTF-8");
-  }
+  const size_t len = unicode::utf8_sequence_length(text, i);
+  LK_CHECK(len != 0, "tokenizer: input is not valid UTF-8");
   return len;
 }
 
 void validate_utf8(std::string_view text) {
   for (size_t i = 0; i < text.size(); i += utf8_char_len(text, i)) {
   }
+}
+
+bool is_valid_utf8(std::string_view text) {
+  for (size_t i = 0; i < text.size();) {
+    const size_t len = unicode::utf8_sequence_length(text, i);
+    if (len == 0) return false;
+    i += len;
+  }
+  return true;
 }
 
 std::string replace_all(std::string_view text, const std::string& pattern, const std::string& content) {
@@ -590,13 +596,7 @@ std::string Tokenizer::decode(const std::vector<int32_t>& ids, bool skip_special
         std::string pending;
         auto flush = [&] {
           if (pending.empty()) return;
-          bool valid = true;
-          try {
-            validate_utf8(pending);
-          } catch (const Error&) {
-            valid = false;
-          }
-          if (valid) {
+          if (is_valid_utf8(pending)) {
             next.push_back(pending);
           } else {
             for (size_t k = 0; k < pending.size(); ++k) next.push_back("\xEF\xBF\xBD");  // U+FFFD

@@ -229,14 +229,32 @@ def test_unsupported_components_fail_closed(native_cli, tmp_path):
     assert "unsupported normalizer 'NFKC'" in result.stderr
 
 
-def test_invalid_utf8_is_rejected(native_cli, saved_tokenizer):
+@pytest.mark.parametrize(
+    "raw",
+    [b"bad \xff byte", b"overlong \xc0\x80", b"surrogate \xed\xa0\x80", b"too large \xf4\x90\x80\x80", b"cut \xe2\x82"],
+)
+def test_invalid_utf8_is_rejected(native_cli, saved_tokenizer, raw):
     directory, _ = saved_tokenizer
     result = subprocess.run(
-        [str(native_cli).encode(), b"tokenize", b"--model", str(directory).encode(), b"--text", b"bad \xff byte"],
+        [str(native_cli).encode(), b"tokenize", b"--model", str(directory).encode(), b"--text", raw],
         capture_output=True,
     )
     assert result.returncode != 0
     assert b"not valid UTF-8" in result.stderr
+
+
+def test_byte_fallback_rejects_ill_formed_utf8_like_the_reference(native_cli, tmp_path):
+    # Byte runs spelling a surrogate, an overlong form or a value above
+    # U+10FFFF are not UTF-8: the reference replaces every byte.
+    tok = gemma_style()
+    tok.save(str(tmp_path / "tokenizer.json"))
+    runs = [[0xED, 0xA0, 0x80], [0xC0, 0x80], [0xF4, 0x90, 0x80, 0x80], [0xE2, 0x82, 0xAC], [0xF0, 0x9F, 0x99, 0x82, 0xC3]]
+    id_lists = [[tok.token_to_id(f"<0x{value:02X}>") for value in run] for run in runs]
+    ids_file = tmp_path / "ids.json"
+    ids_file.write_text(json.dumps(id_lists), encoding="utf-8")
+    ours = _cli(native_cli, "detokenize", "--model", str(tmp_path), "--ids-file", str(ids_file))["texts"]
+    assert ours == [tok.decode(ids) for ids in id_lists]
+    assert ours[0] == "\ufffd" * 3 and ours[3] == "\u20ac"
 
 
 @pytest.mark.skipif(not os.environ.get("LOKAHI_MODEL_ROOT"), reason="needs a staged Gemma 3 snapshot")
