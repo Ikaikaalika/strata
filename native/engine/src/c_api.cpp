@@ -7,9 +7,14 @@
 
 #include "lokahi/lokahi.h"
 #include "model.h"
+#include "tokenizer.h"
 
 struct lokahi_model {
   std::unique_ptr<lokahi::Model> model;
+};
+
+struct lokahi_tokenizer {
+  lokahi::Tokenizer tokenizer;
 };
 
 namespace {
@@ -107,6 +112,45 @@ int lokahi_generate_greedy(lokahi_model* model, const int32_t* prompt, int32_t p
       timing->decode_seconds = t.decode_seconds;
       timing->generated_tokens = static_cast<int32_t>(tokens.size());
     }
+  });
+}
+
+int lokahi_tokenizer_load(const char* directory, lokahi_tokenizer** out_tokenizer) {
+  return guarded([&] {
+    if (directory == nullptr || out_tokenizer == nullptr) throw std::invalid_argument("null argument");
+    *out_tokenizer = new lokahi_tokenizer{lokahi::Tokenizer::load(std::string(directory) + "/tokenizer.json")};
+  });
+}
+
+void lokahi_tokenizer_free(lokahi_tokenizer* tokenizer) { delete tokenizer; }
+
+int lokahi_tokenize(const lokahi_tokenizer* tokenizer, const char* text, size_t length,
+                    int32_t add_special_tokens, int32_t* out_ids, int32_t capacity, int32_t* out_count) {
+  return guarded([&] {
+    if (tokenizer == nullptr || (text == nullptr && length > 0) || out_count == nullptr) {
+      throw std::invalid_argument("bad arguments");
+    }
+    auto ids = tokenizer->tokenizer.encode(std::string_view(text ? text : "", length), add_special_tokens != 0);
+    *out_count = static_cast<int32_t>(ids.size());
+    if (static_cast<int32_t>(ids.size()) > capacity || (out_ids == nullptr && !ids.empty())) {
+      throw std::length_error("lokahi_tokenize: output capacity too small");
+    }
+    std::copy(ids.begin(), ids.end(), out_ids);
+  });
+}
+
+int lokahi_detokenize(const lokahi_tokenizer* tokenizer, const int32_t* ids, int32_t count,
+                      int32_t skip_special_tokens, char* out_text, size_t capacity, size_t* out_length) {
+  return guarded([&] {
+    if (tokenizer == nullptr || (ids == nullptr && count > 0) || count < 0 || out_length == nullptr) {
+      throw std::invalid_argument("bad arguments");
+    }
+    std::string text = tokenizer->tokenizer.decode(std::vector<int32_t>(ids, ids + count), skip_special_tokens != 0);
+    *out_length = text.size();
+    if (out_text == nullptr || text.size() + 1 > capacity) {
+      throw std::length_error("lokahi_detokenize: output capacity too small");
+    }
+    std::memcpy(out_text, text.c_str(), text.size() + 1);
   });
 }
 

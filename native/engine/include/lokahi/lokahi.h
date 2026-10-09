@@ -58,6 +58,24 @@ int lokahi_generate_greedy(lokahi_model* model, const int32_t* prompt, int32_t p
                            int32_t max_new, int32_t stop_at_eos, int32_t* out_tokens,
                            int32_t* out_count, lokahi_timing* timing);
 
+/* Tokenizer for <directory>/tokenizer.json (Hugging Face format). */
+typedef struct lokahi_tokenizer lokahi_tokenizer;
+
+int lokahi_tokenizer_load(const char* directory, lokahi_tokenizer** out_tokenizer);
+void lokahi_tokenizer_free(lokahi_tokenizer* tokenizer);
+
+/* Encodes `length` bytes of UTF-8 text. Always stores the full token count in
+ * *out_count; fails without writing ids when it exceeds `capacity`. */
+int lokahi_tokenize(const lokahi_tokenizer* tokenizer, const char* text, size_t length,
+                    int32_t add_special_tokens, int32_t* out_ids, int32_t capacity,
+                    int32_t* out_count);
+
+/* Decodes ids to UTF-8. Always stores the byte length (excluding the NUL) in
+ * *out_length; fails without writing when length + 1 exceeds `capacity`. */
+int lokahi_detokenize(const lokahi_tokenizer* tokenizer, const int32_t* ids, int32_t count,
+                      int32_t skip_special_tokens, char* out_text, size_t capacity,
+                      size_t* out_length);
+
 #ifdef __cplusplus
 }
 #endif

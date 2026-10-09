@@ -26,6 +26,7 @@ set(LOKAHI_CORE_SOURCES
   src/quant.cpp
   src/safetensors.cpp
   src/thread_pool.cpp
+  src/tokenizer.cpp
 )
 
 if(LOKAHI_METAL)

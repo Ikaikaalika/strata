@@ -16,6 +16,7 @@
 #include "quant.h"
 #include "safetensors.h"
 #include "thread_pool.h"
+#include "tokenizer.h"
 
 using namespace lokahi;
 
@@ -198,6 +199,52 @@ void test_thread_pool() {
   EXPECT(all);
 }
 
+// Streaming must never emit text that a later token rewrites: for every
+// prefix, decode(ids[0, stable_prefix)) must be a prefix of every later
+// full decode. Byte-fallback groups are the case that makes this nontrivial.
+void test_tokenizer_stable_prefix() {
+  std::string vocab = R"("<unk>": 0, "<s>": 1, "a": 258, "\u2581": 259, "b": 260)";
+  for (int b = 0; b < 256; ++b) {
+    char entry[32];
+    std::snprintf(entry, sizeof(entry), ", \"<0x%02X>\": %d", b, b + 2);
+    vocab += entry;
+  }
+  Json root = Json::parse(
+      R"({"added_tokens": [{"id": 1, "content": "<s>", "special": true}],
+          "model": {"type": "BPE", "unk_token": "<unk>", "byte_fallback": true, "merges": [], "vocab": {)" +
+      vocab +
+      R"(}}, "decoder": {"type": "Sequence", "decoders": [
+            {"type": "Replace", "pattern": {"String": "▁"}, "content": " "},
+            {"type": "ByteFallback"}, {"type": "Fuse"}]}})");
+  Tokenizer tokenizer = Tokenizer::from_json(root);
+  // Bytes of "é" (C3 A9) and "€" (E2 82 AC) plus stray continuation bytes.
+  const std::vector<int32_t> pool = {258, 259, 260, 1, 0xC3 + 2, 0xA9 + 2, 0xE2 + 2, 0x82 + 2, 0xAC + 2, 0x91 + 2, 'Z' + 2};
+  std::mt19937 rng(5);
+  bool ok = true;
+  for (int trial = 0; trial < 400 && ok; ++trial) {
+    std::vector<int32_t> ids;
+    for (int i = 0; i < 12; ++i) ids.push_back(pool[rng() % pool.size()]);
+    for (bool skip : {true, false}) {
+      for (size_t n = 0; n <= ids.size() && ok; ++n) {
+        std::vector<int32_t> head(ids.begin(), ids.begin() + static_cast<long>(n));
+        const size_t stable = tokenizer.stable_prefix(head, skip);
+        const std::string emitted =
+            tokenizer.decode(std::vector<int32_t>(head.begin(), head.begin() + static_cast<long>(stable)), skip);
+        for (size_t m = n; m <= ids.size(); ++m) {
+          const std::string later =
+              tokenizer.decode(std::vector<int32_t>(ids.begin(), ids.begin() + static_cast<long>(m)), skip);
+          ok = ok && later.compare(0, emitted.size(), emitted) == 0;
+        }
+      }
+    }
+  }
+  EXPECT(ok);
+  // Without the hold-back, "Z" then 0x91 would rewrite "Z" as two U+FFFD.
+  EXPECT(tokenizer.decode({'Z' + 2}, true) == "Z");
+  EXPECT(tokenizer.decode({'Z' + 2, 0x91 + 2}, true) == "\xEF\xBF\xBD\xEF\xBF\xBD");
+  EXPECT(tokenizer.stable_prefix({258, 'Z' + 2}, true) == 1);
+}
+
 }  // namespace
 
 int main() {
@@ -207,6 +254,7 @@ int main() {
   test_quant_config();
   test_safetensors();
   test_thread_pool();
+  test_tokenizer_stable_prefix();
   if (g_failures) {
     std::fprintf(stderr, "%d expectation(s) failed\n", g_failures);
     return 1;

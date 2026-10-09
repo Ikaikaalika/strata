@@ -22,7 +22,8 @@ int32_t argmax(const float* values, int count) {
 }
 
 std::vector<int32_t> Model::generate_greedy(const std::vector<int32_t>& prompt, int max_new,
-                                            bool stop_at_eos, GenerationTiming* timing) {
+                                            bool stop_at_eos, GenerationTiming* timing,
+                                            const TokenCallback& on_token) {
   std::vector<int32_t> out;
   if (max_new <= 0) return out;
   const auto& eos = eos_token_ids();
@@ -34,11 +35,13 @@ std::vector<int32_t> Model::generate_greedy(const std::vector<int32_t>& prompt, 
     timing->prefill_seconds = first - start;
     timing->token_times = {first};
   }
-  while (static_cast<int>(out.size()) < max_new) {
+  bool keep_going = !on_token || on_token(token);
+  while (keep_going && static_cast<int>(out.size()) < max_new) {
     if (stop_at_eos && std::find(eos.begin(), eos.end(), token) != eos.end()) break;
     token = argmax(decode(token), vocab_size());
     out.push_back(token);
     if (timing) timing->token_times.push_back(now_seconds());
+    keep_going = !on_token || on_token(token);
   }
   if (timing) timing->decode_seconds = timing->token_times.back() - first;
   return out;
