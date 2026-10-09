@@ -1,10 +1,12 @@
 // lokahi: command-line driver for the native engine.
 //
-//   lokahi info     --model DIR [--backend B]
-//   lokahi logits   --model DIR --tokens 2,5,9 [--prefill N] --out FILE
-//   lokahi generate --model DIR --tokens 2,5,9 --max-new N [--no-eos-stop]
-//   lokahi bench    --model DIR (--tokens ... | --tokens-file F) --max-new N
-//                   [--warmups W] [--repetitions R]
+//   lokahi info       --model DIR [--backend B]
+//   lokahi logits     --model DIR --tokens 2,5,9 [--prefill N] --out FILE
+//   lokahi generate   --model DIR --tokens 2,5,9 --max-new N [--no-eos-stop]
+//   lokahi bench      --model DIR (--tokens ... | --tokens-file F) --max-new N
+//                     [--warmups W] [--repetitions R]
+//   lokahi tokenize   --model DIR (--text TEXT | --texts-file F.json) [--no-special]
+//   lokahi detokenize --model DIR (--tokens 1,2 | --ids-file F.json) [--keep-special]
 //
 // Every command prints one JSON object on stdout.
 #include <sys/resource.h>
@@ -23,7 +25,9 @@
 
 #include "common.h"
 #include "model.h"
+#include "json.h"
 #include "safetensors.h"
+#include "tokenizer.h"
 
 using namespace lokahi;
 
@@ -44,7 +48,7 @@ struct Args {
 
 Args parse_args(int argc, char** argv) {
   Args args;
-  LK_CHECK(argc >= 2, "usage: lokahi <info|logits|generate|bench> --model DIR ...");
+  LK_CHECK(argc >= 2, "usage: lokahi <info|logits|generate|bench|tokenize|detokenize> --model DIR ...");
   args.command = argv[1];
   for (int i = 2; i < argc; ++i) {
     std::string key = argv[i];
@@ -86,6 +90,32 @@ LoadOptions load_options(const Args& args) {
   options.prefill_chunk = args.get_int("prefill-chunk", 512);
   options.cpu_threads = static_cast<unsigned>(args.get_int("threads", 0));
   return options;
+}
+
+std::string json_string(const std::string& text) {
+  std::string out = "\"";
+  for (unsigned char c : text) {
+    switch (c) {
+      case '"': out += "\\\""; break;
+      case '\\': out += "\\\\"; break;
+      case '\n': out += "\\n"; break;
+      case '\r': out += "\\r"; break;
+      case '\t': out += "\\t"; break;
+      default:
+        if (c < 0x20) {
+          char buffer[8];
+          std::snprintf(buffer, sizeof(buffer), "\\u%04x", c);
+          out += buffer;
+        } else {
+          out.push_back(static_cast<char>(c));
+        }
+    }
+  }
+  return out + "\"";
+}
+
+Tokenizer load_tokenizer(const Args& args) {
+  return Tokenizer::load(args.get("model") + "/tokenizer.json");
 }
 
 std::string json_tokens(const std::vector<int32_t>& tokens) {
@@ -158,6 +188,46 @@ int cmd_generate(const Args& args) {
   return 0;
 }
 
+int cmd_tokenize(const Args& args) {
+  Tokenizer tokenizer = load_tokenizer(args);
+  const bool special = !args.has("no-special");
+  if (args.has("texts-file")) {
+    Json texts = Json::parse(read_text_file(args.get("texts-file")));
+    std::string out = "{\"ids\":[";
+    bool first = true;
+    for (const Json& text : texts.as_array()) {
+      out += (first ? "" : ",") + json_tokens(tokenizer.encode(text.as_string(), special));
+      first = false;
+    }
+    std::printf("%s]}\n", out.c_str());
+    return 0;
+  }
+  LK_CHECK(args.has("text"), "--text or --texts-file is required");
+  std::printf("{\"ids\":%s}\n", json_tokens(tokenizer.encode(args.get("text"), special)).c_str());
+  return 0;
+}
+
+int cmd_detokenize(const Args& args) {
+  Tokenizer tokenizer = load_tokenizer(args);
+  const bool skip = !args.has("keep-special");
+  if (args.has("ids-file")) {
+    Json lists = Json::parse(read_text_file(args.get("ids-file")));
+    std::string out = "{\"texts\":[";
+    bool first = true;
+    for (const Json& list : lists.as_array()) {
+      std::vector<int32_t> ids;
+      for (const Json& id : list.as_array()) ids.push_back(static_cast<int32_t>(id.as_int()));
+      out += (first ? "" : ",") + json_string(tokenizer.decode(ids, skip));
+      first = false;
+    }
+    std::printf("%s]}\n", out.c_str());
+    return 0;
+  }
+  std::printf("{\"text\":%s}\n", json_string(tokenizer.decode(parse_tokens(args.get("tokens")), skip)).c_str());
+  return 0;
+}
+
+
 int cmd_bench(const Args& args) {
   LoadOptions options = load_options(args);
   const double load_start = now_seconds();
@@ -212,6 +282,8 @@ int main(int argc, char** argv) {
   try {
     Args args = parse_args(argc, argv);
     LK_CHECK(args.has("model"), "--model is required");
+    if (args.command == "tokenize") return cmd_tokenize(args);
+    if (args.command == "detokenize") return cmd_detokenize(args);
     if (args.command == "info") return cmd_info(args);
     if (args.command == "logits") return cmd_logits(args);
     if (args.command == "generate") return cmd_generate(args);
