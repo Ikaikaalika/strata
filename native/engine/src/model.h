@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -40,10 +41,15 @@ class Model {
   virtual const float* prefill(const int32_t* tokens, int n) = 0;
   virtual const float* decode(int32_t token) = 0;
 
+  // Called with each generated token as it becomes available on the host;
+  // returning false stops generation after that token.
+  using TokenCallback = std::function<bool(int32_t)>;
+
   // Greedy generation. Backends may keep tokens on the device and pipeline
   // steps; the default runs prefill + decode with host-side argmax.
   virtual std::vector<int32_t> generate_greedy(const std::vector<int32_t>& prompt, int max_new,
-                                               bool stop_at_eos, GenerationTiming* timing);
+                                               bool stop_at_eos, GenerationTiming* timing,
+                                               const TokenCallback& on_token = {});
 };
 
 int32_t argmax(const float* values, int count);

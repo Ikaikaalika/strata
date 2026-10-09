@@ -187,7 +187,7 @@ class Gemma3Metal final : public Model {
   }
 
   std::vector<int32_t> generate_greedy(const std::vector<int32_t>& prompt, int max_new, bool stop_at_eos,
-                                       GenerationTiming* timing) override {
+                                       GenerationTiming* timing, const TokenCallback& on_token) override {
     std::vector<int32_t> out;
     if (max_new <= 0) return out;
     @autoreleasepool {
@@ -207,7 +207,7 @@ class Gemma3Metal final : public Model {
       const int base = position_;  // position of the first generated token
       std::deque<std::pair<id<MTLCommandBuffer>, int>> inflight;
       int next_step = 1;
-      bool stopped = stop_at_eos && is_eos(out[0]);
+      bool stopped = (stop_at_eos && is_eos(out[0])) || (on_token && !on_token(out[0]));
       while (!stopped && static_cast<int>(out.size()) < max_new) {
         while (next_step < max_new && static_cast<int>(inflight.size()) < kInflightSteps) {
           id<MTLCommandBuffer> cb = encode_decode_step(base + next_step - 1, next_step);
@@ -221,6 +221,7 @@ class Gemma3Metal final : public Model {
         times.push_back(now_seconds());
         out.push_back(history[step]);
         if (stop_at_eos && is_eos(out.back())) stopped = true;
+        if (on_token && !on_token(out.back())) stopped = true;
       }
       for (auto& [cb, step] : inflight) wait(cb);
       // Steps launched past a stop token are discarded; only consumed tokens advance.

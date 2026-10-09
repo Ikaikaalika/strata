@@ -27,6 +27,13 @@ class Tokenizer {
   std::vector<int32_t> encode(std::string_view text, bool add_special_tokens) const;
   std::string decode(const std::vector<int32_t>& ids, bool skip_special_tokens) const;
 
+  // Number of leading ids whose decoded text can no longer change when more
+  // ids are appended, so streaming callers can emit decode(ids[0, n)) safely.
+  // Byte-fallback runs at the end stay pending: the reference decodes a run
+  // of byte tokens as one UTF-8 group, so a later byte can rewrite earlier
+  // output (for example "Z" + 0x91 decodes to two replacement characters).
+  size_t stable_prefix(const std::vector<int32_t>& ids, bool skip_special_tokens) const;
+
   int32_t token_to_id(const std::string& token) const;  // -1 when absent
   const std::string& id_to_token(int32_t id) const;
   bool is_special(int32_t id) const { return special_ids_.count(id) != 0; }

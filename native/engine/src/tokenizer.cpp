@@ -550,6 +550,25 @@ std::vector<int32_t> Tokenizer::encode(std::string_view text, bool add_special_t
   return out;
 }
 
+size_t Tokenizer::stable_prefix(const std::vector<int32_t>& ids, bool skip_special_tokens) const {
+  bool byte_fallback = false;
+  for (const DecoderStep& step : decoder_) {
+    // Stripping trailing characters after Fuse depends on what comes later.
+    if (step.kind == DecoderStep::Kind::Strip && step.stop > 0) return 0;
+    byte_fallback = byte_fallback || step.kind == DecoderStep::Kind::ByteFallback;
+  }
+  size_t n = ids.size();
+  if (!byte_fallback) return n;
+  auto is_byte = [&](int32_t id) {
+    if (id < 0 || static_cast<size_t>(id) >= id_to_token_.size()) return false;
+    const std::string& token = id_to_token_[static_cast<size_t>(id)];
+    return token.size() == 6 && token.compare(0, 3, "<0x") == 0 && token[5] == '>' && hex_digit(token[3]) >= 0 &&
+           hex_digit(token[4]) >= 0;
+  };
+  while (n > 0 && (is_byte(ids[n - 1]) || (skip_special_tokens && is_special(ids[n - 1])))) --n;
+  return n;
+}
+
 std::string Tokenizer::decode(const std::vector<int32_t>& ids, bool skip_special_tokens) const {
   std::vector<std::string> tokens;
   tokens.reserve(ids.size());

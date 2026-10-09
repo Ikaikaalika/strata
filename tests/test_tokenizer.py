@@ -251,3 +251,44 @@ def test_real_gemma3_tokenizer_matches_reference(native_cli, tmp_path):
     texts_file.write_text(json.dumps(TEXTS), encoding="utf-8")
     ours = _cli(native_cli, "tokenize", "--model", str(path.parent), "--texts-file", str(texts_file))["ids"]
     assert ours == [reference.encode(text).ids for text in TEXTS]
+
+
+def _model_with_tokenizer(directory: Path, tok: Tokenizer) -> Path:
+    from lokahi.fixtures import TinyGemma3Spec, write_tiny_gemma3
+
+    size = tok.get_vocab_size(with_added_tokens=True)
+    write_tiny_gemma3(directory, TinyGemma3Spec(vocab_size=size, extra={"eos_token_id": [tok.token_to_id("<eos>")]}))
+    tok.save(str(directory / "tokenizer.json"))
+    return directory
+
+
+def test_text_generation_matches_oracle_and_reference_decode(native_cli, tmp_path):
+    from lokahi.oracles import Gemma3Reference
+
+    tok = gemma_style()
+    directory = _model_with_tokenizer(tmp_path / "model", tok)
+    prompt = "Aloha kākou! <start_of_turn>user\nHow are you?"
+    report = _cli(native_cli, "generate", "--model", str(directory), "--backend", "cpu",
+                  "--prompt", prompt, "--max-new", "12", "--no-eos-stop")
+    prompt_ids = tok.encode(prompt).ids
+    assert report["tokens"] == Gemma3Reference.load(directory).greedy(prompt_ids, 12)
+    assert report["text"] == tok.decode(report["tokens"], skip_special_tokens=True)
+
+
+def test_run_streams_the_decoded_continuation(native_cli, tmp_path):
+    from lokahi.oracles import Gemma3Reference
+
+    tok = gemma_style()
+    directory = _model_with_tokenizer(tmp_path / "model", tok)
+    prompt = "The quick brown fox"
+    result = subprocess.run(
+        [str(native_cli), "run", "--model", str(directory), "--backend", "cpu", "--prompt", prompt, "--max-new", "16"],
+        capture_output=True, check=True,
+    )
+    expected = Gemma3Reference.load(directory).greedy(tok.encode(prompt).ids, 16)
+    eos = tok.token_to_id("<eos>")
+    if eos in expected:
+        expected = expected[: expected.index(eos) + 1]
+    # Compare bytes: text mode would fold the "\r\n" this fixture generates.
+    assert result.stdout.decode() == tok.decode(expected, skip_special_tokens=True) + "\n"
+    assert b"tok/s" in result.stderr

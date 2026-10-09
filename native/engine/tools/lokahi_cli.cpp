@@ -2,13 +2,15 @@
 //
 //   lokahi info       --model DIR [--backend B]
 //   lokahi logits     --model DIR --tokens 2,5,9 [--prefill N] --out FILE
-//   lokahi generate   --model DIR --tokens 2,5,9 --max-new N [--no-eos-stop]
+//   lokahi generate   --model DIR (--tokens 2,5,9 | --prompt TEXT) --max-new N [--no-eos-stop]
 //   lokahi bench      --model DIR (--tokens ... | --tokens-file F) --max-new N
 //                     [--warmups W] [--repetitions R]
 //   lokahi tokenize   --model DIR (--text TEXT | --texts-file F.json) [--no-special]
 //   lokahi detokenize --model DIR (--tokens 1,2 | --ids-file F.json) [--keep-special]
+//   lokahi run        --model DIR --prompt TEXT [--max-new N]
 //
-// Every command prints one JSON object on stdout.
+// `run` streams generated text to stdout; every other command prints one
+// JSON object on stdout.
 #include <sys/resource.h>
 
 #include <algorithm>
@@ -48,7 +50,7 @@ struct Args {
 
 Args parse_args(int argc, char** argv) {
   Args args;
-  LK_CHECK(argc >= 2, "usage: lokahi <info|logits|generate|bench|tokenize|detokenize> --model DIR ...");
+  LK_CHECK(argc >= 2, "usage: lokahi <info|logits|generate|bench|tokenize|detokenize|run> --model DIR ...");
   args.command = argv[1];
   for (int i = 2; i < argc; ++i) {
     std::string key = argv[i];
@@ -77,7 +79,10 @@ std::vector<int32_t> parse_tokens(const std::string& text) {
   return tokens;
 }
 
+Tokenizer load_tokenizer(const Args& args);
+
 std::vector<int32_t> prompt_tokens(const Args& args) {
+  if (args.has("prompt")) return load_tokenizer(args).encode(args.get("prompt"), true);
   if (args.has("tokens-file")) return parse_tokens(read_text_file(args.get("tokens-file")));
   LK_CHECK(args.has("tokens"), "--tokens or --tokens-file is required");
   return parse_tokens(args.get("tokens"));
@@ -182,8 +187,10 @@ int cmd_generate(const Args& args) {
   GenerationTiming timing;
   auto generated =
       model->generate_greedy(tokens, args.get_int("max-new", 16), !args.has("no-eos-stop"), &timing);
-  std::printf("{\"backend\":\"%s\",\"tokens\":%s,\"prefill_seconds\":%.9f,\"decode_seconds\":%.9f}\n",
-              model->backend(), json_tokens(generated).c_str(), timing.prefill_seconds,
+  std::string text;
+  if (args.has("prompt")) text = ",\"text\":" + json_string(load_tokenizer(args).decode(generated, true));
+  std::printf("{\"backend\":\"%s\",\"tokens\":%s%s,\"prefill_seconds\":%.9f,\"decode_seconds\":%.9f}\n",
+              model->backend(), json_tokens(generated).c_str(), text.c_str(), timing.prefill_seconds,
               timing.decode_seconds);
   return 0;
 }
@@ -227,6 +234,36 @@ int cmd_detokenize(const Args& args) {
   return 0;
 }
 
+// Streams decoded text while generating. Only text that later tokens cannot
+// change is written, so the stream always equals the final decode.
+int cmd_run(const Args& args) {
+  LK_CHECK(args.has("prompt"), "--prompt is required");
+  Tokenizer tokenizer = load_tokenizer(args);
+  auto model = load_model(args.get("model"), load_options(args));
+  std::vector<int32_t> prompt = tokenizer.encode(args.get("prompt"), true);
+  std::vector<int32_t> generated;
+  size_t emitted = 0;
+  auto emit = [&](const std::string& text) {
+    LK_CHECK(text.size() >= emitted, "streaming decode went backwards");
+    std::fwrite(text.data() + emitted, 1, text.size() - emitted, stdout);
+    std::fflush(stdout);
+    emitted = text.size();
+  };
+  auto on_token = [&](int32_t token) {
+    generated.push_back(token);
+    const size_t stable = tokenizer.stable_prefix(generated, true);
+    emit(tokenizer.decode(std::vector<int32_t>(generated.begin(), generated.begin() + static_cast<long>(stable)), true));
+    return true;
+  };
+  GenerationTiming timing;
+  model->generate_greedy(prompt, args.get_int("max-new", 256), true, &timing, on_token);
+  emit(tokenizer.decode(generated, true));
+  std::printf("\n");
+  const double decode_rate = generated.size() > 1 ? (generated.size() - 1) / timing.decode_seconds : 0.0;
+  std::fprintf(stderr, "[%s] prompt %zu tokens in %.1f ms; %zu tokens at %.1f tok/s\n", model->backend(),
+               prompt.size(), 1000.0 * timing.prefill_seconds, generated.size(), decode_rate);
+  return 0;
+}
 
 int cmd_bench(const Args& args) {
   LoadOptions options = load_options(args);
@@ -284,6 +321,7 @@ int main(int argc, char** argv) {
     LK_CHECK(args.has("model"), "--model is required");
     if (args.command == "tokenize") return cmd_tokenize(args);
     if (args.command == "detokenize") return cmd_detokenize(args);
+    if (args.command == "run") return cmd_run(args);
     if (args.command == "info") return cmd_info(args);
     if (args.command == "logits") return cmd_logits(args);
     if (args.command == "generate") return cmd_generate(args);
