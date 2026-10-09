@@ -2,7 +2,7 @@
 set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-BUILD_DIR=${STRATA_METAL_BUILD_DIR:-"$SCRIPT_DIR/build"}
+BUILD_DIR=${LOKAHI_METAL_BUILD_DIR:-"$SCRIPT_DIR/build"}
 SDK_PATH=$(xcrun --sdk macosx --show-sdk-path)
 
 mkdir -p "$BUILD_DIR"
@@ -14,7 +14,7 @@ xcrun --sdk macosx metal \
 
 xcrun --sdk macosx metallib \
   "$BUILD_DIR/rmsnorm_residual.air" \
-  -o "$BUILD_DIR/strata-metal.metallib"
+  -o "$BUILD_DIR/lokahi-metal.metallib"
 
 xcrun --sdk macosx clang++ \
   -std=c++20 \
@@ -23,6 +23,6 @@ xcrun --sdk macosx clang++ \
   -framework Foundation \
   -framework Metal \
   "$SCRIPT_DIR/metal_probe.mm" \
-  -o "$BUILD_DIR/strata-metal-probe"
+  -o "$BUILD_DIR/lokahi-metal-probe"
 
-"$BUILD_DIR/strata-metal-probe"
+"$BUILD_DIR/lokahi-metal-probe"

@@ -7,8 +7,8 @@ import stat
 import tempfile
 import unittest
 
-from ollm.backends.ane_backend import ANEBackend, ANEProbeError, ANEProbeReport
-from ollm.core.hardware import ComputeUnit
+from lokahi.backends.ane_backend import ANEBackend, ANEProbeError, ANEProbeReport
+from lokahi.core.hardware import ComputeUnit
 
 
 def _valid_report(*, executed: bool = False) -> dict:
@@ -91,7 +91,7 @@ def _valid_report(*, executed: bool = False) -> dict:
     }
     return {
         "schema_version": 2,
-        "probe": "strata-ane-capability",
+        "probe": "lokahi-ane-capability",
         "platform": {
             "os": "macOS",
             "version": "26.5.2",
@@ -289,7 +289,7 @@ class ANEBackendTest(unittest.TestCase):
             self.assertEqual(backend.capabilities().compute_units, ())
 
     def test_missing_worker_is_unavailable(self):
-        backend = ANEBackend("/definitely/not/a/strata-ane-worker")
+        backend = ANEBackend("/definitely/not/a/lokahi-ane-worker")
 
         self.assertFalse(backend.is_available())
         self.assertEqual(backend.capabilities().compute_units, ())

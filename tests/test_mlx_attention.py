@@ -4,7 +4,7 @@ import numpy as np
 
 try:
     import mlx.core as mx
-    from ollm.backends.mlx_ops import (
+    from lokahi.backends.mlx_ops import (
         online_chunked_grouped_attention_mx,
         online_chunked_grouped_attention_rope_no_mask_mx,
     )

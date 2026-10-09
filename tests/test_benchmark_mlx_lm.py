@@ -16,7 +16,7 @@ def test_mlx_ssd_offload_parameter_is_explicit_about_os_management() -> None:
     assert mlx_lazy_load_for_ssd_offload("disabled") is False
     assert mlx_lazy_load_for_ssd_offload("os-managed") is True
     with pytest.raises(ValueError, match="unsupported"):
-        mlx_lazy_load_for_ssd_offload("strata-paged")
+        mlx_lazy_load_for_ssd_offload("lokahi-paged")
 
 
 def test_artifact_metadata_records_shape_quantization_and_weight_hash(

@@ -8,5 +8,5 @@ __pycache__
 dist/
 build/
 *.egg-info/
-src/ollm.egg-info
+src/lokahi.egg-info
 animations/rendered/

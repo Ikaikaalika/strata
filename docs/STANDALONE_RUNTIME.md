@@ -1,4 +1,4 @@
-# Strata Standalone Runtime
+# Lōkahi Standalone Runtime
 
 Status: target product boundary. Existing Python, MLX, Metal, and ANE pieces are
 identified as current only where repository tests or recorded hardware evidence
@@ -6,20 +6,20 @@ support them.
 
 ## Product boundary
 
-Strata is a standalone Apple-Silicon LLM engine, not a Common Compute-specific
+Lōkahi is a standalone Apple-Silicon LLM engine, not a Common Compute-specific
 worker. It should be usable through a command-line client, a local daemon, or a
 stable library API. Common Compute is the first integration and proving ground,
 connected through an adapter that owns its fleet and billing concepts.
 
 ```mermaid
 flowchart TB
-    CLI["strata CLI"] --> API["Stable libstrata C ABI"]
-    DAEMON["stratad: local HTTP + model service"] --> API
+    CLI["lokahi CLI"] --> API["Stable liblokahi C ABI"]
+    DAEMON["lokahid: local HTTP + model service"] --> API
     CC["Common Compute XPC adapter"] --> API
 
     API --> IMPORT["Portable model importer"]
     API --> RUNTIME["Native request runtime"]
-    IMPORT --> CAPSULE["Derived per-machine StrataCapsule cache"]
+    IMPORT --> CAPSULE["Derived per-machine LokahiCapsule cache"]
     CAPSULE --> RUNTIME
 
     RUNTIME --> ADMIT["Admission + unified memory accountant"]
@@ -37,31 +37,31 @@ flowchart TB
 The open core must not contain Common Compute leases, billing, provider
 identity, fleet routing, or task-envelope types. Those remain in the outer
 adapter. The adapter may translate a Common Compute job into the same public
-Strata request used by local callers.
+Lōkahi request used by local callers.
 
 ## Implementation stack
 
 | Layer | Intended implementation | Responsibility |
 |---|---|---|
-| `libstrata` | C ABI over a C++20 core | Stable embedding surface, lifecycle, requests, events, cancellation |
+| `liblokahi` | C ABI over a C++20 core | Stable embedding surface, lifecycle, requests, events, cancellation |
 | Runtime core | C++20 | Model slots, admission, scheduling, memory accounting, plans, evidence |
 | Apple bridge | Objective-C++ | Metal, IOSurface, Accelerate/BNNS, signposts, platform state |
 | GPU programs | Metal Shading Language | Fused prefill/decode kernels and persistent tensor storage |
-| Service shell | Swift | `stratad`, local HTTP, launchd/XPC integration, Keychain and sandboxing |
+| Service shell | Swift | `lokahid`, local HTTP, launchd/XPC integration, Keychain and sandboxing |
 | Compatibility lane | MLX/MLX Swift | Correctness baseline and fallback while native coverage grows |
-| Lab only | Python `ollm` | Import experiments, golden fixtures, planner simulation, evidence analysis |
+| Lab only | Python `lokahi` | Import experiments, golden fixtures, planner simulation, evidence analysis |
 
-Python is not in the production token-generation hot path. The `ollm` import
-namespace remains until a deliberate compatibility migration.
+Python is not in the production token-generation hot path. The Python package
+is `lokahi` (formerly `ollm`).
 
 ## Models and compiled artifacts
 
 Public input formats should remain portable, beginning with GGUF and
 safetensors plus tokenizer metadata. Import produces an immutable logical model
-manifest. Installation then derives a local `StrataCapsule` keyed by:
+manifest. Installation then derives a local `LokahiCapsule` keyed by:
 
 - model digest and quantization;
-- Strata compiler and kernel revisions;
+- Lōkahi compiler and kernel revisions;
 - chip family, OS build, and supported feature set;
 - selected shape buckets and maximum context policy.
 
@@ -79,7 +79,7 @@ safe-boundary resizing, Metal I/O path, MoE policy, and evidence gates.
 
 ## Using the whole SoC intelligently
 
-Strata optimizes useful capability, not utilization percentages.
+Lōkahi optimizes useful capability, not utilization percentages.
 
 | Engine | Default ownership | Why |
 |---|---|---|
@@ -114,7 +114,7 @@ must fit the granted memory budget and have matching correctness evidence.
 
 The first externally useful release needs:
 
-1. `strata run`, `strata serve`, model list/pull/import, streaming, cancellation,
+1. `lokahi run`, `lokahi serve`, model list/pull/import, streaming, cancellation,
    and structured metrics.
 2. A stable C ABI and versioned local HTTP protocol.
 3. One real model family with tokenizer, quantized weights, prefill, decode, KV,

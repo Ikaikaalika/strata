@@ -2,26 +2,26 @@ import unittest
 
 import numpy as np
 
-from ollm.backends.ane_segment import (
+from lokahi.backends.ane_segment import (
     ANE_LINEAR_ENVELOPE,
     ANEProjectionSegmentExecutor,
     ANESegmentError,
     ane_projection_segment_capabilities,
 )
-from ollm.backends.cpu_reference import CPUReferenceExecutor
-from ollm.core import (
+from lokahi.backends.cpu_reference import CPUReferenceExecutor
+from lokahi.core import (
     ComputeUnit,
     IROperation,
     InferencePhase,
     OperationKind,
-    StrataIRGraph,
+    LokahiIRGraph,
     TensorRole,
     TensorSpec,
 )
 
 
 def _graph(*, tokens=64, weight_layout="out_in"):
-    return StrataIRGraph(
+    return LokahiIRGraph(
         "ane-linear-segment",
         (
             TensorSpec("x", (tokens, 256), "float16", TensorRole.INPUT),

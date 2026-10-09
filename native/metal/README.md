@@ -1,4 +1,4 @@
-# Strata native Metal capability probe
+# Lōkahi native Metal capability probe
 
 This probe is a correctness-first vertical slice of the future native Metal
 backend. It compiles a `float32` fused RMSNorm-plus-residual kernel into a

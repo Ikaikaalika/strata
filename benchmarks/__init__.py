@@ -1,1 +1,1 @@
-"""Offline benchmark contracts and comparison tools for Strata."""
+"""Offline benchmark contracts and comparison tools for Lokahi."""

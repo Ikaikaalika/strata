@@ -7,7 +7,7 @@ import numpy as np
 
 try:
     import mlx.core as mx
-    from ollm.mlx_kvcache import MLXKVCache
+    from lokahi.mlx_kvcache import MLXKVCache
 
     MX_AVAILABLE = True
 except (ModuleNotFoundError, RuntimeError):

@@ -1,4 +1,4 @@
-# Strata for Common Compute
+# Lōkahi for Common Compute
 
 Status: canonical target architecture and admission-contract freeze. The
 Python implementation is a correctness laboratory; it is not yet wired into
@@ -10,9 +10,9 @@ architecture, not a completed capability.
 
 ## Decision
 
-Strata will be the per-Mac inference control plane beneath Common Compute. It
+Lōkahi will be the per-Mac inference control plane beneath Common Compute. It
 will not be one more fixed `mlx_llm` runner. Common Compute decides **which Mac
-receives a job**; Strata decides **whether that Mac should admit it and how that
+receives a job**; Lōkahi decides **whether that Mac should admit it and how that
 specific request should execute now**.
 
 "Best" therefore means the best verified plan for this tuple:
@@ -29,20 +29,20 @@ show that the combined plan wins.
 
 ## Architecture invariants
 
-These boundaries preserve the efficient Strata architecture while adding
+These boundaries preserve the efficient Lōkahi architecture while adding
 Common Compute serving:
 
-1. **Strata owns the hot inference path.** Admission, continuous batching,
+1. **Lōkahi owns the hot inference path.** Admission, continuous batching,
    prefill/decode scheduling, KV state, residency, prefetch, eviction, backend
    selection, cancellation safe points, and runtime metrics live together in
    one persistent engine.
 2. **Common Compute owns the distributed system.** Authentication, provider
    identity, WebSockets, leases, fleet routing, artifact transfer, billing,
    customer streaming, provider UI, releases, and revocation remain outside
-   Strata.
+   Lōkahi.
 3. **XPC is a process boundary, not another scheduler.** The host submits and
    cancels requests; it does not reserve the GPU independently for every
-   admitted Strata request or choose batch membership.
+   admitted Lōkahi request or choose batch membership.
 4. **MLX is the compatibility baseline and recovery plan.** Metal, Core ML,
    and ANE segments enter production only with matching correctness evidence
    and superior end-to-end hardware evidence.
@@ -54,9 +54,9 @@ Common Compute serving:
 7. **Storage is a cold tier, never a compute engine.** HDD is forbidden for
    model/KV offload and SSD data always enters unified memory before compute.
 8. **The public API stays model-first.** Customers request `llm.generate` and
-   a model; `strata_llm` and `mlx_llm` are internal implementation lanes.
+   a model; `lokahi_llm` and `mlx_llm` are internal implementation lanes.
 9. **Broad compatibility and deep optimization are different promises.** An
-   MLX adapter may make a model runnable; a specialized Strata plan is claimed
+   MLX adapter may make a model runnable; a specialized Lōkahi plan is claimed
    only for the exact model revision, shape bucket, quantization, and hardware
    fingerprint that passed the evidence gates.
 10. **Partial output changes recovery semantics.** Before the first streamed
@@ -72,7 +72,7 @@ Common Compute serving:
 | Planning | One whole-graph backend per prefill/decode phase | Multiple verified operation segments per phase |
 | Residency | Byte-budgeted generated-fixture governor and pack-backed loading | Native model/KV/prefix ownership inside persistent XPC |
 | Serving | Custom one-request prefill/decode loops; no production server | Bounded multi-request continuous batching |
-| Common Compute | Existing `mlx_llm` executes in the host process | Internal `strata_llm` batched lane through XPC |
+| Common Compute | Existing `mlx_llm` executes in the host process | Internal `lokahi_llm` batched lane through XPC |
 | XPC | Fixed no-network service exists but returns `unsupportedRunner` | Signed native engine with streaming callbacks and self-test |
 | Metal | Fixed correctness probe | Measured transformer segments |
 | ANE | One fixed fp16 prefill projection; per-request compile/load | Cached exact segments; research-only until full-plan evidence |
@@ -87,11 +87,11 @@ Nothing in the target column is a current production claim.
 flowchart TD
     CLIENT["Common Compute client"] --> ROUTER["Fleet router"]
     ROUTER -->|"job + service objective"| PROVIDER["Provider app"]
-    PROVIDER -->|"static identity + live state"| ADMIT["Strata admission"]
+    PROVIDER -->|"static identity + live state"| ADMIT["Lōkahi admission"]
     ADMIT -->|"reject / defer"| ROUTER
     ADMIT -->|"admitted constraints"| PLAN["Evidence-gated planner"]
 
-    PLAN --> IR["Model adapter → StrataIR"]
+    PLAN --> IR["Model adapter → LokahiIR"]
     PLAN --> RES["Weight + KV residency"]
     PLAN --> EXEC["Segment executor"]
 
@@ -116,7 +116,7 @@ This is a three-level scheduler plus an offline evidence loop:
 2. The provider host performs local lifecycle admission: user availability,
    assignment ownership, runtime revision, XPC health, bounded queue capacity,
    and task staging.
-3. The Strata engine schedules the hot path using state that should not churn
+3. The Lōkahi engine schedules the hot path using state that should not churn
    in the cloud: memory pressure, thermals, power mode, KV growth, model
    residency, batch composition, backend health, compile caches, and local
    performance evidence.
@@ -126,7 +126,7 @@ This is a three-level scheduler plus an offline evidence loop:
 
 ## Ownership map
 
-| Concern | Common Compute control plane | Provider host | Strata XPC engine |
+| Concern | Common Compute control plane | Provider host | Lōkahi XPC engine |
 |---|---|---|---|
 | Customer API, auth, quota, billing | Owns | Relays | Does not access |
 | Fleet placement and retry | Owns | Reports capability | Returns admit/decline reasons |
@@ -144,7 +144,7 @@ This is a three-level scheduler plus an offline evidence loop:
 
 ## Frozen input contract
 
-The first code contract is `ollm.core.platform`.
+The first code contract is `lokahi.core.platform`.
 
 | Contract | Meaning |
 |---|---|
@@ -170,7 +170,7 @@ An HDD never qualifies, regardless of an apparently fast page-cache read.
 
 ## Optimization objective
 
-For candidate plan \(P\), Strata selects from the correctness-verified feasible
+For candidate plan \(P\), Lōkahi selects from the correctness-verified feasible
 set by maximizing:
 
 \[
@@ -249,7 +249,7 @@ the next safe boundary.
 
 ## Persistent serving engine
 
-Strata is one long-lived engine per XPC service, not one runtime instance per
+Lōkahi is one long-lived engine per XPC service, not one runtime instance per
 task. Model state and batch scheduling survive across requests while individual
 request state remains isolated.
 
@@ -287,10 +287,10 @@ The first scheduler is deterministic and bounded:
   decode iterations;
 - a request that cannot meet its memory or deadline envelope returns a
   retryable decline before consuming accelerator work;
-- the host acquires one **shared Strata lane**, not one exclusive GPU lease per
+- the host acquires one **shared Lōkahi lane**, not one exclusive GPU lease per
   customer task.
 
-Continuous batching is an execution policy inside Strata. Common Compute may
+Continuous batching is an execution policy inside Lōkahi. Common Compute may
 route several assignments to the same ready model slot, but it does not dictate
 which token step joins which batch.
 
@@ -298,14 +298,14 @@ which token step joins which batch.
 
 The catalog-to-engine contract and architecture-family matrix are canonical in
 [`MODEL_ADAPTIVE_ARCHITECTURE.md`](MODEL_ADAPTIVE_ARCHITECTURE.md). Common
-Compute catalog status remains separate from Strata compatibility and local
+Compute catalog status remains separate from Lōkahi compatibility and local
 hardware qualification.
 
 ```mermaid
 flowchart TD
     MANIFEST["Pinned model manifest"] --> ADAPTER["Model adapter registry"]
     ADAPTER -->|"broad compatibility"| MLXMODEL["MLX Swift model container"]
-    ADAPTER -->|"known architecture"| IR["StrataIR graph"]
+    ADAPTER -->|"known architecture"| IR["LokahiIR graph"]
     IR --> PLAN["Verified segmented plan"]
     PLAN --> MLXSEG["MLX segment"]
     PLAN --> METALSEG["Metal segment"]
@@ -316,7 +316,7 @@ flowchart TD
 
 Every model enters through a pinned adapter and manifest. The compatibility
 path delegates the complete model to MLX Swift. Architectures with exact
-StrataIR lowering may use specialized residency and heterogeneous segments.
+LokahiIR lowering may use specialized residency and heterogeneous segments.
 Unsupported architecture, operation, dtype, quantization, layout, or shape
 fails closed to the compatible MLX plan or rejects the model; it never guesses.
 
@@ -340,7 +340,7 @@ flowchart LR
 
 Apple Silicon's unified memory lets CPU and GPU operations use the same MLX
 arrays without explicit device copies, but execution dependencies and storage
-ingress still cost time. SSD data first enters host/unified memory; Strata does
+ingress still cost time. SSD data first enters host/unified memory; Lōkahi does
 not claim direct SSD execution.
 
 Admission chooses one of three outcomes:
@@ -354,7 +354,7 @@ Admission chooses one of three outcomes:
 
 ## Platform adaptation loop
 
-Strata adapts at different cadences rather than running one unstable global
+Lōkahi adapts at different cadences rather than running one unstable global
 feedback controller:
 
 | Cadence | Inputs | Allowed decisions |
@@ -390,7 +390,7 @@ same optimal plan.
 
 Common Compute production defaults to supported Apple and MLX APIs. Core ML may
 be configured to permit ANE use, but configuration alone is not execution
-proof. Strata records it as ANE evidence only after compile, dispatch, readback,
+proof. Lōkahi records it as ANE evidence only after compile, dispatch, readback,
 and numerical verification.
 
 Direct private-ANE work remains a separate, restartable, fail-closed research
@@ -404,15 +404,15 @@ The production target should be native rather than a long-lived Python process:
 
 ```text
 Common Compute Swift app
-  └─ StrataKit Swift client
-      └─ signed, sandboxed strata-runtime XPC service
+  └─ LokahiKit Swift client
+      └─ signed, sandboxed lokahi-runtime XPC service
           ├─ MLX Swift model compatibility backend
           ├─ Metal kernel backend
           ├─ supported Core ML backend
           ├─ residency / KV / batch scheduler
           └─ opt-in private-ANE child worker (research only)
 
-Python Strata lab
+Python Lōkahi lab
   ├─ independent NumPy/MLX correctness oracles
   ├─ generated fixtures and hardware qualification
   └─ versioned evidence and plan fixtures consumed by native tests
@@ -427,35 +427,35 @@ before connecting the provider runner.
 ```text
 public operation:          llm.generate
 requested model:          immutable catalog model ID + revision
-primary implementation:   strata_llm
+primary implementation:   lokahi_llm
 compatibility fallback:   mlx_llm
 host runner mode:          batched
 engine process:            persistent no-network XPC service
 ```
 
-`XPCStrataRunner` conforms to Common Compute's host-side runner protocol, but it
+`XPCLokahiRunner` conforms to Common Compute's host-side runner protocol, but it
 contains no MLX execution. It serializes the fixed request, forwards
 cancellation, converts bounded XPC events into the existing progress/partial-
 text path, and converts the terminal receipt into the existing result/metering
 contract.
 
-The router may prefer `strata_llm` only when the provider advertises a passing
+The router may prefer `lokahi_llm` only when the provider advertises a passing
 XPC self-test, matching runtime revision, requested model support, and bounded
 queue capacity. During migration, failure to qualify leaves `mlx_llm`
-available; it does not silently advertise Strata.
+available; it does not silently advertise Lōkahi.
 
 ### Fixed XPC protocol
 
 Do not reuse the generic runtime profile containing arbitrary entrypoints,
-arguments, environments, or package-install flags. The Strata protocol is a
+arguments, environments, or package-install flags. The Lōkahi protocol is a
 versioned data contract with four message families:
 
 | Message | Direction | Required role |
 |---|---|---|
-| `StrataStartRequest` | Host → XPC | Immutable model/request/objective and scoped task reference |
-| `StrataControl` | Host → XPC | Cancel, drain, health, and capability query |
-| `StrataEvent` | XPC → Host | Progress, batched text delta, queue state, and warning |
-| `StrataReceipt` | XPC → Host | Terminal result, usage, plan/evidence IDs, metrics, and failure class |
+| `LokahiStartRequest` | Host → XPC | Immutable model/request/objective and scoped task reference |
+| `LokahiControl` | Host → XPC | Cancel, drain, health, and capability query |
+| `LokahiEvent` | XPC → Host | Progress, batched text delta, queue state, and warning |
+| `LokahiReceipt` | XPC → Host | Terminal result, usage, plan/evidence IDs, metrics, and failure class |
 
 The protocol must provide:
 
@@ -483,7 +483,7 @@ group.ai.commoncompute.provider/
     input/
     output/
   Models/<model-id>/<revision>/
-  Runtime/strata/<runtime-revision>/
+  Runtime/lokahi/<runtime-revision>/
   Cache/
     compiled/
     prefix/
@@ -512,7 +512,7 @@ isolation alone.
 - Model, compiled-program, and prefix caches are revisioned and may be rebuilt;
   customer task directories are deleted after the retention policy permits.
 - Crash-loop, memory-pressure, and thermal circuit breakers make the provider
-  stop advertising `strata_llm` until its self-test passes again.
+  stop advertising `lokahi_llm` until its self-test passes again.
 
 ## Learning loop
 
@@ -535,7 +535,7 @@ decision reasons, fallback, and a completion receipt.
 
 ## Common Compute bridge contract
 
-The provider-to-Strata request should eventually contain:
+The provider-to-Lōkahi request should eventually contain:
 
 - job ID and immutable model revision/hash;
 - quantization and model graph/adapter ID;
@@ -544,7 +544,7 @@ The provider-to-Strata request should eventually contain:
 - memory ceiling and explicit spill permission;
 - supported-only or research deployment mode.
 
-Strata returns:
+Lōkahi returns:
 
 - admit, defer, reject, or reroute reason;
 - selected model representation and quantization;
@@ -569,7 +569,7 @@ telemetry.
 3. **Native MLX parity:** one pinned text model inside a persistent XPC worker;
    exact chat template, sampling, streaming, usage, cancellation, and teardown
    parity with `mlx_llm` behind a disabled-by-default feature flag.
-4. **Continuous batching:** shared `strata_llm` host lane, bounded admission,
+4. **Continuous batching:** shared `lokahi_llm` host lane, bounded admission,
    separate/chunked prefill, continuous decode, independent streams, fairness,
    and cancellation under concurrency.
 5. **Adaptive memory:** live provider state, KV-aware reservations, prefix
@@ -589,7 +589,7 @@ telemetry.
 |---|---|---|
 | A: Contract | Python and Swift round-trip identical valid/invalid fixtures | Stable bridge ABI |
 | B: Boundary | XPC fixture streams, cancels, rejects escapes/oversize input, and restarts | Real sandboxed execution path |
-| C: Single request | Pinned model matches `mlx_llm` output/usage behavior and survives cancellation | Strata compatibility lane on one Mac |
+| C: Single request | Pinned model matches `mlx_llm` output/usage behavior and survives cancellation | Lōkahi compatibility lane on one Mac |
 | D: Batched request | Two or more requests share one resident model, stream independently, remain fair, and match separate-reference results | Continuous batching correctness |
 | E: Performance | Serialized warm/cold tests record TTFT, prefill/decode/aggregate rates, memory, stalls, thermals, and errors | Hardware-specific plan preference |
 | F: Reliability | Fault injection plus 24-hour bounded-memory soak recovers from XPC/network/cancel/model faults | Staging-fleet eligibility |

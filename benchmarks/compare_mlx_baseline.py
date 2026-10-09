@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare one standalone Strata model result with its exact MLX-LM control."""
+"""Compare one standalone Lokahi model result with its exact MLX-LM control."""
 from __future__ import annotations
 
 import argparse
@@ -70,7 +70,7 @@ def compare_mlx_baseline(
     if baseline.get("runner") != "mlx-lm-baseline":
         raise BaselineComparisonError("baseline runner must be mlx-lm-baseline")
     if candidate.get("runner") == "mlx-lm-baseline":
-        raise BaselineComparisonError("candidate must be a Strata runtime")
+        raise BaselineComparisonError("candidate must be a Lokahi runtime")
     for field in ("hardware", "workload"):
         if candidate.get(field) != baseline.get(field):
             raise BaselineComparisonError(f"candidate {field} does not match baseline")
@@ -109,7 +109,7 @@ def compare_mlx_baseline(
                 "metric": metric,
                 "direction": direction,
                 "mlx_lm_mean": control,
-                "strata_mean": actual,
+                "lokahi_mean": actual,
                 "improvement_percent": improvement,
             }
         )

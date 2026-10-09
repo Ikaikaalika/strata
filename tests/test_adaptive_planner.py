@@ -1,6 +1,6 @@
 import unittest
 
-from ollm.core import (
+from lokahi.core import (
     ANEExecutionMode,
     BackendTarget,
     ComputeUnit,
@@ -14,11 +14,11 @@ from ollm.core import (
     OperationKind,
     RuntimeCapabilities,
     RuntimePerformancePolicy,
-    StrataIRGraph,
+    LokahiIRGraph,
     TensorRole,
     TensorSpec,
 )
-from ollm.planning import AdaptivePlanner, PlanningError
+from lokahi.planning import AdaptivePlanner, PlanningError
 
 
 def _graph(kind=OperationKind.LINEAR, *, symbolic=True, dtype="float16"):
@@ -29,7 +29,7 @@ def _graph(kind=OperationKind.LINEAR, *, symbolic=True, dtype="float16"):
         TensorSpec("y", (token_dimension, 4), dtype, TensorRole.OUTPUT),
     )
     operation = IROperation("op", kind, ("x", "w"), ("y",))
-    return StrataIRGraph("tiny", tensors, (operation,), ("x",), ("y",))
+    return LokahiIRGraph("tiny", tensors, (operation,), ("x",), ("y",))
 
 
 def _hardware():
@@ -129,7 +129,7 @@ def _exact_linear_graph(*, tokens=64, width=256, weight_layout="out_in"):
         ("y",),
         {"weight_layout": weight_layout},
     )
-    return StrataIRGraph("tiny", tensors, (operation,), ("x",), ("y",))
+    return LokahiIRGraph("tiny", tensors, (operation,), ("x",), ("y",))
 
 
 def _linear_envelope():

@@ -11,7 +11,7 @@ import unittest
 
 import numpy as np
 
-from ollm.backends.ane_executor import (
+from lokahi.backends.ane_executor import (
     ANEProjectionError,
     ANEProjectionExecutor,
     ANEProjectionReport,
@@ -43,7 +43,7 @@ assert set(request) == {
     "schema_version", "request", "request_id", "operation", "input", "weight", "output"
 }
 assert request["schema_version"] == 1
-assert request["request"] == "strata-ane-linear-request"
+assert request["request"] == "lokahi-ane-linear-request"
 assert request["operation"] == "fp16_linear"
 assert request["input"]["shape"] == [64, 256]
 assert request["input"]["dtype"] == "float16"
@@ -68,7 +68,7 @@ assert not output_path.exists()
 def report(**updates):
     value = {
         "schema_version": 1,
-        "report": "strata-ane-linear-result",
+        "report": "lokahi-ane-linear-result",
         "request_id": request["request_id"],
         "operation": "fp16_linear",
         "input_shape": [64, 256],
@@ -138,7 +138,7 @@ def _fake_worker(mode: str):
 def _success_report(request_id: str = "a" * 32) -> dict:
     return {
         "schema_version": 1,
-        "report": "strata-ane-linear-result",
+        "report": "lokahi-ane-linear-result",
         "request_id": request_id,
         "operation": "fp16_linear",
         "input_shape": [64, 256],

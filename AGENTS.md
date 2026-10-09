@@ -1,7 +1,8 @@
-# Strata agent instructions
+# Lōkahi agent instructions
 
-Strata is an Apple-Silicon LLM inference runtime and learning laboratory. Keep
-the Python import namespace `ollm` until a dedicated compatibility migration.
+Lōkahi (formerly Strata) is an Apple-Silicon LLM inference runtime and learning
+laboratory owned by Common Compute LLC. The Python package is `lokahi`; the old
+`ollm` namespace was removed without a compatibility alias.
 
 ## Engineering boundaries
 

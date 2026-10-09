@@ -1,4 +1,4 @@
-from ollm import Inference, file_get_contents, TextStreamer
+from lokahi import Inference, file_get_contents, TextStreamer
 
 o = Inference("llama3-1B-chat", device="cuda:0", logging=True) #llama3-1B-chat(3B, 8B) | gpt-oss-20B
 o.ini_model(models_dir="/media/mega4alik/ssd/models/", force_download=False)

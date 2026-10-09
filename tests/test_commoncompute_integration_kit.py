@@ -10,13 +10,13 @@ import zipfile
 
 
 ROOT = Path(__file__).parents[1]
-KIT = ROOT / "integrations/commoncompute/strata-wire-v1"
+KIT = ROOT / "integrations/commoncompute/lokahi-wire-v1"
 VERIFY = KIT / "tools/verify_kit.py"
 BUILD = KIT / "tools/build_bundle.py"
 
 
 def _load_verify_module():
-    spec = importlib.util.spec_from_file_location("strata_wire_verify", VERIFY)
+    spec = importlib.util.spec_from_file_location("lokahi_wire_verify", VERIFY)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -33,7 +33,7 @@ def test_commoncompute_wire_fixtures_fail_closed() -> None:
 
 def test_commoncompute_schema_freezes_four_message_families() -> None:
     schema = json.loads(
-        (KIT / "schemas/strata-wire-v1.schema.json").read_text(encoding="utf-8")
+        (KIT / "schemas/lokahi-wire-v1.schema.json").read_text(encoding="utf-8")
     )
 
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
@@ -67,7 +67,7 @@ def test_commoncompute_bundle_is_deterministic_and_manifested(tmp_path: Path) ->
     assert bundle.read_bytes() == first_bytes
     assert second_report["sha256"] == hashlib.sha256(first_bytes).hexdigest()
     with zipfile.ZipFile(bundle) as archive:
-        root = "strata-commoncompute-integration-v1/"
+        root = "lokahi-commoncompute-integration-v1/"
         manifest = json.loads(archive.read(root + "BUNDLE_MANIFEST.json"))
         assert manifest["version"] == "1.0.0"
         for entry in manifest["files"]:
@@ -77,7 +77,7 @@ def test_commoncompute_bundle_is_deterministic_and_manifested(tmp_path: Path) ->
 
 
 def test_commoncompute_kit_does_not_ship_executable_request_fields() -> None:
-    schema_text = (KIT / "schemas/strata-wire-v1.schema.json").read_text(
+    schema_text = (KIT / "schemas/lokahi-wire-v1.schema.json").read_text(
         encoding="utf-8"
     )
     start_properties = json.loads(schema_text)["$defs"]["start"]["properties"]

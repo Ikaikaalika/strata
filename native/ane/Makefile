@@ -1,7 +1,7 @@
 CLANG ?= xcrun clang
 BUILD_DIR ?= build
-TARGET := $(BUILD_DIR)/strata-ane-probe
-SOURCE := strata_ane_probe.m
+TARGET := $(BUILD_DIR)/lokahi-ane-probe
+SOURCE := lokahi_ane_probe.m
 
 .PHONY: all clean
 

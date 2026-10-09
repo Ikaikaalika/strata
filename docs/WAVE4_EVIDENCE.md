@@ -65,7 +65,7 @@ this envelope.
 The phase proxy is deliberately independent repeated work. It does not model
 transformer dependencies, intermediate-buffer ownership, KV updates, weight
 changes, or token throughput. It establishes one architectural decision:
-Strata should encode persistent multi-operation prefill and decode epochs rather
+Lōkahi should encode persistent multi-operation prefill and decode epochs rather
 than synchronize after each primitive.
 
 The next hardware milestone is a generated transformer-block phase program:
@@ -77,7 +77,7 @@ The next hardware milestone is a generated transformer-block phase program:
 5. feed-forward projections plus residual;
 6. one completion boundary for the whole block or safe multi-block epoch.
 
-Only after that passes correctness should Strata add MXFP4 MoE expert kernels,
+Only after that passes correctness should Lōkahi add MXFP4 MoE expert kernels,
 router grouping/deduplication, selective ANE candidates, or real-model timing.
 
 ## Reproduction

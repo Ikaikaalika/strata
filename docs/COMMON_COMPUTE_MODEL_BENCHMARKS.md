@@ -6,7 +6,7 @@ may change; refresh both before downloading or publishing results.
 
 ## Objective
 
-Benchmark Strata against MLX-LM on the exact artifacts Common Compute already
+Benchmark Lōkahi against MLX-LM on the exact artifacts Common Compute already
 pins. Use the current Mac for models with an 8 GB admission floor. Use a remote
 M4 Max/128 GiB Mac for the exact Darkbloom GPT-OSS comparison and any Gemma
 comparison that matches Darkbloom's separate snapshot.
@@ -34,15 +34,15 @@ Raw reports:
 - [`apple_m1_mlx_llama_3_2_1b_b1_512_128_v1.json`](../benchmarks/results/apple_m1_mlx_llama_3_2_1b_b1_512_128_v1.json)
 - [`apple_m1_mlx_gemma_3_1b_b1_512_128_v1.json`](../benchmarks/results/apple_m1_mlx_gemma_3_1b_b1_512_128_v1.json)
 
-These are MLX-LM baselines, not Strata performance results. They establish the
+These are MLX-LM baselines, not Lōkahi performance results. They establish the
 first optimization targets: Qwen currently has the strongest decode lane,
-while Gemma has the strongest prompt/TTFT lane on this workload. Strata must
+while Gemma has the strongest prompt/TTFT lane on this workload. Lōkahi must
 compare phase by phase and end to end against the matching model's own baseline
 rather than select one global scheduling policy from parameter count alone.
 
 ### Resident batch-one route selection
 
-Strata now has a measured compatibility-backend route selector for the exact
+Lōkahi now has a measured compatibility-backend route selector for the exact
 staged revisions. It alternates the MLX-LM `BatchGenerator` control and a
 single-sequence `generate_step` route, loads weights once with `lazy=False`,
 keeps SSD off, and compares the same greedy token IDs using one host-wall timing
@@ -66,7 +66,7 @@ the exact target, artifact revision, MLX/MLX-LM versions, prompt/output shape,
 batch one, one active sequence, and SSD-off state. Any mismatch—including
 concurrency—falls back to `BatchGenerator`.
 
-The executable selector is `src/ollm/runtime/resident_mlx.py`; its checked-in
+The executable selector is `src/lokahi/runtime/resident_mlx.py`; its checked-in
 profiles are
 [`apple_m1_resident_mlx_route_profiles_v1.json`](../benchmarks/targets/apple_m1_resident_mlx_route_profiles_v1.json).
 Raw full-protocol evidence:
@@ -78,7 +78,7 @@ Raw full-protocol evidence:
 
 ### Llama residency comparison
 
-The first Strata paged laboratory run used the exact Llama artifact and workload
+The first Lōkahi paged laboratory run used the exact Llama artifact and workload
 with a 256 MiB weight cap. It retained exact greedy token parity and reduced
 peak MLX memory from 1.211 GB to 0.592 GB, but decode fell from 69.94 to 3.75
 tok/s because all 547.5 MB of decoder-layer weights were reread for every token.
@@ -108,11 +108,11 @@ measured rather than inheriting the M1 result.
 MLX-LM's `--ssd-offload os-managed` control retained the same 1.211 GB warm
 peak, reduced decode 5.49%, and worsened TTFT 1.44% relative to fully
 materialized MLX-LM. It is recorded as OS-managed lazy loading, not controlled
-Strata paging or SSD throughput evidence.
+Lōkahi paging or SSD throughput evidence.
 
 The checked-in runtime inventory is
 [`apple_m1_runtime_comparison_matrix_v1.json`](../benchmarks/targets/apple_m1_runtime_comparison_matrix_v1.json).
-It fails closed: MLX-LM has L4 controls for all three staged models; Strata's
+It fails closed: MLX-LM has L4 controls for all three staged models; Lōkahi's
 paged MLX laboratory has one non-promoted Llama result; native Metal and ANE
 remain below full-model evidence; Ollama is installed but its daemon is inactive
 and has no exact artifact; llama.cpp is not installed. No missing runtime is
@@ -123,7 +123,7 @@ silently treated as a completed comparison.
 | Priority | Common Compute model | Weights | Why it is here |
 |---:|---|---:|---|
 | 1 | Qwen3 0.6B 4-bit | 0.34 GB | Fastest loader/tokenizer/benchmark-harness smoke test |
-| 2 | Llama 3.2 1B Instruct 4-bit | 0.70 GB | First Strata dense adapter and native phase-program comparison |
+| 2 | Llama 3.2 1B Instruct 4-bit | 0.70 GB | First Lōkahi dense adapter and native phase-program comparison |
 | 3 | Gemma 3 1B QAT 4-bit | 0.73 GB | Second family; exposes tokenizer, attention, and layout assumptions |
 | 4 | SmolLM3 3B 4-bit | 1.73 GB | Sustained decode and batching |
 | 5 | Llama 3.2 3B Instruct 4-bit | 1.81 GB | Current Common Compute default MLX model and primary product baseline |
@@ -137,7 +137,7 @@ because Apple keeps its weights, tokenizer internals, and SoC placement opaque.
 
 The first three downloadable artifacts total about 1.77 GB before cache and
 filesystem overhead. They are approved and staged under
-`/Users/tylergee/Library/Application Support/Strata/models`; the source checkout
+`/Users/tylergee/Library/Application Support/Lōkahi/models`; the source checkout
 on `/Volumes/Tyler HDD` remains forbidden as a model cache or SSD benchmark.
 
 ## Benchmark stages
@@ -178,18 +178,18 @@ throughput including prefill, peak MLX memory, greedy token invariance, thermal
 state, artifact SHA-256, architecture shape and quantization metadata, units,
 and explicit timing boundaries.
 
-### Stage B: Strata compatibility baseline
+### Stage B: Lōkahi compatibility baseline
 
 Use the same local snapshot, tokenizer, prompt token IDs, greedy output length,
-and warm state. Initially, Strata may call its MLX compatibility adapter. The
+and warm state. Initially, Lōkahi may call its MLX compatibility adapter. The
 result must match MLX-LM's token IDs before any native segment is timed.
 
 The measured resident selector is the compatibility floor. The first native
-implementation target remains Llama 3.2 1B because it aligns with Strata's
+implementation target remains Llama 3.2 1B because it aligns with Lōkahi's
 existing Llama/MLX code and exposes the short-response versus sustained-decode
 route split that the native epoch must improve.
 
-### Stage C: Strata native phase program
+### Stage C: Lōkahi native phase program
 
 Promote generated and then real Llama block segments in this order:
 
@@ -221,7 +221,7 @@ For each local model:
 | Batch | 1, then 4 and 8 if admission passes |
 | Cache | Fresh KV for every repetition; prefix cache disabled |
 | Warm state | Two warmups; five measured repetitions |
-| Order | Alternate MLX-first and Strata-first runs |
+| Order | Alternate MLX-first and Lōkahi-first runs |
 | Correctness | Exact token IDs plus selected logits/KV oracle checks |
 | Statistics | Median plus p95; never best-of-N performance |
 
@@ -241,7 +241,7 @@ Darkbloom's report used Apple M4 Max, 128 GB unified memory, macOS build 25F84,
 
 Therefore:
 
-- this M1's small-model results are MLX-vs-Strata engineering benchmarks, not
+- this M1's small-model results are MLX-vs-Lōkahi engineering benchmarks, not
   Darkbloom wins or losses;
 - GPT-OSS can use the exact Common Compute artifact on an M4 Max/128 GiB tester;
 - Gemma requires either a separate Darkbloom snapshot or a clearly labeled
@@ -253,7 +253,7 @@ Therefore:
 
 1. Expand the resident route matrix to prompt lengths 128, 2,048, and 8,192.
 2. Measure batches 4/8 and concurrency before changing the batch route.
-3. Make the selector run inside Strata's persistent Common Compute service.
+3. Make the selector run inside Lōkahi's persistent Common Compute service.
 4. Replace one Llama block at a time with the native Metal phase program.
 5. Expand to Llama 3.2 3B, then architecture-family coverage.
 6. Send the exact GPT-OSS matrix to a Common Compute M4 Max/128 GiB tester.

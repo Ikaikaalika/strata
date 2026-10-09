@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed comparison of a Strata result against a benchmark target.
+"""Fail-closed comparison of a Lokahi result against a benchmark target.
 
 This is offline evidence tooling, not part of the inference hot path.
 """
@@ -83,7 +83,7 @@ def compare_documents(
         cell = _object(raw_cell, f"cells[{index}]")
         cell_id = _text(cell.get("id"), f"cells[{index}].id")
         direction = _text(cell.get("direction"), f"cells[{index}].direction")
-        gate = _number(cell.get("strata_gate"), f"cells[{index}].strata_gate")
+        gate = _number(cell.get("lokahi_gate"), f"cells[{index}].lokahi_gate")
         actual = _number(actual_metrics.get(cell_id), f"metrics.{cell_id}")
         if direction == "higher":
             passed = actual >= gate
@@ -101,7 +101,7 @@ def compare_documents(
                 "darkbloom_best": _number(
                     cell.get("darkbloom_best"), f"cells[{index}].darkbloom_best"
                 ),
-                "strata_gate": gate,
+                "lokahi_gate": gate,
                 "actual": actual,
                 "margin_percent_vs_gate": margin_percent,
                 "passed": passed,

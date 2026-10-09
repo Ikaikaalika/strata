@@ -6,7 +6,7 @@ using namespace metal;
 //
 // One GPU thread owns one row.  This deliberately avoids a reduction tuned to
 // one Apple GPU family: the first milestone is proving native Metal dispatch,
-// synchronization, and numerical agreement through Strata's adapter.  A later
+// synchronization, and numerical agreement through Lokahi's adapter.  A later
 // kernel can replace the serial row reduction without changing the probe's JSON
 // evidence contract.
 kernel void rmsnorm_residual_f32(

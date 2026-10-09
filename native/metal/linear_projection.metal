@@ -3,7 +3,7 @@
 using namespace metal;
 
 // Correctness-first direct-Metal implementation of the projection already
-// qualified through Strata's bounded ANE worker:
+// qualified through Lokahi's bounded ANE worker:
 //
 //   output[t, o] = sum_k input[t, k] * weight[o, k]
 //

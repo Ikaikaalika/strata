@@ -1,7 +1,7 @@
 """Small/generated model manifests for offline benchmark contracts."""
 from __future__ import annotations
 
-from ollm.core import (
+from lokahi.core import (
     ArchitectureClass,
     ArchitectureSpec,
     ArtifactKind,

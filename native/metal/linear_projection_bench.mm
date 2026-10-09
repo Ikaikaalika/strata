@@ -139,12 +139,12 @@ int Fail(NSString *reason, NSString *deviceName = @"") {
   const std::string osBuild = SysctlString("kern.osversion");
   EmitJSON(@{
     @"schema_version" : @1,
-    @"benchmark" : @"strata-native-linear-projection",
+    @"benchmark" : @"lokahi-native-linear-projection",
     @"success" : @NO,
     @"failure_reason" : reason,
     @"software" : @{
-      @"revision" : EnvironmentString("STRATA_BENCH_REVISION"),
-      @"dirty" : @([EnvironmentString("STRATA_BENCH_DIRTY") isEqualToString:@"true"]),
+      @"revision" : EnvironmentString("LOKAHI_BENCH_REVISION"),
+      @"dirty" : @([EnvironmentString("LOKAHI_BENCH_DIRTY") isEqualToString:@"true"]),
     },
     @"hardware" : @{
       @"chip" : deviceName,
@@ -163,14 +163,14 @@ std::filesystem::path DefaultMetallibPath(const char *executable) {
   const std::filesystem::path parent =
       error ? std::filesystem::path(executable).parent_path()
             : executablePath.parent_path();
-  return parent / "strata-linear.metallib";
+  return parent / "lokahi-linear.metallib";
 }
 
 }  // namespace
 
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
-    const char *configuredPath = std::getenv("STRATA_LINEAR_METALLIB_PATH");
+    const char *configuredPath = std::getenv("LOKAHI_LINEAR_METALLIB_PATH");
     const std::filesystem::path metallibPath =
         argc > 1 ? std::filesystem::path(argv[1])
                  : (configuredPath != nullptr
@@ -504,7 +504,7 @@ int main(int argc, const char *argv[]) {
     const std::string osBuild = SysctlString("kern.osversion");
     EmitJSON(@{
       @"schema_version" : @1,
-      @"benchmark" : @"strata-native-linear-projection",
+      @"benchmark" : @"lokahi-native-linear-projection",
       @"success" : @YES,
       @"failure_reason" : [NSNull null],
       @"evidence_kind" : @"hardware",
@@ -518,10 +518,10 @@ int main(int argc, const char *argv[]) {
         @"thermal_state_after_run" : ThermalStateString(NSProcessInfo.processInfo.thermalState),
       },
       @"software" : @{
-        @"revision" : EnvironmentString("STRATA_BENCH_REVISION"),
-        @"dirty" : @([EnvironmentString("STRATA_BENCH_DIRTY") isEqualToString:@"true"]),
+        @"revision" : EnvironmentString("LOKAHI_BENCH_REVISION"),
+        @"dirty" : @([EnvironmentString("LOKAHI_BENCH_DIRTY") isEqualToString:@"true"]),
         @"executable" : @"native Objective-C++ and direct Metal; no Python hot path",
-        @"sdk" : EnvironmentString("STRATA_BENCH_SDK"),
+        @"sdk" : EnvironmentString("LOKAHI_BENCH_SDK"),
         @"metal_language_standard" : @"metal3.1",
       },
       @"operation" : @{

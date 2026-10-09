@@ -1,8 +1,8 @@
 import unittest
 from unittest import mock
 
-from ollm.core import ComputeUnit
-from ollm.hardware_probe import detect_apple_hardware
+from lokahi.core import ComputeUnit
+from lokahi.hardware_probe import detect_apple_hardware
 
 
 RESPONSES = {
@@ -19,7 +19,7 @@ def fake_runner(command):
 
 
 class AppleHardwareProbeTest(unittest.TestCase):
-    @mock.patch("ollm.hardware_probe.platform.machine", return_value="arm64")
+    @mock.patch("lokahi.hardware_probe.platform.machine", return_value="arm64")
     def test_discovered_ane_surface_is_not_execution_capability(self, _machine):
         profile = detect_apple_hardware(
             ane_runtime_fingerprint="surface-only",
@@ -33,7 +33,7 @@ class AppleHardwareProbeTest(unittest.TestCase):
         self.assertEqual(profile.compute_units, (ComputeUnit.CPU, ComputeUnit.GPU))
         self.assertEqual(profile.ane_runtime_fingerprint, "surface-only")
 
-    @mock.patch("ollm.hardware_probe.platform.machine", return_value="arm64")
+    @mock.patch("lokahi.hardware_probe.platform.machine", return_value="arm64")
     def test_numerically_verified_ane_is_executable(self, _machine):
         profile = detect_apple_hardware(
             ane_runtime_fingerprint="verified-runtime",
@@ -45,7 +45,7 @@ class AppleHardwareProbeTest(unittest.TestCase):
         self.assertIn(ComputeUnit.ANE, profile.compute_units)
         self.assertEqual(profile.storage_read_bytes_per_second, 2.0e9)
 
-    @mock.patch("ollm.hardware_probe.platform.machine", return_value="arm64")
+    @mock.patch("lokahi.hardware_probe.platform.machine", return_value="arm64")
     def test_verified_ane_requires_runtime_fingerprint(self, _machine):
         with self.assertRaisesRegex(ValueError, "runtime fingerprint"):
             detect_apple_hardware(
@@ -54,7 +54,7 @@ class AppleHardwareProbeTest(unittest.TestCase):
                 mlx_info_provider=dict,
             )
 
-    @mock.patch("ollm.hardware_probe.platform.machine", return_value="x86_64")
+    @mock.patch("lokahi.hardware_probe.platform.machine", return_value="x86_64")
     def test_non_apple_silicon_fails_closed(self, _machine):
         with self.assertRaisesRegex(RuntimeError, "Apple Silicon"):
             detect_apple_hardware(
