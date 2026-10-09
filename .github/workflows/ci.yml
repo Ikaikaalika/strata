@@ -1,0 +1,71 @@
+name: ci
+
+# GitHub-hosted runners only. They cannot execute Metal compute or the ANE,
+# so this workflow proves portable correctness and that the Apple sources
+# compile; hardware evidence comes from apple-silicon.yml.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test dependencies
+        run: python -m pip install numpy pytest
+      - name: Build native engine
+        run: |
+          cmake -S native/engine -B build/engine -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/engine -j 4
+      - name: Native unit tests
+        run: ./build/engine/lokahi_engine_tests
+      - name: Metal syntax check (stubbed, no Apple SDK)
+        run: CXX=clang++ native/engine/tests/syntax_check.sh
+      - name: Python tests (CPU engine vs NumPy oracle)
+        env:
+          LOKAHI_NATIVE_BUILD_DIR: build/engine
+        run: PYTHONPATH=src python -m pytest -q
+      - name: Bytecode compile gate
+        run: PYTHONPATH=src python -m compileall -q src tests benchmarks
+
+  macos-build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build native engine with Metal
+        run: |
+          cmake -S native/engine -B build/engine -DCMAKE_BUILD_TYPE=Release -DLOKAHI_METAL=ON
+          cmake --build build/engine -j 4
+      - name: Native unit tests
+        run: ./build/engine/lokahi_engine_tests
+      - name: Compile Metal kernels with xcrun
+        run: |
+          if ! xcrun -sdk macosx metal --version >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain || true
+          fi
+          xcrun -sdk macosx metal -std=metal3.0 -Werror -c native/engine/src/metal/gemma3_kernels.metal -o build/gemma3_kernels.air
+          xcrun -sdk macosx metallib build/gemma3_kernels.air -o build/gemma3_kernels.metallib
+      - name: Build ANE probe
+        run: make -C native/ane
+      - name: CPU engine vs NumPy oracle
+        env:
+          LOKAHI_NATIVE_BUILD_DIR: build/engine
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install numpy pytest
+          PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_native_engine.py
