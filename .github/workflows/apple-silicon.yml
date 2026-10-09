@@ -64,7 +64,7 @@ jobs:
           LOKAHI_MODEL_ROOT: ${{ vars.LOKAHI_MODEL_ROOT }}
         run: |
           PYTHONPATH=src "$PYTHON" -m pytest -q tests/test_native_engine.py tests/test_mlx_crosscheck.py \
-            tests/test_tokenizer.py
+            tests/test_tokenizer.py tests/test_c_abi.py
 
       - name: Full Python suite
         run: PYTHONPATH=src "$PYTHON" -m pytest -q
