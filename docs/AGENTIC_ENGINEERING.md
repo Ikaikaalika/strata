@@ -1,6 +1,6 @@
-# Agentic engineering for Strata
+# Agentic engineering for Lōkahi
 
-Strata uses agents as bounded engineering specialists. Agents may implement in
+Lōkahi uses agents as bounded engineering specialists. Agents may implement in
 parallel only after the primary integrator freezes the interfaces they share.
 Hardware benchmarks run serially on the target Mac so GPU, ANE, memory, and
 thermal contention do not corrupt comparisons.
@@ -23,7 +23,7 @@ throughput, SSD-throughput, energy, or accelerator-execution claim.
 
 ```mermaid
 flowchart TD
-    BASE["Verified baseline"] --> CONTRACT["Freeze StrataIR + plan contracts"]
+    BASE["Verified baseline"] --> CONTRACT["Freeze LokahiIR + plan contracts"]
     CONTRACT --> PLATFORM["Freeze Common Compute platform contract"]
     PLATFORM --> CPU["CPU oracle lane"]
     PLATFORM --> METAL["Metal kernel lane"]
@@ -35,7 +35,7 @@ flowchart TD
     LAB --> PLAN["Measured adaptive plan"]
 ```
 
-The primary integrator owns `src/ollm/core/`, backend registration, shared
+The primary integrator owns `src/lokahi/core/`, backend registration, shared
 documentation, and final verification. A specialist receives exclusive paths
 and must not edit another agent's files.
 

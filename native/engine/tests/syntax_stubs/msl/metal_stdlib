@@ -1,0 +1,38 @@
+// Syntax-check stub for Linux CI only: lets clang parse Metal Shading
+// Language sources as C++ to catch typos and type errors. It is not a Metal
+// compiler; real validation happens with xcrun metal on macOS.
+#pragma once
+#include <cmath>
+#include <cstring>
+#define device
+#define threadgroup
+#define constant
+#define thread
+#define kernel
+typedef unsigned int uint;
+typedef unsigned short ushort;
+typedef unsigned long ulong;
+struct half {
+  unsigned short bits;
+  operator float() const { return 0.0f; }
+};
+struct float4 { float x, y, z, w; };
+struct uint2 { uint x, y; };
+struct uint3 { uint x, y, z; };
+struct uint4 { uint x, y, z, w; };
+struct ulong2 { ulong x, y; ulong2(ulong a, ulong b) : x(a), y(b) {} };
+namespace metal {
+enum class mem_flags { mem_none, mem_device, mem_threadgroup };
+inline void threadgroup_barrier(mem_flags) {}
+template <typename T> T simd_sum(T v) { return v; }
+template <typename T> T simd_shuffle_down(T v, ushort) { return v; }
+template <typename T, typename U> T as_type(U v) { T out; std::memcpy(&out, &v, sizeof(T)); return out; }
+template <typename T> T max(T a, T b) { return a > b ? a : b; }
+template <typename T> T min(T a, T b) { return a < b ? a : b; }
+namespace precise {
+inline float rsqrt(float v) { return 1.0f / std::sqrt(v); }
+inline float tanh(float v) { return std::tanh(v); }
+inline float cos(float v) { return std::cos(v); }
+inline float sin(float v) { return std::sin(v); }
+}  // namespace precise
+}  // namespace metal

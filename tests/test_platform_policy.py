@@ -1,6 +1,6 @@
 import unittest
 
-from ollm.core import (
+from lokahi.core import (
     AdaptiveAdmissionPolicy,
     AdmissionReason,
     ComputeUnit,

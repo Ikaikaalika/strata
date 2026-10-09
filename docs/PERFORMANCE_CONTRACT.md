@@ -1,6 +1,6 @@
-# Strata Performance Contract
+# Lōkahi Performance Contract
 
-Status: benchmark and promotion policy for native Strata work. A faster isolated
+Status: benchmark and promotion policy for native Lōkahi work. A faster isolated
 kernel is useful evidence; it is not by itself a faster LLM runtime.
 
 ## Optimization vector
@@ -45,7 +45,7 @@ use requires compile, dispatch, readback, and numerical verification.
 
 Every hardware result includes:
 
-- Strata revision and dirty status;
+- Lōkahi revision and dirty status;
 - chip, memory size, CPU/GPU identity, macOS version and build;
 - model or generated-fixture digest, operation, exact shapes, dtype, layout,
   quantization, prompt/output lengths, batch/concurrency;
@@ -62,7 +62,7 @@ sampling settings, and output tokens against:
 - MLX as the Apple-Silicon correctness/compatibility baseline;
 - llama.cpp Metal as the portable native baseline;
 - Ollama for the complete local-service experience;
-- Strata's supported fallback and each promoted native phase program.
+- Lōkahi's supported fallback and each promoted native phase program.
 
 Raw logs remain immutable. A summarized result must link to its exact raw
 record and disclose any unavailable metric.
@@ -71,7 +71,7 @@ The first named external performance target is Darkbloom's public M4 Max v0.8.0
 engine sweep. See [`DARKBLOOM_TARGET.md`](DARKBLOOM_TARGET.md) and the
 machine-readable
 [`darkbloom_m4_max_v080.json`](../benchmarks/targets/darkbloom_m4_max_v080.json).
-Strata may claim that it exceeds this target only after every exact hardware,
+Lōkahi may claim that it exceeds this target only after every exact hardware,
 model, workload, correctness, memory, and 10-percent performance gate passes.
 
 ## Promotion gates
@@ -90,7 +90,7 @@ model, workload, correctness, memory, and 10-percent performance gate passes.
 ### Standalone runtime MVP
 
 - One declared real-model matrix completes through the public API.
-- Strata is within 5 percent of the better comparable MLX/llama.cpp result for
+- Lōkahi is within 5 percent of the better comparable MLX/llama.cpp result for
   both time-to-first-token and steady decode, and wins by at least 10 percent on
   one declared latency, throughput, memory, or energy objective.
 - At least 100 streamed requests cover cancellation, bounded output, deterministic

@@ -15,18 +15,18 @@ def test_runtime_matrix_has_one_mlx_oracle_and_fail_closed_statuses() -> None:
 
     assert matrix["oracle_runtime"] == "mlx-lm-baseline"
     assert set(runtimes["mlx-lm-baseline"]["model_ids"]) == set(matrix["models"])
-    assert set(runtimes["strata-resident-mlx-route-selector"]["model_ids"]) == set(
+    assert set(runtimes["lokahi-resident-mlx-route-selector"]["model_ids"]) == set(
         matrix["models"]
     )
-    assert runtimes["strata-resident-mlx-route-selector"]["status"] == (
+    assert runtimes["lokahi-resident-mlx-route-selector"]["status"] == (
         "measured-route-promotions-not-native-backend"
     )
-    assert runtimes["strata-paged-mlx-lab"]["status"] == "measured-capability-not-promoted"
-    assert runtimes["strata-native-metal"]["status"] == "not-yet-full-model"
-    assert runtimes["strata-ane-research"]["status"] == (
+    assert runtimes["lokahi-paged-mlx-lab"]["status"] == "measured-capability-not-promoted"
+    assert runtimes["lokahi-native-metal"]["status"] == "not-yet-full-model"
+    assert runtimes["lokahi-ane-research"]["status"] == (
         "qualified-not-planner-eligible-not-yet-full-model"
     )
-    assert runtimes["strata-ane-research"]["result_files"] == [
+    assert runtimes["lokahi-ane-research"]["result_files"] == [
         "benchmarks/results/apple_m1_ane_projection_qualification_2026_08_25.json",
         "benchmarks/results/apple_m1_ane_resident_projection_benchmark_2026_08_25.json",
     ]

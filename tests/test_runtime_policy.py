@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from ollm.core import (
+from lokahi.core import (
     ANEExecutionMode,
     BackendTarget,
     ComputeUnit,

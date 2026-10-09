@@ -6,7 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import mlx.core as mx
-from ollm import Inference
+from lokahi import Inference
 
 print("\n" + "="*70)
 print("MLX-ONLY INFERENCE DEMO")

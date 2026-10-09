@@ -8,8 +8,8 @@ from benchmarks.generated_model_fixtures import (
     generated_dense_manifest,
     generated_gpt_oss_20b_manifest,
 )
-from ollm.core import AttentionPattern, AttentionSchedule
-from ollm.planning import (
+from lokahi.core import AttentionPattern, AttentionSchedule
+from lokahi.planning import (
     estimate_kv_cache_bytes,
     estimate_weight_bytes_per_decode_token,
 )

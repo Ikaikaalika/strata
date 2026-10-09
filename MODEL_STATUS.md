@@ -1,4 +1,4 @@
-# Strata implementation status
+# Lōkahi implementation status
 
 This file distinguishes locally verified behavior from adapter scaffolding and
 future work. It is not a real-model benchmark report.
@@ -17,7 +17,7 @@ The deterministic offline suite verifies the following on MLX:
 | End-to-end tiny models | Cached decode logits match full causal forward passes in two-layer Llama and DeepSeek fixtures |
 | Disk cache round trip | Serialized keys and values restore without numerical change |
 | Tracing | Phase, layer, tensor shape/dtype/bytes, duration, and MLX memory are recorded |
-| Strata Governor | Hard byte budget, pinned-layer safety, exact prefetch ordering, LRU eviction, demand fallback, and warm reuse are deterministic tests |
+| Lōkahi Governor | Hard byte budget, pinned-layer safety, exact prefetch ordering, LRU eviction, demand fallback, and warm reuse are deterministic tests |
 | Governed Llama | Output matches the non-governed path and a full-budget second forward performs no layer reloads |
 
 Run:
@@ -44,7 +44,7 @@ reproducible validation report.
 
 ## Memory-tiering status
 
-- The custom Llama and DeepSeek adapters can use the persistent Strata Governor
+- The custom Llama and DeepSeek adapters can use the persistent Lōkahi Governor
   when constructed with a weight loader and `memory_budget_bytes`.
 - The governor reserves expected bytes before I/O, pins the active layer,
   prefetches the next exact dense layer, and evicts only unpinned LRU entries.

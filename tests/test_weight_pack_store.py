@@ -3,9 +3,9 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from ollm.core import ExecutionPlan, ModelSpec, TensorRef, WeightGroup
-from ollm.scheduling import DenseLayerPipeline, PrefetchScheduler, ResidencyManager
-from ollm.storage import (
+from lokahi.core import ExecutionPlan, ModelSpec, TensorRef, WeightGroup
+from lokahi.scheduling import DenseLayerPipeline, PrefetchScheduler, ResidencyManager
+from lokahi.storage import (
     ImmutableWeightBytes,
     WeightPackChecksumError,
     WeightPackGroupTensorStore,
@@ -33,7 +33,7 @@ def _group(index, storage_key, *, nbytes=4, logical_name="weight"):
 class WeightPackGroupTensorStoreTest(unittest.TestCase):
     def test_real_pipeline_prefetches_and_evicts_packed_groups(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "pipeline.strata-pack"
+            path = Path(directory) / "pipeline.lokahi-pack"
             packed = [
                 ("packed.layer.0", (1).to_bytes(4, "little")),
                 ("packed.layer.1", (2).to_bytes(4, "little")),
@@ -94,7 +94,7 @@ class WeightPackGroupTensorStoreTest(unittest.TestCase):
 
     def test_checksum_failure_releases_scheduler_reservation(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "checksum.strata-pack"
+            path = Path(directory) / "checksum.lokahi-pack"
             write_weight_pack(path, [("packed.weight", b"good")], alignment=64)
             store = WeightPackGroupTensorStore(path)
             record = store.pack.tensor_info("packed.weight")
@@ -119,7 +119,7 @@ class WeightPackGroupTensorStoreTest(unittest.TestCase):
 
     def test_size_mismatch_releases_scheduler_reservation(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "size.strata-pack"
+            path = Path(directory) / "size.lokahi-pack"
             write_weight_pack(path, [("packed.weight", b"abc")], alignment=64)
             store = WeightPackGroupTensorStore(path)
             group = _group(0, "packed.weight", nbytes=4)
@@ -138,7 +138,7 @@ class WeightPackGroupTensorStoreTest(unittest.TestCase):
 
     def test_duplicate_storage_keys_fail_before_decoder(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "duplicate.strata-pack"
+            path = Path(directory) / "duplicate.lokahi-pack"
             write_weight_pack(path, [("shared", b"abcd")], alignment=64)
             decoder_calls = []
 
@@ -162,7 +162,7 @@ class WeightPackGroupTensorStoreTest(unittest.TestCase):
 
     def test_custom_decoder_receives_read_only_exact_bytes_and_close_is_final(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "decoder.strata-pack"
+            path = Path(directory) / "decoder.lokahi-pack"
             payload = b"decoder input"
             write_weight_pack(path, [("packed", payload)], alignment=64)
             observations = []

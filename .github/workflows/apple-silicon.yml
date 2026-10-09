@@ -1,0 +1,115 @@
+name: apple-silicon
+
+# Hardware evidence on a self-hosted Apple Silicon Mac. Setup and the
+# security settings this public repository needs are in
+# docs/APPLE_SILICON_RUNNER.md. Nothing here is triggered by pull requests,
+# and every run is serialized so GPU/ANE measurements never overlap.
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: correctness runs the oracle-parity suites; benchmark also times a pinned model
+        type: choice
+        options: [correctness, benchmark]
+        default: correctness
+      model_id:
+        description: Ladder model id for the benchmark suite
+        default: gemma-3-1b
+  push:
+    branches: ["claude/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apple-silicon-hardware
+  cancel-in-progress: false
+
+jobs:
+  hardware:
+    # Opt-in: set the repository variable LOKAHI_HW_RUNNER to "enabled" after
+    # registering the runner, so pushes do not queue jobs with no runner.
+    if: vars.LOKAHI_HW_RUNNER == 'enabled'
+    runs-on: [self-hosted, macOS, ARM64, lokahi]
+    timeout-minutes: 90
+    env:
+      PYTHON: ${{ vars.LOKAHI_PYTHON || '/usr/bin/python3' }}
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record hardware and software
+        run: |
+          mkdir -p results
+          {
+            echo "chip=$(sysctl -n machdep.cpu.brand_string)"
+            echo "memory_bytes=$(sysctl -n hw.memsize)"
+            echo "macos=$(sw_vers -productVersion) build=$(sw_vers -buildVersion)"
+            echo "xcode=$(xcodebuild -version | tr '\n' ' ')"
+            echo "python=$($PYTHON --version 2>&1)"
+            echo "revision=$GITHUB_SHA"
+          } | tee results/environment.txt
+
+      - name: Build native engine with Metal
+        run: |
+          cmake -S native/engine -B build/engine -DCMAKE_BUILD_TYPE=Release -DLOKAHI_METAL=ON
+          cmake --build build/engine -j "$(sysctl -n hw.ncpu)"
+          ./build/engine/lokahi_engine_tests
+
+      - name: Metal and CPU engines vs NumPy oracle; oracle vs MLX-LM
+        env:
+          LOKAHI_NATIVE_BUILD_DIR: build/engine
+          LOKAHI_TEST_BACKENDS: cpu,metal
+        run: PYTHONPATH=src "$PYTHON" -m pytest -q tests/test_native_engine.py tests/test_mlx_crosscheck.py
+
+      - name: Full Python suite
+        run: PYTHONPATH=src "$PYTHON" -m pytest -q
+
+      - name: Native Metal and ANE probes
+        run: |
+          ./native/metal/build_probe.sh | tee results/metal_probe.json
+          make -C native/ane
+          native/ane/build/lokahi-ane-probe | tee results/ane_probe.json
+
+      - name: Benchmark a pinned model against a fresh MLX-LM control
+        if: inputs.suite == 'benchmark'
+        env:
+          MODEL_ROOT: ${{ vars.LOKAHI_MODEL_ROOT }}
+          MODEL_ID: ${{ inputs.model_id }}
+        run: |
+          if [ -z "$MODEL_ROOT" ]; then
+            echo "Set the repository variable LOKAHI_MODEL_ROOT to an approved SSD directory." >&2
+            exit 1
+          fi
+          case "$MODEL_ROOT" in
+            "/Volumes/Tyler HDD"*) echo "The checkout HDD is forbidden for model storage." >&2; exit 1 ;;
+          esac
+          ENTRY='import json, sys; m = [e for e in json.load(open("benchmarks/targets/commoncompute_m1_model_ladder_v1.json"))["local_priority"] if e["model_id"] == sys.argv[1]][0]; print(m[sys.argv[2]])'
+          REPO=$("$PYTHON" -c "$ENTRY" "$MODEL_ID" repo)
+          REV=$("$PYTHON" -c "$ENTRY" "$MODEL_ID" revision)
+          SNAPSHOT="$MODEL_ROOT/models--$(echo "$REPO" | sed 's|/|--|g')/snapshots/$REV"
+          # Fresh MLX-LM control on this exact OS build and thermal context.
+          if PYTHONPATH=src:. "$PYTHON" benchmarks/benchmark_mlx_lm.py --model-id "$MODEL_ID" \
+              --model-path "$SNAPSHOT" --approved-ssd-root "$MODEL_ROOT" \
+              --output "results/mlx_lm_${MODEL_ID}.json" > /dev/null; then
+            HAVE_CONTROL=1
+          else
+            HAVE_CONTROL=0
+            echo "MLX-LM control did not run (see above); comparison will be skipped." >&2
+          fi
+          PYTHONPATH=src:. "$PYTHON" benchmarks/benchmark_lokahi_native.py \
+            --model-id "$MODEL_ID" --model-path "$SNAPSHOT" --approved-ssd-root "$MODEL_ROOT" \
+            --native-cli build/engine/lokahi --backend metal \
+            --output "results/lokahi_native_metal_${MODEL_ID}.json" > /dev/null
+          if [ "$HAVE_CONTROL" = 1 ]; then
+            PYTHONPATH=. "$PYTHON" benchmarks/compare_mlx_baseline.py "results/mlx_lm_${MODEL_ID}.json" \
+              "results/lokahi_native_metal_${MODEL_ID}.json" | tee "results/comparison_${MODEL_ID}.json" || true
+          fi
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-silicon-evidence-${{ github.run_id }}
+          path: results/

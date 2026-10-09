@@ -35,7 +35,7 @@ def mlx_lazy_load_for_ssd_offload(mode: str) -> bool:
     """Resolve the MLX control's storage parameter without overstating it.
 
     ``os-managed`` asks MLX-LM to retain lazy file-backed arrays. It does not
-    provide Strata-managed residency, guaranteed eviction, or SSD I/O evidence.
+    provide Lokahi-managed residency, guaranteed eviction, or SSD I/O evidence.
     """
 
     if mode == "disabled":
@@ -259,7 +259,7 @@ def main() -> int:
         default="disabled",
         help=(
             "MLX control only: disabled fully materializes weights; os-managed "
-            "uses MLX-LM lazy loading and does not claim Strata-managed paging"
+            "uses MLX-LM lazy loading and does not claim Lokahi-managed paging"
         ),
     )
     parser.add_argument("--output", type=Path)
@@ -359,7 +359,7 @@ def main() -> int:
             "ssd_offload_parameter": args.ssd_offload,
             "model_load_lazy": lazy_load,
             "manager": "mlx-macos" if lazy_load else "mlx-lm",
-            "strata_managed_paging": False,
+            "lokahi_managed_paging": False,
             "semantics": (
                 "MLX-LM lazy file-backed loading with residency controlled by MLX and macOS; warmups may materialize the complete model"
                 if lazy_load
@@ -390,7 +390,7 @@ def main() -> int:
         "summary": summarize_repetitions(repetitions),
         "repetitions": repetitions,
         "claim_boundary": (
-            "Warm local MLX-LM baseline on one exact pinned artifact; not Strata, "
+            "Warm local MLX-LM baseline on one exact pinned artifact; not Lokahi, "
             "Common Compute provider, Darkbloom, ANE, or SSD throughput evidence."
         ),
     }

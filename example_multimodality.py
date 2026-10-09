@@ -1,7 +1,7 @@
 # gemma3-12B Image+Text example
 
 import torch
-from ollm import Inference, file_get_contents, TextStreamer
+from lokahi import Inference, file_get_contents, TextStreamer
 o = Inference("gemma3-12B", device="cuda:0", logging=True, multimodality=True)
 o.ini_model(models_dir="/media/mega4alik/ssd/models/", force_download=False)
 o.offload_layers_to_cpu(layers_num=12) #offload some layers to CPU for speed boost

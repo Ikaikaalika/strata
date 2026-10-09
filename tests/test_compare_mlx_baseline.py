@@ -46,10 +46,10 @@ def _report(runner: str, factor: float = 1.0) -> dict:
     }
 
 
-def test_strata_candidate_passes_mvp_gate_with_parity_and_ten_percent_win() -> None:
+def test_lokahi_candidate_passes_mvp_gate_with_parity_and_ten_percent_win() -> None:
     report = compare_mlx_baseline(
         _report("mlx-lm-baseline"),
-        _report("strata-native-metal", factor=1.10),
+        _report("lokahi-native-metal", factor=1.10),
     )
 
     assert report["exact_greedy_token_parity"] is True
@@ -58,7 +58,7 @@ def test_strata_candidate_passes_mvp_gate_with_parity_and_ten_percent_win() -> N
 
 
 def test_token_mismatch_blocks_promotion() -> None:
-    candidate = _report("strata-native-metal", factor=1.20)
+    candidate = _report("lokahi-native-metal", factor=1.20)
     candidate["repetitions"][0]["token_ids"] = [[9]]
 
     report = compare_mlx_baseline(_report("mlx-lm-baseline"), candidate)
@@ -68,7 +68,7 @@ def test_token_mismatch_blocks_promotion() -> None:
 
 
 def test_incomparable_artifact_is_rejected() -> None:
-    candidate = deepcopy(_report("strata-native-metal"))
+    candidate = deepcopy(_report("lokahi-native-metal"))
     candidate["model"]["revision"] = "c" * 40
 
     with pytest.raises(BaselineComparisonError, match="artifact"):

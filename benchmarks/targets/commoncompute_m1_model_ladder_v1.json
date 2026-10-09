@@ -45,7 +45,7 @@
       "revision": "08231374eeacb049a0eade7922910865b8fce912",
       "weights_gb": 0.70,
       "min_memory_gb": 8,
-      "purpose": "first dense-transformer Strata compatibility and native phase-program target"
+      "purpose": "first dense-transformer Lokahi compatibility and native phase-program target"
     },
     {
       "priority": 3,
@@ -133,5 +133,5 @@
       "required_comparison_hardware": "Apple M4 Max, 128 GiB, macOS build 25F84"
     }
   ],
-  "claim_boundary": "Local M1 results compare Strata with MLX-LM only on identical pinned artifacts and workloads. Darkbloom claims require its exact model revision, M4 Max 128 GiB hardware, macOS build, and benchmark protocol."
+  "claim_boundary": "Local M1 results compare Lokahi with MLX-LM only on identical pinned artifacts and workloads. Darkbloom claims require its exact model revision, M4 Max 128 GiB hardware, macOS build, and benchmark protocol."
 }

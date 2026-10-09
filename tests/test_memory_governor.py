@@ -1,13 +1,14 @@
+import importlib.util
 import threading
 import unittest
 
-from ollm.backends.mlx_governor import (
+from lokahi.backends.mlx_governor import (
     detect_mlx_hardware,
     mlx_capabilities,
     suggested_residency_budget,
 )
-from ollm.core import ExecutionPlan, ModelSpec, TensorRef, WeightGroup
-from ollm.scheduling import (
+from lokahi.core import ExecutionPlan, ModelSpec, TensorRef, WeightGroup
+from lokahi.scheduling import (
     BudgetExceededError,
     DenseLayerPipeline,
     PrefetchScheduler,
@@ -213,6 +214,7 @@ class RuntimeContractTest(unittest.TestCase):
         self.assertEqual(scheduler.snapshot().cold_misses, 1)
 
 
+@unittest.skipUnless(importlib.util.find_spec("mlx") is not None, "MLX is required")
 class MLXGovernorProfileTest(unittest.TestCase):
     def test_profile_and_capabilities_match_local_mlx_runtime(self):
         profile = detect_mlx_hardware()

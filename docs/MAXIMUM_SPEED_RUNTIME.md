@@ -3,7 +3,7 @@
 Status: shared policy and planner gates are implemented. An evidence-gated
 resident MLX route now improves the continuous-batching control for exact
 Qwen/Gemma and short-Llama batch-one workloads. Full-resident native
-Metal/Core ML/private-ANE LLM programs remain staged performance work. Strata
+Metal/Core ML/private-ANE LLM programs remain staged performance work. Lōkahi
 does not yet claim a compute-kernel win over optimized MLX-LM.
 
 ## Public parameters
@@ -21,7 +21,7 @@ does not yet claim a compute-kernel win over optimized MLX-LM.
 ```
 
 `maximum_speed` rejects `ssd_offload=auto|required`. The complete model must
-pass full-residency admission; Strata rejects instead of silently paging.
+pass full-residency admission; Lōkahi rejects instead of silently paging.
 Capacity remains an explicit separate profile:
 
 ```json
@@ -43,7 +43,7 @@ cannot be reused under a different policy.
 
 ## Immediate resident fast path
 
-`src/ollm/runtime/resident_mlx.py` implements the first executable speed
+`src/lokahi/runtime/resident_mlx.py` implements the first executable speed
 policy. On the pinned Apple M1 target it selects direct single-sequence MLX-LM
 generation only for hardware-validated model/runtime/workload fingerprints:
 
@@ -93,7 +93,7 @@ ANE is a candidate, not a quota. `ane_execution` has three modes:
 
 Apple documents `MLComputeUnits.all` as permission for Core ML to choose among
 available units, including ANE. It is not proof that a particular operation
-ran on ANE. Strata therefore requires Core ML/Neural Engine Instruments or an
+ran on ANE. Lōkahi therefore requires Core ML/Neural Engine Instruments or an
 equivalent measured execution receipt plus numerical validation.
 
 The reverse-engineered research informs these design choices without copying a
@@ -150,7 +150,7 @@ Priority order:
 
 The promotion scorecard remains model-wide: TTFT, prompt and decode rate,
 aggregate throughput, peak memory, energy, thermal state, exact tokens, and
-failure behavior. Strata has not achieved the MLX-LM win until those receipts
+failure behavior. Lōkahi has not achieved the MLX-LM win until those receipts
 pass for at least one supported full model and then generalize across the model
 ladder.
 

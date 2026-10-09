@@ -58,14 +58,14 @@ std::filesystem::path DefaultMetallibPath(const char *executable) {
   const std::filesystem::path parent =
       error ? std::filesystem::path(executable).parent_path()
             : executablePath.parent_path();
-  return parent / "strata-metal.metallib";
+  return parent / "lokahi-metal.metallib";
 }
 
 }  // namespace
 
 int main(int argc, const char *argv[]) {
   @autoreleasepool {
-    const char *configuredPath = std::getenv("STRATA_METALLIB_PATH");
+    const char *configuredPath = std::getenv("LOKAHI_METALLIB_PATH");
     const std::filesystem::path metallibPath =
         argc > 1 ? std::filesystem::path(argv[1])
                  : (configuredPath != nullptr

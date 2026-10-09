@@ -1,6 +1,6 @@
 import unittest
 
-from ollm.core import (
+from lokahi.core import (
     AdaptiveExecutionPlan,
     BackendTarget,
     ComputeUnit,
@@ -14,7 +14,7 @@ from ollm.core import (
     OperationEnvelope,
     OperationKind,
     RuntimeCapabilities,
-    StrataIRGraph,
+    LokahiIRGraph,
     TensorRole,
     TensorSpec,
 )
@@ -41,10 +41,10 @@ def tiny_graph():
             ("logits",),
         ),
     )
-    return StrataIRGraph("tiny", tensors, operations, ("hidden",), ("logits",))
+    return LokahiIRGraph("tiny", tensors, operations, ("hidden",), ("logits",))
 
 
-class StrataIRContractTest(unittest.TestCase):
+class LokahiIRContractTest(unittest.TestCase):
     def test_symbolic_tensor_has_no_static_byte_count(self):
         tensor = TensorSpec("x", ("tokens", 64), "float16", TensorRole.INPUT)
         self.assertIsNone(tensor.static_nbytes)
@@ -56,7 +56,7 @@ class StrataIRContractTest(unittest.TestCase):
         self.assertEqual(tuple(graph.operations_by_id()), ("projection", "lm_head"))
         bad = IROperation("bad", OperationKind.LINEAR, ("future",), ("projected",))
         with self.assertRaisesRegex(ValueError, "before they are available"):
-            StrataIRGraph(graph.graph_id, graph.tensors, (bad,), graph.inputs, graph.outputs)
+            LokahiIRGraph(graph.graph_id, graph.tensors, (bad,), graph.inputs, graph.outputs)
 
 
 class AdaptivePlanContractTest(unittest.TestCase):

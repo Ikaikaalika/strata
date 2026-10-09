@@ -19,14 +19,14 @@ def target_fixture():
                 "unit": "token/s",
                 "direction": "higher",
                 "darkbloom_best": 100.0,
-                "strata_gate": 110.0,
+                "lokahi_gate": 110.0,
             },
             {
                 "id": "latency",
                 "unit": "ms",
                 "direction": "lower",
                 "darkbloom_best": 10.0,
-                "strata_gate": 9.0,
+                "lokahi_gate": 9.0,
             },
         ],
     }
@@ -105,7 +105,7 @@ def test_checked_in_darkbloom_target_has_ten_percent_performance_gates():
     assert len(target["cells"]) == 13
     for cell in target["cells"]:
         baseline = cell["darkbloom_best"]
-        gate = cell["strata_gate"]
+        gate = cell["lokahi_gate"]
         if cell["metric"] == "peak_runtime_memory":
             assert gate == baseline
         elif cell["direction"] == "higher":

@@ -1,4 +1,4 @@
-# Strata ANE capability worker
+# Lōkahi ANE capability worker
 
 This native probe dynamically loads the private Apple Neural Engine frameworks
 and inventories their Objective-C surface. Its default mode performs discovery
@@ -10,15 +10,15 @@ Build and run without third-party dependencies:
 
 ```sh
 make -C native/ane
-native/ane/build/strata-ane-probe
-native/ane/build/strata-ane-probe --execute-projection
-native/ane/build/strata-ane-probe --benchmark-projection
+native/ane/build/lokahi-ane-probe
+native/ane/build/lokahi-ane-probe --execute-projection
+native/ane/build/lokahi-ane-probe --benchmark-projection
 ```
 
 The worker also exposes one bounded callable request protocol:
 
 ```sh
-native/ane/build/strata-ane-probe --execute-linear-request /absolute/path/request.json
+native/ane/build/lokahi-ane-probe --execute-linear-request /absolute/path/request.json
 ```
 
 This protocol is not a general ANE backend. Schema v1 accepts only contiguous

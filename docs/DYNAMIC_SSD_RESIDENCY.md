@@ -9,7 +9,7 @@ real-model result is a warm-state Python/MLX paging laboratory measurement.
 
 ## User-visible option
 
-Strata exposes one residency preference per model load or request policy:
+Lōkahi exposes one residency preference per model load or request policy:
 
 | Preference | Behavior |
 |---|---|
@@ -48,7 +48,7 @@ Hardware evidence captured 2026-08-25 on the pinned Common Compute Llama 3.2
 of embedding/norm weights remained pinned and 120,680,448 bytes were available
 to the 547,487,744-byte decoder-layer set.
 
-| Metric | MLX-LM full | Strata paged lab | Change |
+| Metric | MLX-LM full | Lōkahi paged lab | Change |
 |---|---:|---:|---:|
 | Decode | 69.94 tok/s | 3.75 tok/s | -94.64% |
 | TTFT | 560.76 ms | 1,115.73 ms | 98.97% slower |
@@ -77,7 +77,7 @@ adaptive consequence is:
 
 ### Recursive residency improvement
 
-The zero-hit trace motivated a pinned tier. With a 384 MiB total cap, Strata
+The zero-hit trace motivated a pinned tier. With a 384 MiB total cap, Lōkahi
 kept five decoder layers pinned and preserved room for the current plus one
 prefetched rolling layer. Against the original 256 MiB all-LRU plan:
 
@@ -149,7 +149,7 @@ Raw evidence:
 Weights never execute on SSD. The native path is:
 
 ```text
-immutable Strata weight pack on approved SSD
+immutable Lōkahi weight pack on approved SSD
         │ exact aligned range
         ▼
 MTLIOCommandQueue or bounded pread fallback
@@ -291,16 +291,16 @@ placement intended to represent SSD behavior, and offload performance claims.
 
 | Contract | Path |
 |---|---|
-| `auto/full/paged` request policy and admission | `src/ollm/core/platform.py` |
-| Immutable aligned pack and exact reads | `src/ollm/storage/weight_pack.py` |
-| Pack-backed atomic group loader | `src/ollm/storage/weight_pack_store.py` |
-| Hard-budget LRU, pinning, eviction, resizing | `src/ollm/scheduling/residency_manager.py` |
-| Async prefetch and stall accounting | `src/ollm/scheduling/prefetch_scheduler.py` |
-| Dense next-layer overlap | `src/ollm/scheduling/dense_pipeline.py` |
-| Public SSD parameter | `src/ollm/core/ssd_offload.py` |
-| Quantized paged Llama laboratory | `src/ollm/runtime/paged_mlx_llama.py` |
-| Real-model paging benchmark | `benchmarks/benchmark_strata_paged_mlx.py` |
-| Objective-driven paging tuner | `src/ollm/planning/paging_tuner.py` and `benchmarks/tune_strata_paged_mlx.py` |
+| `auto/full/paged` request policy and admission | `src/lokahi/core/platform.py` |
+| Immutable aligned pack and exact reads | `src/lokahi/storage/weight_pack.py` |
+| Pack-backed atomic group loader | `src/lokahi/storage/weight_pack_store.py` |
+| Hard-budget LRU, pinning, eviction, resizing | `src/lokahi/scheduling/residency_manager.py` |
+| Async prefetch and stall accounting | `src/lokahi/scheduling/prefetch_scheduler.py` |
+| Dense next-layer overlap | `src/lokahi/scheduling/dense_pipeline.py` |
+| Public SSD parameter | `src/lokahi/core/ssd_offload.py` |
+| Quantized paged Llama laboratory | `src/lokahi/runtime/paged_mlx_llama.py` |
+| Real-model paging benchmark | `benchmarks/benchmark_lokahi_paged_mlx.py` |
+| Objective-driven paging tuner | `src/lokahi/planning/paging_tuner.py` and `benchmarks/tune_lokahi_paged_mlx.py` |
 
 ## Native implementation sequence
 

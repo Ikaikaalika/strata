@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from ollm.core.platform import (
+from lokahi.core.platform import (
     ResidencyPreference,
     ServiceObjective,
     WorkloadClass,
 )
-from ollm.core.ssd_offload import SSDOffloadMode, SSDOffloadPolicy
+from lokahi.core.ssd_offload import SSDOffloadMode, SSDOffloadPolicy
 
 
 def _objective() -> ServiceObjective:

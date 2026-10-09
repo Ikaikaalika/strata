@@ -2,17 +2,17 @@ import unittest
 
 import numpy as np
 
-from ollm.backends.cpu_reference import (
+from lokahi.backends.cpu_reference import (
     CPUReferenceError,
     CPUReferenceExecutor,
     cpu_reference_capabilities,
 )
-from ollm.core import (
+from lokahi.core import (
     ComputeUnit,
     IROperation,
     InferencePhase,
     OperationKind,
-    StrataIRGraph,
+    LokahiIRGraph,
     TensorRole,
     TensorSpec,
 )
@@ -65,7 +65,7 @@ def _reference_graph():
             ("logits",),
         ),
     )
-    return StrataIRGraph(
+    return LokahiIRGraph(
         "cpu-reference",
         tensors,
         operations,
@@ -147,7 +147,7 @@ class CPUReferenceExecutorTest(unittest.TestCase):
             TensorSpec("x", (1, 2), "float32", TensorRole.INPUT),
             TensorSpec("y", (1, 2), "float32", TensorRole.OUTPUT),
         )
-        graph = StrataIRGraph(
+        graph = LokahiIRGraph(
             "unsupported",
             tensors,
             (IROperation("attention", OperationKind.ATTENTION, ("x",), ("y",)),),
@@ -191,7 +191,7 @@ class CPUReferenceExecutorTest(unittest.TestCase):
             TensorSpec("w", (2, 3), "float32", TensorRole.WEIGHT),
             TensorSpec("y", (1, 3), "float32", TensorRole.OUTPUT),
         )
-        graph = StrataIRGraph(
+        graph = LokahiIRGraph(
             "in-out",
             tensors,
             (

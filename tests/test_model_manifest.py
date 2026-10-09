@@ -4,7 +4,7 @@ from dataclasses import replace
 
 import pytest
 
-from ollm.core import (
+from lokahi.core import (
     ArchitectureClass,
     ArchitectureSpec,
     ArtifactKind,

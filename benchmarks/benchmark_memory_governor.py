@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthetic overlap benchmark for Strata Governor.
+"""Synthetic overlap benchmark for Lokahi Governor.
 
 This benchmark does not claim real SSD or model throughput. It answers a
 narrow question: given measured layer-load and layer-compute durations, how
@@ -12,8 +12,8 @@ import json
 import time
 from dataclasses import asdict
 
-from ollm.core import ExecutionPlan, ModelSpec, TensorRef, WeightGroup
-from ollm.scheduling import DenseLayerPipeline, PrefetchScheduler, ResidencyManager
+from lokahi.core import ExecutionPlan, ModelSpec, TensorRef, WeightGroup
+from lokahi.scheduling import DenseLayerPipeline, PrefetchScheduler, ResidencyManager
 
 
 class SyntheticTensor:

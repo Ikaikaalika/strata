@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "target_id": "darkbloom-m4-max-v080-engine-sweep-2026-07-27",
-  "status": "external_hardware_target_not_yet_run_by_strata",
+  "status": "external_hardware_target_not_yet_run_by_lokahi",
   "source": {
     "url": "https://github.com/Layr-Labs/d-inference/blob/master/docs/reports/2026-07-27-v080-post-release-engine-bench.md",
     "darkbloom_engine_commit": "edc6036",
@@ -46,7 +46,7 @@
       "unit": "token/s",
       "direction": "higher",
       "darkbloom_best": 108.9,
-      "strata_gate": 119.79
+      "lokahi_gate": 119.79
     },
     {
       "id": "gpt_oss_b1_ttft_ms",
@@ -57,7 +57,7 @@
       "unit": "ms",
       "direction": "lower",
       "darkbloom_best": 410.0,
-      "strata_gate": 369.0
+      "lokahi_gate": 369.0
     },
     {
       "id": "gpt_oss_b1_itl_ms",
@@ -68,7 +68,7 @@
       "unit": "ms",
       "direction": "lower",
       "darkbloom_best": 9.2,
-      "strata_gate": 8.28
+      "lokahi_gate": 8.28
     },
     {
       "id": "gpt_oss_b8_aggregate_tps",
@@ -79,7 +79,7 @@
       "unit": "token/s",
       "direction": "higher",
       "darkbloom_best": 129.6,
-      "strata_gate": 142.56
+      "lokahi_gate": 142.56
     },
     {
       "id": "gpt_oss_8192_prefill_tps",
@@ -90,7 +90,7 @@
       "unit": "token/s",
       "direction": "higher",
       "darkbloom_best": 1097.0,
-      "strata_gate": 1206.7
+      "lokahi_gate": 1206.7
     },
     {
       "id": "gpt_oss_b8_peak_gib",
@@ -101,7 +101,7 @@
       "unit": "GiB",
       "direction": "lower",
       "darkbloom_best": 13.88,
-      "strata_gate": 13.88
+      "lokahi_gate": 13.88
     },
     {
       "id": "gemma_b1_decode_tps",
@@ -112,7 +112,7 @@
       "unit": "token/s",
       "direction": "higher",
       "darkbloom_best": 107.5,
-      "strata_gate": 118.25
+      "lokahi_gate": 118.25
     },
     {
       "id": "gemma_b1_ttft_ms",
@@ -123,7 +123,7 @@
       "unit": "ms",
       "direction": "lower",
       "darkbloom_best": 407.0,
-      "strata_gate": 366.3
+      "lokahi_gate": 366.3
     },
     {
       "id": "gemma_b1_itl_ms",
@@ -134,7 +134,7 @@
       "unit": "ms",
       "direction": "lower",
       "darkbloom_best": 9.3,
-      "strata_gate": 8.37
+      "lokahi_gate": 8.37
     },
     {
       "id": "gemma_b8_aggregate_tps",
@@ -145,7 +145,7 @@
       "unit": "token/s",
       "direction": "higher",
       "darkbloom_best": 138.6,
-      "strata_gate": 152.46
+      "lokahi_gate": 152.46
     },
     {
       "id": "gemma_b8_itl_ms",
@@ -156,7 +156,7 @@
       "unit": "ms",
       "direction": "lower",
       "darkbloom_best": 30.4,
-      "strata_gate": 27.36
+      "lokahi_gate": 27.36
     },
     {
       "id": "gemma_8192_prefill_tps",
@@ -167,7 +167,7 @@
       "unit": "token/s",
       "direction": "higher",
       "darkbloom_best": 1091.0,
-      "strata_gate": 1200.1
+      "lokahi_gate": 1200.1
     },
     {
       "id": "gemma_b8_peak_gib",
@@ -178,7 +178,7 @@
       "unit": "GiB",
       "direction": "lower",
       "darkbloom_best": 18.53,
-      "strata_gate": 18.53
+      "lokahi_gate": 18.53
     }
   ],
   "excluded_public_claims": [

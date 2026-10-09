@@ -7,19 +7,19 @@ import numpy as np
 
 try:
     import mlx.core as mx
-    from ollm import TensorTracer
-    from ollm.deepseek_mlx import MLXDeepSeekForCausalLM
-    from ollm.generation import greedy_generate_mx
-    from ollm.llama_mlx import (
+    from lokahi import TensorTracer
+    from lokahi.deepseek_mlx import MLXDeepSeekForCausalLM
+    from lokahi.generation import greedy_generate_mx
+    from lokahi.llama_mlx import (
         MLXLlamaForCausalLM,
         MLXLlamaDecoderLayer,
         MLXRotaryEmbedding,
         _linear,
         apply_rotary_pos_emb_mlx,
     )
-    from ollm.mlx_kvcache import MLXKVCache
-    import ollm.deepseek_mlx as deepseek_mlx
-    import ollm.llama_mlx as llama_mlx
+    from lokahi.mlx_kvcache import MLXKVCache
+    import lokahi.deepseek_mlx as deepseek_mlx
+    import lokahi.llama_mlx as llama_mlx
 
     MX_AVAILABLE = True
 except (ModuleNotFoundError, RuntimeError):

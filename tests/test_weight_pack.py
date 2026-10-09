@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from ollm.storage.weight_pack import (
+from lokahi.storage.weight_pack import (
     FORMAT_NAME,
     FORMAT_VERSION,
     WeightPack,
@@ -43,7 +43,7 @@ def _manifest(tensors, *, alignment=64, data_offset=512, file_size=None, **extra
 class WeightPackTest(unittest.TestCase):
     def test_round_trip_exact_reads_and_mmap(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "tiny.strata-pack"
+            path = Path(directory) / "tiny.lokahi-pack"
             payloads = [("layer.0", b"abc" * 17), ("layer.1", bytes(range(64)))]
             written = write_weight_pack(path, payloads, alignment=256)
 
@@ -62,11 +62,11 @@ class WeightPackTest(unittest.TestCase):
 
     def test_failed_replacement_keeps_existing_pack_recoverable(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "recoverable.strata-pack"
+            path = Path(directory) / "recoverable.lokahi-pack"
             write_weight_pack(path, [("original", b"preserved")])
 
             with mock.patch(
-                "ollm.storage.weight_pack.os.replace",
+                "lokahi.storage.weight_pack.os.replace",
                 side_effect=OSError("simulated atomic replacement failure"),
             ):
                 with self.assertRaisesRegex(OSError, "simulated atomic"):
@@ -77,7 +77,7 @@ class WeightPackTest(unittest.TestCase):
 
     def test_payload_corruption_is_detected_on_read(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "corrupt.strata-pack"
+            path = Path(directory) / "corrupt.lokahi-pack"
             write_weight_pack(path, [("weight", b"immutable bytes")], alignment=64)
             tensor = WeightPack(path).tensor_info("weight")
             with path.open("r+b") as output:
@@ -130,7 +130,7 @@ class WeightPackTest(unittest.TestCase):
 
     def test_truncated_file_is_rejected_before_tensor_access(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "truncated.strata-pack"
+            path = Path(directory) / "truncated.lokahi-pack"
             write_weight_pack(path, [("weight", bytes(range(32)))], alignment=64)
             path.write_bytes(path.read_bytes()[:-1])
             with self.assertRaisesRegex(WeightPackFormatError, "physical file"):
@@ -138,7 +138,7 @@ class WeightPackTest(unittest.TestCase):
 
     def test_writer_rejects_invalid_alignment_and_empty_payload(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "invalid.strata-pack"
+            path = Path(directory) / "invalid.lokahi-pack"
             with self.assertRaisesRegex(ValueError, "power of two"):
                 write_weight_pack(path, [("weight", b"x")], alignment=96)
             with self.assertRaisesRegex(ValueError, "must not be empty"):

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from ollm.core.ssd_offload import SSDOffloadMode, SSDOffloadPolicy
-from ollm.runtime.paged_mlx_llama import (
+from lokahi.core.ssd_offload import SSDOffloadMode, SSDOffloadPolicy
+from lokahi.runtime.paged_mlx_llama import (
     PagedMLXLlamaRuntime,
     maximum_pinned_layer_count,
     select_pinned_layer_group_ids,

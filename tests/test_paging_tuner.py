@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from ollm.planning import (
+from lokahi.planning import (
     PagingTuningCandidate,
     PagingTuningObjective,
     select_paging_candidate,

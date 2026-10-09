@@ -1,19 +1,19 @@
 # Model-Adaptive Architecture
 
 Status: canonical model-compatibility architecture, 2026-08-24. The typed
-schema in `src/ollm/core/model_manifest.py` is current executable contract
+schema in `src/lokahi/core/model_manifest.py` is current executable contract
 evidence. Native lowering, catalog ingestion, and most family adapters remain
 target work.
 
 ## Decision
 
-Strata is capability-driven, not model-name-driven. A model name selects an
-immutable artifact; its versioned semantic manifest determines how Strata
+Lōkahi is capability-driven, not model-name-driven. A model name selects an
+immutable artifact; its versioned semantic manifest determines how Lōkahi
 validates, lowers, plans, admits, executes, and pages that artifact.
 
 Common Compute is the first catalog and deployment adapter. It does not own the
 engine graph, backend scheduler, residency policy, or evidence store. The same
-Strata model manifest must work through the standalone CLI, daemon, embedded
+Lōkahi model manifest must work through the standalone CLI, daemon, embedded
 library, and Common Compute XPC adapter.
 
 This separation lets Common Compute add models without adding branches such as
@@ -42,7 +42,7 @@ advertised as available until its exact artifact and compatible provider path
 are pinned and qualified.
 
 The public catalog is a product catalog. Its ID, status, minimum-memory hint,
-and approximate weight size are not sufficient to compile a model. Strata
+and approximate weight size are not sufficient to compile a model. Lōkahi
 needs a separate machine-readable semantic manifest.
 
 ## Four records, four owners
@@ -51,8 +51,8 @@ needs a separate machine-readable semantic manifest.
 |---|---|---|---|
 | Product catalog | Common Compute | Public ID, lifecycle status, capabilities, coarse memory tier | Product rollout changes |
 | Artifact binding | Common Compute provider or standalone importer | Repository/location, immutable revision, content digest, format, license/policy | A new artifact is deliberately pinned |
-| Portable model manifest | Strata adapter | Exact architecture, tokenizer protocol, tensor/quantization semantics, weight-group schema | Model or adapter semantics change |
-| Qualification overlay | Strata evidence store plus host | Hardware fingerprint, OS/runtime revisions, shape envelope, correctness and performance evidence | Hardware/software/evidence changes |
+| Portable model manifest | Lōkahi adapter | Exact architecture, tokenizer protocol, tensor/quantization semantics, weight-group schema | Model or adapter semantics change |
+| Qualification overlay | Lōkahi evidence store plus host | Hardware fingerprint, OS/runtime revisions, shape envelope, correctness and performance evidence | Hardware/software/evidence changes |
 
 These records are joined by immutable IDs. A catalog status never promotes a
 backend plan, and a locally successful plan never changes public availability.
@@ -95,7 +95,7 @@ configuration and produces one of these semantic classes.
 
 Unknown model types, operations, layouts, or quantizers fail closed to an
 already-qualified whole-model MLX compatibility adapter. If no compatible
-adapter exists, import is rejected. Strata does not guess an architecture from
+adapter exists, import is rejected. Lōkahi does not guess an architecture from
 the model ID.
 
 ## End-to-end compilation and selection
@@ -107,7 +107,7 @@ flowchart LR
     CFG["Verified model config + tokenizer"] --> IMPORT["Family adapter"]
     JOIN --> IMPORT
     IMPORT --> MAN["PortableModelManifest"]
-    IMPORT --> GRAPH["StrataIR + weight/KV schema"]
+    IMPORT --> GRAPH["LokahiIR + weight/KV schema"]
     MAN --> VALIDATE["Semantic + digest validation"]
     GRAPH --> VALIDATE
     VALIDATE --> BASE["Compatible MLX oracle plan"]
@@ -127,7 +127,7 @@ At model import:
 1. Resolve an immutable local artifact or an opaque system-model binding.
 2. Verify config, tokenizer, template/protocol, tensor inventory, byte ranges,
    and digests before allocation.
-3. Lower exact semantics into StrataIR, weight groups, KV/recurrent state, and
+3. Lower exact semantics into LokahiIR, weight groups, KV/recurrent state, and
    prefill/decode shape envelopes.
 4. Construct a whole-model compatible baseline.
 5. Generate candidate segmented plans from backend capabilities.
@@ -146,7 +146,7 @@ At request admission:
 
 ## SoC execution policy
 
-Strata does not divide every layer among every engine. It gives each engine
+Lōkahi does not divide every layer among every engine. It gives each engine
 work only when the measured end-to-end plan improves.
 
 | Resource | Default ownership | Promotion rule |
@@ -244,7 +244,7 @@ downloaded or pinned until the user chooses its model/SSD destination.
 ## Common Compute bridge
 
 Common Compute passes a versioned request and a catalog binding into the local
-Strata service. The bridge resolves the binding to an installed manifest digest
+Lōkahi service. The bridge resolves the binding to an installed manifest digest
 and returns only bounded runtime facts:
 
 ```text
@@ -256,14 +256,14 @@ start(model_id, manifest_digest, prompt, bounds, objective, request_id)
        prompt_tokens, output_tokens, timings, evidence_class)
 ```
 
-Common Compute may route using coarse advertised envelopes. Strata makes final
+Common Compute may route using coarse advertised envelopes. Lōkahi makes final
 per-Mac admission decisions from live memory, thermal/power policy, installed
 artifacts, verified plans, and approved storage. A preview catalog entry with
 no locally qualified manifest is a structured decline, not an attempted load.
 
 ## Promotion gates
 
-A model becomes Strata-compatible only when all required gates pass:
+A model becomes Lōkahi-compatible only when all required gates pass:
 
 1. **Manifest:** immutable artifact and tokenizer identities; complete semantic
    validation; license/policy accepted by the integrating product.

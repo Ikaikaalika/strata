@@ -3,10 +3,10 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from ollm.backends.base import BackendError
-from ollm.backends.metal_backend import MetalBackend
-from ollm.core.hardware import ComputeUnit
-from ollm.core.ir import InferencePhase, OperationKind
+from lokahi.backends.base import BackendError
+from lokahi.backends.metal_backend import MetalBackend
+from lokahi.core.hardware import ComputeUnit
+from lokahi.core.ir import InferencePhase, OperationKind
 
 
 def _fake_probe(directory: str, payload, *, exit_status: int = 0) -> Path:

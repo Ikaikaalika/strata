@@ -59,7 +59,7 @@ benchmark because there were no warmups or repeated measurements.
 
 The proof qualifies the ANE compute unit in the fingerprinted hardware profile,
 but it deliberately exposes no operations to the adaptive planner. A general
-Strata segment executor, exact supported-shape envelopes, compiled-program
+Lōkahi segment executor, exact supported-shape envelopes, compiled-program
 cache, and multi-operator corpus are still required before an LLM operation can
 be scheduled there.
 

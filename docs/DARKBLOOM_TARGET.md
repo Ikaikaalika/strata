@@ -1,6 +1,6 @@
 # Darkbloom Benchmark Target
 
-Status: external target definition and engineering strategy. Strata has not yet
+Status: external target definition and engineering strategy. Lōkahi has not yet
 run the required real-model M4 Max matrix and therefore does not claim to exceed
 Darkbloom.
 
@@ -8,7 +8,7 @@ Darkbloom.
 
 Darkbloom publishes kernel, in-engine, provider, production-traffic, and fleet
 numbers. These have different timing boundaries and cannot be substituted for
-one another. Strata will maintain three scoreboards:
+one another. Lōkahi will maintain three scoreboards:
 
 1. **Engine:** same Mac, model snapshot, prompt/output tokens, batch, cache,
    sampling, warm state, and statistic.
@@ -20,7 +20,7 @@ one another. Strata will maintain three scoreboards:
 The first executable target is Darkbloom's public 2026-07-27 M4 Max engine
 sweep. The source report is
 [`2026-07-27-v080-post-release-engine-bench.md`](https://github.com/Layr-Labs/d-inference/blob/master/docs/reports/2026-07-27-v080-post-release-engine-bench.md).
-Its machine-readable Strata gates are in
+Its machine-readable Lōkahi gates are in
 [`benchmarks/targets/darkbloom_m4_max_v080.json`](../benchmarks/targets/darkbloom_m4_max_v080.json).
 
 Each latency/throughput gate is 10 percent better than Darkbloom's strongest
@@ -35,7 +35,7 @@ comparable reported cell; peak memory may not regress. The target fixes:
 
 Headline gates include:
 
-| Cell | Darkbloom best | Strata gate |
+| Cell | Darkbloom best | Lōkahi gate |
 |---|---:|---:|
 | GPT-OSS B1 decode | 108.9 tok/s | at least 119.79 tok/s |
 | GPT-OSS B8 aggregate | 129.6 tok/s | at least 142.56 tok/s |
@@ -44,8 +44,8 @@ Headline gates include:
 | Gemma B8 aggregate | 138.6 tok/s | at least 152.46 tok/s |
 | Gemma 8K prefill | 1,091 tok/s | at least 1,200.1 tok/s |
 
-Strata must pass every manifest cell and correctness check for the unqualified
-statement “Strata exceeds the Darkbloom v0.8.0 engine benchmark.” A partial win
+Lōkahi must pass every manifest cell and correctness check for the unqualified
+statement “Lōkahi exceeds the Darkbloom v0.8.0 engine benchmark.” A partial win
 is reported by metric, not generalized.
 
 ## Why the current M1 is not the head-to-head machine
@@ -65,10 +65,10 @@ and user-approved model storage.
 ### 1. Native phase programs, not isolated dispatches
 
 Darkbloom already uses continuous batching, prompt-output narrowing, final-row
-pruning, packed prefill, and multi-layer prefill submissions. Strata cannot win
+pruning, packed prefill, and multi-layer prefill submissions. Lōkahi cannot win
 by reproducing those features through a slower abstraction.
 
-The Strata compiler should encode a complete prefill or decode epoch with
+The Lōkahi compiler should encode a complete prefill or decode epoch with
 persistent pipelines, buffers, weight layouts, KV ownership, and the fewest
 possible command-buffer boundaries. Our first tiled projection reduced GPU
 device time 57 percent but complete wall time only 27 percent, showing that
@@ -78,7 +78,7 @@ submission and synchronization must be amortized at program scale.
 
 Darkbloom's analysis reports that MLX prefill falls back to composed
 matmul-mask-softmax-matmul for Gemma head dimensions 256 and 512, materializing
-large score tensors. This is Strata's clearest prefill opening.
+large score tensors. This is Lōkahi's clearest prefill opening.
 
 Build an online-softmax direct-Metal attention family with:
 
@@ -94,7 +94,7 @@ attention microbenchmark.
 
 ### 3. Quantized MoE programs that minimize bytes per token
 
-Decode is primarily limited by weight traffic. Strata needs specialized
+Decode is primarily limited by weight traffic. Lōkahi needs specialized
 dequantize-and-multiply kernels for batch-1 matrix-vector and batched
 matrix-matrix regimes, rather than one universal tile.
 
@@ -140,12 +140,12 @@ inflate results; measure it separately as a product capability.
 5. Make the existing fixed ANE projection resident and measure 5 warmups plus 50
    dispatches; then test an ANE draft/MTP role.
 6. On approved storage and comparable M4 Max hardware, run MLX, Darkbloom, and
-   Strata in alternating order and feed the Strata JSON into:
+   Lōkahi in alternating order and feed the Lōkahi JSON into:
 
 ```sh
 PYTHONPATH=. /usr/bin/python3 benchmarks/compare_target.py \
   benchmarks/targets/darkbloom_m4_max_v080.json \
-  /path/to/strata-result.json
+  /path/to/lokahi-result.json
 ```
 
 The comparator exits zero only when every numeric and correctness gate passes.

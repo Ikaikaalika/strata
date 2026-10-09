@@ -14,7 +14,7 @@ from pathlib import Path
 import tempfile
 import time
 
-from ollm.storage.weight_pack import WeightPack, write_weight_pack
+from lokahi.storage.weight_pack import WeightPack, write_weight_pack
 
 
 MAX_SIZE_MIB = 256.0
@@ -40,7 +40,7 @@ def _measurement(byte_count: int, checksum: str, elapsed_seconds: float) -> dict
 
 
 def _run(path: Path, size_bytes: int, alignment: int) -> dict:
-    pattern = hashlib.sha256(b"strata-weight-pack-benchmark-v1").digest()
+    pattern = hashlib.sha256(b"lokahi-weight-pack-benchmark-v1").digest()
     payload = (pattern * ((size_bytes + len(pattern) - 1) // len(pattern)))[:size_bytes]
     expected_checksum = hashlib.sha256(payload).hexdigest()
 
@@ -110,9 +110,9 @@ def main() -> None:
     if args.path is not None:
         report = _run(args.path.expanduser(), size_bytes, args.alignment)
     else:
-        with tempfile.TemporaryDirectory(prefix="strata-weight-pack-benchmark-") as directory:
+        with tempfile.TemporaryDirectory(prefix="lokahi-weight-pack-benchmark-") as directory:
             report = _run(
-                Path(directory) / "benchmark.strata-pack",
+                Path(directory) / "benchmark.lokahi-pack",
                 size_bytes,
                 args.alignment,
             )

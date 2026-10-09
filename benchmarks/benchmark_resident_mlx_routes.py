@@ -3,8 +3,8 @@
 
 This is a paired hardware benchmark.  It loads the model once with ``lazy=False``
 and alternates run order between MLX-LM's continuous ``BatchGenerator`` control
-and Strata's batch-one route using ``generate_step`` directly.  No route uses
-Strata-managed or OS-managed SSD offload.
+and Lokahi's batch-one route using ``generate_step`` directly.  No route uses
+Lokahi-managed or OS-managed SSD offload.
 """
 from __future__ import annotations
 
@@ -296,7 +296,7 @@ def main() -> int:
         "schema_version": 1,
         "captured_at_utc": datetime.now(timezone.utc).isoformat(),
         "evidence_kind": "hardware",
-        "runner": "strata-resident-mlx-route-comparison",
+        "runner": "lokahi-resident-mlx-route-comparison",
         "target_id": ladder["target_id"],
         "model": {
             "model_id": entry["model_id"],
@@ -321,12 +321,12 @@ def main() -> int:
             "ssd_offload_parameter": "disabled",
             "model_load_lazy": False,
             "manager": "mlx-lm",
-            "strata_managed_paging": False,
+            "lokahi_managed_paging": False,
             "semantics": "fully materialized warm model; no explicit or OS-managed offload",
         },
         "routes": {
             "control": "MLX-LM BatchGenerator continuous-batching path at batch one",
-            "candidate": "Strata batch-one policy using MLX-LM generate_step directly",
+            "candidate": "Lokahi batch-one policy using MLX-LM generate_step directly",
         },
         "measurement": {
             "run_order": run_order,
@@ -338,7 +338,7 @@ def main() -> int:
         "control_runs": control_runs,
         "candidate_runs": candidate_runs,
         "claim_boundary": (
-            "Paired warm hardware evidence for Strata route selection over the pinned "
+            "Paired warm hardware evidence for Lokahi route selection over the pinned "
             "MLX-LM compatibility backend; not a native Metal, ANE, SSD, provider, or "
             "Darkbloom comparison."
         ),

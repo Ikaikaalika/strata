@@ -53,7 +53,7 @@ generation, compilation, load, layout copies, readback, output publication,
 unload, and temporary cleanup. This is correctness evidence plus one hardware
 observation, not a throughput benchmark.
 
-`ANEProjectionSegmentExecutor` now lowers the exact one-operation StrataIR
+`ANEProjectionSegmentExecutor` now lowers the exact one-operation LokahiIR
 graph to that callable protocol. It publishes an exact prefill capability to
 the planner, but the planner still requires matching correctness evidence and
 comparable hardware token-throughput evidence before it can displace MLX.

@@ -16,8 +16,8 @@ from generated_model_fixtures import (
     generated_dense_manifest,
     generated_gpt_oss_20b_manifest,
 )
-from ollm.core import PortableModelManifest
-from ollm.planning import estimate_kv_cache_bytes
+from lokahi.core import PortableModelManifest
+from lokahi.planning import estimate_kv_cache_bytes
 
 
 def _percentile(samples: list[float], percentile: float) -> float:

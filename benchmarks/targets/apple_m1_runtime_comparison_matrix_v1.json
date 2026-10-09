@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "target_id": "strata-apple-m1-runtime-comparison-v1",
+  "target_id": "lokahi-apple-m1-runtime-comparison-v1",
   "hardware": {
     "chip": "Apple M1",
     "unified_memory_bytes": 17179869184,
@@ -25,7 +25,7 @@
       ]
     },
     {
-      "runtime_id": "strata-resident-mlx-route-selector",
+      "runtime_id": "lokahi-resident-mlx-route-selector",
       "evidence_level": "L4-compatibility-route",
       "status": "measured-route-promotions-not-native-backend",
       "model_ids": ["qwen3-0.6b", "llama-3.2-1b", "gemma-3-1b"],
@@ -37,7 +37,7 @@
       ]
     },
     {
-      "runtime_id": "strata-paged-mlx-lab",
+      "runtime_id": "lokahi-paged-mlx-lab",
       "evidence_level": "L4-laboratory",
       "status": "measured-capability-not-promoted",
       "model_ids": ["llama-3.2-1b"],
@@ -53,14 +53,14 @@
       ]
     },
     {
-      "runtime_id": "strata-native-metal",
+      "runtime_id": "lokahi-native-metal",
       "evidence_level": "L2-generated-kernel",
       "status": "not-yet-full-model",
       "model_ids": [],
       "result_files": ["benchmarks/results/apple_m1_phase_program_v1.json"]
     },
     {
-      "runtime_id": "strata-ane-research",
+      "runtime_id": "lokahi-ane-research",
       "evidence_level": "L2-bounded-projection-hardware-qualification",
       "status": "qualified-not-planner-eligible-not-yet-full-model",
       "model_ids": [],

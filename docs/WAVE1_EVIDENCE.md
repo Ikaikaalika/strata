@@ -6,7 +6,7 @@ Apple M1. The structured record is
 
 ## CPU correctness oracle
 
-`CPUReferenceExecutor` executes a bounded `StrataIR` subset with deterministic
+`CPUReferenceExecutor` executes a bounded `LokahiIR` subset with deterministic
 NumPy semantics and float32 accumulation. It is the independent comparison path
 for accelerator work, not the optimized Accelerate/BNNS backend.
 
@@ -42,7 +42,7 @@ No MIL graph was compiled or dispatched. Therefore:
 ANE discovered: yes
 ANE execution verified: no
 ANE numerically verified: no
-ANE schedulable by Strata: no
+ANE schedulable by Lōkahi: no
 ```
 
 The next ANE gate is a generated fp16 MIL projection with IOSurface-backed

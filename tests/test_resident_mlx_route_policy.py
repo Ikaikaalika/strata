@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ollm.runtime.resident_mlx import (
+from lokahi.runtime.resident_mlx import (
     ResidentMLXRoute,
     load_resident_mlx_profiles,
     select_resident_mlx_route,
