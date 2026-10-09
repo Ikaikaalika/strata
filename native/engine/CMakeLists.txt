@@ -24,9 +24,11 @@ set(LOKAHI_CORE_SOURCES
   src/json.cpp
   src/model.cpp
   src/quant.cpp
+  src/regex.cpp
   src/safetensors.cpp
   src/thread_pool.cpp
   src/tokenizer.cpp
+  src/unicode.cpp
 )
 
 if(LOKAHI_METAL)

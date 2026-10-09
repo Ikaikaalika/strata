@@ -14,9 +14,11 @@
 #include "half.h"
 #include "json.h"
 #include "quant.h"
+#include "regex.h"
 #include "safetensors.h"
 #include "thread_pool.h"
 #include "tokenizer.h"
+#include "unicode.h"
 
 using namespace lokahi;
 
@@ -199,9 +201,111 @@ void test_thread_pool() {
   EXPECT(all);
 }
 
-// Streaming must never emit text that a later token rewrites: for every
-// prefix, decode(ids[0, stable_prefix)) must be a prefix of every later
-// full decode. Byte-fallback groups are the case that makes this nontrivial.
+void test_unicode() {
+  using namespace unicode;
+  auto length = [](std::string_view bytes) { return utf8_sequence_length(bytes, 0); };
+  EXPECT(length("A") == 1 && length("\xC3\xA9") == 2 && length("\xE2\x82\xAC") == 3);
+  EXPECT(length("\xF0\x9F\x99\x82") == 4 && length("\xF4\x8F\xBF\xBF") == 4);
+  EXPECT(length("\xC0\x80") == 0);          // overlong
+  EXPECT(length("\xE0\x80\x80") == 0);      // overlong
+  EXPECT(length("\xED\xA0\x80") == 0);      // surrogate
+  EXPECT(length("\xF4\x90\x80\x80") == 0);  // above U+10FFFF
+  EXPECT(length("\xE2\x82") == 0 && length("\x80") == 0 && length("\xFF") == 0);
+  EXPECT(throws([] { decode_utf8("a\xED\xBF\xBF" "b"); }));
+  EXPECT(decode_utf8("a\xC3\xA9\xF0\x9F\x99\x82") == std::u32string({'a', 0xE9, 0x1F642}));
+
+  EXPECT(category('A') == Lu && category('a') == Ll && category(0x01C5) == Lt && category('7') == Nd);
+  EXPECT(category(0x4E00) == Lo && category(0x0301) == Mn && category(0x00A0) == Zs && category(0x0378) == Cn);
+  EXPECT(category(0xE000) == Co && category(0x10FFFF) == Cn && category(0x200D) == Cf);
+  EXPECT(category(0x13460) == Lo);  // Egyptian Hieroglyphs Extended-A, as the reference's Unicode 16 data says
+  EXPECT(is_space('\t') && is_space(0x0B) && is_space(0x85) && is_space(0x3000) && is_space(0x2029));
+  EXPECT(!is_space(0x200B) && !is_space(0x180E) && !is_space('x'));
+
+  EXPECT(nfc("e\xCC\x81") == "\xC3\xA9");                            // e + U+0301 -> U+00E9
+  EXPECT(nfc("\xE2\x84\xAB") == "\xC3\x85");                        // U+212B ANGSTROM SIGN -> U+00C5
+  EXPECT(nfc("\xE1\x84\x80\xE1\x85\xA1\xE1\x86\xA8") == "\xEA\xB0\x81");  // jamo -> U+AC01
+  // a + U+0301 (230) + U+0316 (220): reordered, then the acute composes past
+  // the lower-class mark.
+  EXPECT(nfc("a\xCC\x81\xCC\x96") == "\xC3\xA1\xCC\x96");
+  // Dives Akuru U+11935 U+11930 compose in Unicode 13+, but not in the
+  // reference normalizer, so they stay apart.
+  EXPECT(nfc("\xF0\x91\xA4\xB5\xF0\x91\xA4\xB0") == "\xF0\x91\xA4\xB5\xF0\x91\xA4\xB0");
+  EXPECT(std::string(reference()).rfind("tokenizers ", 0) == 0);
+}
+
+// All matches of `pattern` in `text`, as code-point [begin, end) pairs.
+std::vector<std::pair<size_t, size_t>> matches(const char* pattern, std::string_view text) {
+  const Regex regex = Regex::compile(pattern);
+  const std::u32string chars = unicode::decode_utf8(text);
+  std::vector<std::pair<size_t, size_t>> out;
+  size_t from = 0, begin = 0, end = 0;
+  while (from <= chars.size() && regex.search(chars, from, &begin, &end)) {
+    out.emplace_back(begin, end);
+    from = end > begin ? end : end + 1;
+  }
+  return out;
+}
+
+void test_regex() {
+  using M = std::vector<std::pair<size_t, size_t>>;
+  EXPECT(matches("a+?b", "aaab") == M({{0, 4}}));
+  EXPECT(matches("a*+a", "aaa").empty());  // possessive: never gives back
+  EXPECT(matches("(?:ab|a)+b", "abab") == M({{0, 4}}));
+  EXPECT(matches("(?:a|ab)(?:c|bcd)", "abcd") == M({{0, 4}}));  // leftmost-first, with backtracking
+  EXPECT(matches("x(?=y)", "xyxz") == M({{0, 1}}));
+  EXPECT(matches("x(?!y)", "xyxz") == M({{2, 3}}));
+  EXPECT(matches("a{2}", "aaaaa") == M({{0, 2}, {2, 4}}));
+  EXPECT(matches("a{,2}b", "aaab") == M({{1, 4}}));  // {,n} is {0,n}
+  EXPECT(matches("a{x", "a{x") == M({{0, 3}}));      // not an interval: literal
+  EXPECT(matches("(?i:'s|'ll)", "'S 'Ll '\xC5\xBF") == M({{0, 2}, {3, 6}, {7, 9}}));  // includes U+017F
+  EXPECT(matches("\\s+(?!\\S)|\\s+", "a   b") == M({{1, 3}, {3, 4}}));
+  EXPECT(matches("[^\\r\\n\\p{L}\\p{N}]?\\p{L}+", "\"Hello, w\xC3\xB6rld") == M({{0, 6}, {7, 13}}));
+  EXPECT(matches("\\p{N}{1,3}", "12345") == M({{0, 3}, {3, 5}}));
+  EXPECT(matches("[\\p{Lu}\\p{Lt}]+", "abCD\xC7\x85" "e") == M({{2, 5}}));
+  EXPECT(matches("\\p{Uppercase_Letter}", "aB") == M({{1, 2}}));
+  EXPECT(matches("\\P{L}+|\\p{^N}", "ab12") == M({{0, 1}, {1, 2}, {2, 4}}));
+  EXPECT(matches("[\\]\\-a-c]+", "]-abcd") == M({{0, 5}}));
+  EXPECT(matches("^ab|cd$", "ab\nab cd\ncd") == M({{0, 2}, {3, 5}, {6, 8}, {9, 11}}));
+  EXPECT(matches("\\x{1F642}|\\u00e9", "\xF0\x9F\x99\x82\xC3\xA9") == M({{0, 1}, {1, 2}}));
+
+  for (const char* bad : {"\\w", "(?<name>a)", "[[a]]", "[a&&b]", "\\p{Han}", "*a", "a)", "(a", "[a", "a{3,2}",
+                          "(?i:\\p{L})", "(?i:[a])", "(?i:\\u00e9)", "(?=a)*"}) {
+    EXPECT(throws([&] { Regex::compile(bad); }));
+  }
+  // Group repetition is capped well inside small thread stacks.
+  std::string under, over;
+  for (int i = 0; i < 200; ++i) under += "ab";
+  for (int i = 0; i < 300; ++i) over += "ab";
+  EXPECT(matches("(?:ab)+", under) == M({{0, 400}}));
+  EXPECT(throws([&] { matches("(?:ab)+", over); }));
+}
+
+// For every prefix of random id sequences, decode(ids[0, stable_prefix))
+// must be a prefix of every later full decode.
+bool streaming_is_prefix_stable(const Tokenizer& tokenizer, const std::vector<int32_t>& pool, unsigned seed) {
+  std::mt19937 rng(seed);
+  for (int trial = 0; trial < 400; ++trial) {
+    std::vector<int32_t> ids;
+    for (int i = 0; i < 12; ++i) ids.push_back(pool[rng() % pool.size()]);
+    for (bool skip : {true, false}) {
+      for (size_t n = 0; n <= ids.size(); ++n) {
+        std::vector<int32_t> head(ids.begin(), ids.begin() + static_cast<long>(n));
+        const size_t stable = tokenizer.stable_prefix(head, skip);
+        const std::string emitted =
+            tokenizer.decode(std::vector<int32_t>(head.begin(), head.begin() + static_cast<long>(stable)), skip);
+        for (size_t m = n; m <= ids.size(); ++m) {
+          const std::string later =
+              tokenizer.decode(std::vector<int32_t>(ids.begin(), ids.begin() + static_cast<long>(m)), skip);
+          if (later.compare(0, emitted.size(), emitted) != 0) return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+// Streaming must never emit text that a later token rewrites. Byte-fallback
+// groups are the case that makes this nontrivial for SentencePiece models.
 void test_tokenizer_stable_prefix() {
   std::string vocab = R"("<unk>": 0, "<s>": 1, "a": 258, "\u2581": 259, "b": 260)";
   for (int b = 0; b < 256; ++b) {
@@ -218,31 +322,51 @@ void test_tokenizer_stable_prefix() {
             {"type": "ByteFallback"}, {"type": "Fuse"}]}})");
   Tokenizer tokenizer = Tokenizer::from_json(root);
   // Bytes of "é" (C3 A9) and "€" (E2 82 AC) plus stray continuation bytes.
-  const std::vector<int32_t> pool = {258, 259, 260, 1, 0xC3 + 2, 0xA9 + 2, 0xE2 + 2, 0x82 + 2, 0xAC + 2, 0x91 + 2, 'Z' + 2};
-  std::mt19937 rng(5);
-  bool ok = true;
-  for (int trial = 0; trial < 400 && ok; ++trial) {
-    std::vector<int32_t> ids;
-    for (int i = 0; i < 12; ++i) ids.push_back(pool[rng() % pool.size()]);
-    for (bool skip : {true, false}) {
-      for (size_t n = 0; n <= ids.size() && ok; ++n) {
-        std::vector<int32_t> head(ids.begin(), ids.begin() + static_cast<long>(n));
-        const size_t stable = tokenizer.stable_prefix(head, skip);
-        const std::string emitted =
-            tokenizer.decode(std::vector<int32_t>(head.begin(), head.begin() + static_cast<long>(stable)), skip);
-        for (size_t m = n; m <= ids.size(); ++m) {
-          const std::string later =
-              tokenizer.decode(std::vector<int32_t>(ids.begin(), ids.begin() + static_cast<long>(m)), skip);
-          ok = ok && later.compare(0, emitted.size(), emitted) == 0;
-        }
-      }
-    }
-  }
-  EXPECT(ok);
+  EXPECT(streaming_is_prefix_stable(
+      tokenizer, {258, 259, 260, 1, 0xC3 + 2, 0xA9 + 2, 0xE2 + 2, 0x82 + 2, 0xAC + 2, 0x91 + 2, 'Z' + 2}, 5));
   // Without the hold-back, "Z" then 0x91 would rewrite "Z" as two U+FFFD.
   EXPECT(tokenizer.decode({'Z' + 2}, true) == "Z");
   EXPECT(tokenizer.decode({'Z' + 2, 0x91 + 2}, true) == "\xEF\xBF\xBD\xEF\xBF\xBD");
   EXPECT(tokenizer.stable_prefix({258, 'Z' + 2}, true) == 1);
+}
+
+// Byte-level tokens can end inside a UTF-8 sequence; decoding is lossy, so
+// a held-back incomplete sequence must not be emitted early.
+void test_byte_level_stable_prefix() {
+  // GPT-2's byte-to-character alphabet: id b is byte b; 256.. are merges.
+  std::string vocab;
+  int next = 256;
+  std::vector<std::string> chars(256);
+  for (int b = 0; b < 256; ++b) {
+    const bool printable = (b >= '!' && b <= '~') || (b >= 0xA1 && b <= 0xAC) || (b >= 0xAE && b <= 0xFF);
+    std::string utf8;
+    unicode::append_utf8(utf8, static_cast<char32_t>(printable ? b : next++));
+    chars[static_cast<size_t>(b)] = utf8;
+  }
+  for (int b = 0; b < 256; ++b) {
+    if (chars[static_cast<size_t>(b)] == "\"" || chars[static_cast<size_t>(b)] == "\\") {
+      vocab += (b ? ", " : "") + std::string("\"\\") + chars[static_cast<size_t>(b)] + "\": " + std::to_string(b);
+    } else {
+      vocab += (b ? ", " : "") + std::string("\"") + chars[static_cast<size_t>(b)] + "\": " + std::to_string(b);
+    }
+  }
+  const std::string e_acute = chars[0xC3] + chars[0xA9];  // "é" as one token, id 256
+  const std::string euro_head = chars[0xE2] + chars[0x82];  // first two bytes of "€", id 257
+  Json root = Json::parse(R"({"added_tokens": [{"id": 258, "content": "<s>", "special": true}],
+      "model": {"type": "BPE", "merges": [], "vocab": {)" + vocab + ", \"" + e_acute + "\": 256, \"" + euro_head +
+                          R"(": 257}}, "decoder": {"type": "ByteLevel"}})");
+  Tokenizer tokenizer = Tokenizer::from_json(root);
+  EXPECT(tokenizer.decode({256, 'a'}, true) == "\xC3\xA9" "a");
+  EXPECT(tokenizer.decode({257, 0xAC}, true) == "\xE2\x82\xAC");
+  EXPECT(tokenizer.decode({257, 'a'}, true) == "\xEF\xBF\xBD" "a");  // maximal subpart -> one U+FFFD
+  EXPECT(tokenizer.stable_prefix({'a', 257}, true) == 1);
+  EXPECT(tokenizer.stable_prefix({'a', 257, 0xAC}, true) == 3);
+  EXPECT(tokenizer.stable_prefix({'a', 0xE2, 258}, true) == 1);   // a skipped special does not end the run
+  EXPECT(tokenizer.stable_prefix({'a', 0xE2, 258}, false) == 3);  // "<s>" ends it when kept
+  EXPECT(tokenizer.stable_prefix({'a', 0x80}, true) == 2);        // a stray continuation is final
+  EXPECT(streaming_is_prefix_stable(tokenizer, {'a', 256, 257, 258, 0xC3, 0xA9, 0xE2, 0x82, 0xAC, 0xF0, 0x9F,
+                                                0x99, 0x80, 0xED, 0xA0, 0xC0},
+                                    9));
 }
 
 }  // namespace
@@ -254,7 +378,10 @@ int main() {
   test_quant_config();
   test_safetensors();
   test_thread_pool();
+  test_unicode();
+  test_regex();
   test_tokenizer_stable_prefix();
+  test_byte_level_stable_prefix();
   if (g_failures) {
     std::fprintf(stderr, "%d expectation(s) failed\n", g_failures);
     return 1;

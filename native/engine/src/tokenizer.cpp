@@ -6,24 +6,110 @@
 
 #include "common.h"
 #include "safetensors.h"
+#include "unicode.h"
 
 namespace lokahi {
 namespace {
 
-// Byte length of the UTF-8 sequence starting at text[i]; throws on invalid input.
+// Byte length of the UTF-8 sequence starting at text[i]; throws on malformed input.
 size_t utf8_char_len(std::string_view text, size_t i) {
-  const auto lead = static_cast<unsigned char>(text[i]);
-  size_t len = lead < 0x80 ? 1 : (lead >> 5) == 0x6 ? 2 : (lead >> 4) == 0xE ? 3 : (lead >> 3) == 0x1E ? 4 : 0;
-  LK_CHECK(len != 0 && i + len <= text.size(), "tokenizer: input is not valid UTF-8");
-  for (size_t k = 1; k < len; ++k) {
-    LK_CHECK((static_cast<unsigned char>(text[i + k]) & 0xC0) == 0x80, "tokenizer: input is not valid UTF-8");
-  }
+  const size_t len = unicode::utf8_sequence_length(text, i);
+  LK_CHECK(len != 0, "tokenizer: input is not valid UTF-8");
   return len;
 }
 
 void validate_utf8(std::string_view text) {
   for (size_t i = 0; i < text.size(); i += utf8_char_len(text, i)) {
   }
+}
+
+bool is_valid_utf8(std::string_view text) {
+  for (size_t i = 0; i < text.size();) {
+    const size_t len = unicode::utf8_sequence_length(text, i);
+    if (len == 0) return false;
+    i += len;
+  }
+  return true;
+}
+
+// Rust's String::from_utf8_lossy: each maximal ill-formed subpart becomes one
+// U+FFFD.
+std::string utf8_lossy(std::string_view bytes) {
+  std::string out;
+  out.reserve(bytes.size());
+  for (size_t i = 0; i < bytes.size();) {
+    if (size_t len = unicode::utf8_sequence_length(bytes, i)) {
+      out.append(bytes.substr(i, len));
+      i += len;
+      continue;
+    }
+    size_t needed;
+    i += std::max<size_t>(1, unicode::utf8_valid_prefix(bytes, i, &needed));
+    out.append("\xEF\xBF\xBD");
+  }
+  return out;
+}
+
+// Whether the bytes end with an incomplete but so far well-formed sequence,
+// which later bytes could still complete.
+bool ends_inside_sequence(std::string_view bytes) {
+  for (size_t back = 1; back <= 3 && back <= bytes.size(); ++back) {
+    if ((static_cast<unsigned char>(bytes[bytes.size() - back]) & 0xC0) == 0x80) continue;
+    size_t needed;
+    return unicode::utf8_valid_prefix(bytes, bytes.size() - back, &needed) == back && needed > back;
+  }
+  return false;
+}
+
+// GPT-2's reversible byte-to-character mapping: printable Latin-1 bytes map
+// to themselves and the rest to U+0100 onwards, so every byte has a visible
+// character in the vocabulary.
+struct ByteLevelAlphabet {
+  std::array<std::string, 256> encode;  // byte -> UTF-8 character
+  std::array<int16_t, 324> decode;      // code point -> byte, or -1
+  ByteLevelAlphabet() {
+    decode.fill(-1);
+    char32_t next = 256;
+    for (int b = 0; b < 256; ++b) {
+      const bool printable = (b >= '!' && b <= '~') || (b >= 0xA1 && b <= 0xAC) || (b >= 0xAE && b <= 0xFF);
+      const char32_t cp = printable ? static_cast<char32_t>(b) : next++;
+      unicode::append_utf8(encode[static_cast<size_t>(b)], cp);
+      decode[cp] = static_cast<int16_t>(b);
+    }
+  }
+};
+
+const ByteLevelAlphabet& byte_level() {
+  static const ByteLevelAlphabet alphabet;
+  return alphabet;
+}
+
+// The ByteLevel pre-tokenizer's built-in GPT-2 split pattern.
+const Regex& gpt2_regex() {
+  static const Regex regex =
+      Regex::compile(R"('s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+)");
+  return regex;
+}
+
+// Bytes a byte-level token stands for; tokens with characters outside the
+// alphabet (such as added tokens) stand for their own UTF-8, as in tokenizers.
+void append_byte_level_bytes(const std::string& token, std::string& out) {
+  const ByteLevelAlphabet& alphabet = byte_level();
+  const size_t start = out.size();
+  for (size_t i = 0, len = 0; i < token.size(); i += len) {
+    const char32_t cp = unicode::decode_utf8_at(token, i, &len);
+    if (cp >= alphabet.decode.size() || alphabet.decode[cp] < 0) {
+      out.resize(start);
+      out.append(token);
+      return;
+    }
+    out.push_back(static_cast<char>(alphabet.decode[cp]));
+  }
+}
+
+bool flag(const Json& node, const char* key, bool fallback) {
+  const Json* value = node.find(key);
+  return value == nullptr || value->is_null() ? fallback : value->as_bool();
 }
 
 std::string replace_all(std::string_view text, const std::string& pattern, const std::string& content) {
@@ -93,9 +179,10 @@ Tokenizer Tokenizer::from_json(const Json& root) {
   Tokenizer t;
   t.byte_ids_.fill(-1);
   t.load_model(root.at("model"));
-  t.load_added_tokens(root.find("added_tokens"));
+  // Before the added tokens: normalized ones are matched in normalized form.
   t.load_normalizer(root.find("normalizer"));
   t.load_pre_tokenizer(root.find("pre_tokenizer"));
+  t.load_added_tokens(root.find("added_tokens"));
   t.load_post_processor(root.find("post_processor"));
   t.load_decoder(root.find("decoder"));
   return t;
@@ -107,9 +194,12 @@ void Tokenizer::load_normalizer(const Json* node) {
   if (type == "Sequence") {
     for (const Json& step : node->at("normalizers").as_array()) load_normalizer(&step);
   } else if (type == "Replace") {
-    normalizer_.push_back({false, string_pattern(*node, "Replace"), node->at("content").as_string()});
+    normalizer_.push_back({NormalizerStep::Kind::Replace, string_pattern(*node, "Replace"),
+                           node->at("content").as_string()});
   } else if (type == "Prepend") {
-    normalizer_.push_back({true, "", node->at("prepend").as_string()});
+    normalizer_.push_back({NormalizerStep::Kind::Prepend, "", node->at("prepend").as_string()});
+  } else if (type == "NFC") {
+    normalizer_.push_back({NormalizerStep::Kind::NFC, "", ""});
   } else {
     fail("tokenizer: unsupported normalizer '" + type + "'");
   }
@@ -118,38 +208,57 @@ void Tokenizer::load_normalizer(const Json* node) {
 void Tokenizer::load_pre_tokenizer(const Json* node) {
   if (node == nullptr || node->is_null()) return;
   const std::string type = node->at("type").as_string();
-  if (type == "Split") {
-    LK_CHECK(!(node->find("invert") && node->at("invert").as_bool()), "tokenizer: inverted Split is not supported");
-    pre_kind_ = PreKind::Split;
-    split_pattern_ = string_pattern(*node, "Split");
-    LK_CHECK(!split_pattern_.empty(), "tokenizer: empty Split pattern");
+  PreTokenizerStep step{};
+  if (type == "Sequence") {
+    for (const Json& child : node->at("pretokenizers").as_array()) load_pre_tokenizer(&child);
+    return;
+  } else if (type == "Split") {
+    LK_CHECK(!flag(*node, "invert", false), "tokenizer: inverted Split is not supported");
+    step.kind = PreTokenizerStep::Kind::Split;
+    const Json& pattern = node->at("pattern");
+    if (pattern.contains("Regex")) {
+      const std::string& source = pattern.at("Regex").as_string();
+      step.regex = std::make_shared<const Regex>(Regex::compile(source));
+    } else {
+      step.literal = string_pattern(*node, "Split");
+      LK_CHECK(!step.literal.empty(), "tokenizer: empty Split pattern");
+    }
     const std::string behavior = node->at("behavior").as_string();
-    if (behavior == "Removed") split_behavior_ = SplitBehavior::Removed;
-    else if (behavior == "Isolated") split_behavior_ = SplitBehavior::Isolated;
-    else if (behavior == "MergedWithPrevious") split_behavior_ = SplitBehavior::MergedWithPrevious;
-    else if (behavior == "MergedWithNext") split_behavior_ = SplitBehavior::MergedWithNext;
-    else if (behavior == "Contiguous") split_behavior_ = SplitBehavior::Contiguous;
+    if (behavior == "Removed") step.behavior = SplitBehavior::Removed;
+    else if (behavior == "Isolated") step.behavior = SplitBehavior::Isolated;
+    else if (behavior == "MergedWithPrevious") step.behavior = SplitBehavior::MergedWithPrevious;
+    else if (behavior == "MergedWithNext") step.behavior = SplitBehavior::MergedWithNext;
+    else if (behavior == "Contiguous") step.behavior = SplitBehavior::Contiguous;
     else fail("tokenizer: unsupported Split behavior '" + behavior + "'");
   } else if (type == "Metaspace") {
-    pre_kind_ = PreKind::Metaspace;
-    metaspace_replacement_ = node->string_or("replacement", metaspace_replacement_);
+    step.kind = PreTokenizerStep::Kind::Metaspace;
+    step.replacement = node->string_or("replacement", "\xE2\x96\x81");  // U+2581
     const std::string scheme = node->string_or("prepend_scheme", "always");
-    metaspace_prepend_ = scheme == "first" ? PrependScheme::First
-                         : scheme == "never" ? PrependScheme::Never
-                                             : PrependScheme::Always;
-    if (const Json* split = node->find("split")) metaspace_split_ = split->as_bool();
+    step.prepend = scheme == "first" ? PrependScheme::First
+                   : scheme == "never" ? PrependScheme::Never
+                                       : PrependScheme::Always;
+    step.split = flag(*node, "split", true);
+  } else if (type == "ByteLevel") {
+    step.kind = PreTokenizerStep::Kind::ByteLevel;
+    step.add_prefix_space = flag(*node, "add_prefix_space", true);
+    step.use_regex = flag(*node, "use_regex", true);
   } else {
     fail("tokenizer: unsupported pre_tokenizer '" + type + "'");
   }
+  pre_tokenizer_.push_back(std::move(step));
 }
 
 void Tokenizer::load_model(const Json& model) {
   const std::string type = model.string_or("type", "BPE");
   LK_CHECK(type == "BPE", "tokenizer: unsupported model '" + type + "'");
-  for (const char* key : {"continuing_subword_prefix", "end_of_word_suffix", "dropout"}) {
+  // An empty prefix or suffix (Qwen writes "") is the same as none.
+  for (const char* key : {"continuing_subword_prefix", "end_of_word_suffix"}) {
     const Json* value = model.find(key);
-    LK_CHECK(value == nullptr || value->is_null(), std::string("tokenizer: BPE ") + key + " is not supported");
+    LK_CHECK(value == nullptr || value->is_null() || value->as_string().empty(),
+             std::string("tokenizer: BPE ") + key + " is not supported");
   }
+  const Json* dropout = model.find("dropout");
+  LK_CHECK(dropout == nullptr || dropout->is_null(), "tokenizer: BPE dropout is not supported");
   byte_fallback_ = model.find("byte_fallback") && model.at("byte_fallback").as_bool();
   fuse_unk_ = model.find("fuse_unk") && model.at("fuse_unk").as_bool();
   ignore_merges_ = model.find("ignore_merges") && model.at("ignore_merges").as_bool();
@@ -196,13 +305,12 @@ void Tokenizer::load_model(const Json& model) {
     auto ia = vocab_.find(a), ib = vocab_.find(b), im = vocab_.find(a + b);
     LK_CHECK(ia != vocab_.end() && ib != vocab_.end() && im != vocab_.end(),
              "tokenizer: merge '" + a + " " + b + "' refers to tokens outside the vocabulary");
-    merges_.emplace(pair_key(ia->second, ib->second),
-                    std::make_pair(static_cast<int32_t>(rank), im->second));
+    // A repeated pair keeps its last rank, as tokenizers' merge map does.
+    merges_[pair_key(ia->second, ib->second)] = std::make_pair(static_cast<int32_t>(rank), im->second);
   }
 }
 
 void Tokenizer::load_added_tokens(const Json* node) {
-  trie_.assign(1, TrieNode{});
   if (node == nullptr || node->is_null()) return;
   // tokenizers ignores the serialized ids and reassigns them: a token already
   // in the vocabulary keeps that id, otherwise it takes the next id after the
@@ -213,11 +321,10 @@ void Tokenizer::load_added_tokens(const Json* node) {
   std::unordered_map<std::string, int32_t> seen;
   for (const Json& entry : node->as_array()) {
     AddedToken token{entry.at("content").as_string(), static_cast<int32_t>(entry.at("id").as_int()),
-                     entry.find("special") && entry.at("special").as_bool()};
-    for (const char* flag : {"normalized", "lstrip", "rstrip", "single_word"}) {
-      const Json* value = entry.find(flag);
-      LK_CHECK(value == nullptr || !value->as_bool(),
-               "tokenizer: added token '" + token.content + "' uses unsupported option " + flag);
+                     flag(entry, "special", false)};
+    for (const char* option : {"lstrip", "rstrip", "single_word"}) {
+      LK_CHECK(!flag(entry, option, false),
+               "tokenizer: added token '" + token.content + "' uses unsupported option " + option);
     }
     LK_CHECK(!token.content.empty() && token.id >= 0, "tokenizer: malformed added token");
     LK_CHECK(seen.emplace(token.content, token.id).second, "tokenizer: duplicate added token '" + token.content + "'");
@@ -233,19 +340,16 @@ void Tokenizer::load_added_tokens(const Json* node) {
     id_to_token_[static_cast<size_t>(token.id)] = token.content;
     if (token.special) special_ids_.insert(token.id);
 
-    int32_t node_index = 0;
-    for (unsigned char c : token.content) {
-      auto it = trie_[static_cast<size_t>(node_index)].next.find(c);
-      if (it == trie_[static_cast<size_t>(node_index)].next.end()) {
-        trie_.push_back(TrieNode{});
-        const auto created = static_cast<int32_t>(trie_.size() - 1);
-        trie_[static_cast<size_t>(node_index)].next.emplace(c, created);
-        node_index = created;
-      } else {
-        node_index = it->second;
-      }
+    // A normalized token is matched in normalized text, against its own
+    // content run through the normalizer (Prepend applies to it too).
+    const auto index = static_cast<int32_t>(added_.size());
+    if (flag(entry, "normalized", !token.special)) {
+      const std::string key = normalize(token.content);
+      LK_CHECK(!key.empty(), "tokenizer: added token '" + token.content + "' normalizes to nothing");
+      normalized_trie_.insert(key, index);
+    } else {
+      raw_trie_.insert(token.content, index);
     }
-    trie_[static_cast<size_t>(node_index)].added = static_cast<int32_t>(added_.size());
     added_.push_back(std::move(token));
   }
 }
@@ -300,6 +404,8 @@ void Tokenizer::load_decoder(const Json* node) {
     step.kind = DecoderStep::Kind::Metaspace;
     step.content = node->string_or("replacement", "\xE2\x96\x81");
     step.metaspace_prepend = node->string_or("prepend_scheme", "always") != "never";
+  } else if (type == "ByteLevel") {
+    step.kind = DecoderStep::Kind::ByteLevel;  // Its options only affect offsets.
   } else {
     fail("tokenizer: unsupported decoder '" + type + "'");
   }
@@ -320,102 +426,210 @@ const std::string& Tokenizer::id_to_token(int32_t id) const {
   return id_to_token_[static_cast<size_t>(id)];
 }
 
+void Tokenizer::Trie::insert(std::string_view key, int32_t value) {
+  int32_t node = 0;
+  for (unsigned char c : key) {
+    auto it = nodes[static_cast<size_t>(node)].next.find(c);
+    if (it == nodes[static_cast<size_t>(node)].next.end()) {
+      nodes.emplace_back();
+      const auto created = static_cast<int32_t>(nodes.size() - 1);
+      nodes[static_cast<size_t>(node)].next.emplace(c, created);
+      node = created;
+    } else {
+      node = it->second;
+    }
+  }
+  nodes[static_cast<size_t>(node)].value = value;
+}
+
+int32_t Tokenizer::Trie::longest_match(std::string_view text, size_t begin, size_t* end) const {
+  int32_t node = 0;
+  int32_t matched = -1;
+  for (size_t j = begin; j < text.size(); ++j) {
+    const auto& next = nodes[static_cast<size_t>(node)].next;
+    auto it = next.find(static_cast<unsigned char>(text[j]));
+    if (it == next.end()) break;
+    node = it->second;
+    if (nodes[static_cast<size_t>(node)].value >= 0) {
+      matched = nodes[static_cast<size_t>(node)].value;
+      *end = j + 1;
+    }
+  }
+  return matched;
+}
+
 std::string Tokenizer::normalize(std::string_view text) const {
   std::string out(text);
   for (const NormalizerStep& step : normalizer_) {
-    if (step.prepend) {
-      if (!out.empty()) out = step.content + out;
-    } else {
-      out = replace_all(out, step.pattern, step.content);
+    switch (step.kind) {
+      case NormalizerStep::Kind::Replace:
+        out = replace_all(out, step.pattern, step.content);
+        break;
+      case NormalizerStep::Kind::Prepend:
+        if (!out.empty()) out = step.content + out;
+        break;
+      case NormalizerStep::Kind::NFC:
+        out = unicode::nfc(out);
+        break;
     }
   }
   return out;
 }
 
-std::vector<std::string> Tokenizer::pre_tokenize(const std::string& normalized, bool at_start) const {
-  std::vector<std::string> pieces;
-  if (normalized.empty()) return pieces;
-  if (pre_kind_ == PreKind::None) {
-    pieces.push_back(normalized);
-    return pieces;
-  }
+namespace {
 
-  std::string text = normalized;
-  std::string pattern = split_pattern_;
-  SplitBehavior behavior = split_behavior_;
-  if (pre_kind_ == PreKind::Metaspace) {
-    text = replace_all(text, " ", metaspace_replacement_);
-    const bool prepend = metaspace_prepend_ == PrependScheme::Always ||
-                         (metaspace_prepend_ == PrependScheme::First && at_start);
-    if (prepend && !starts_with(text, metaspace_replacement_)) text = metaspace_replacement_ + text;
-    if (!metaspace_split_) {
-      pieces.push_back(text);
-      return pieces;
-    }
-    pattern = metaspace_replacement_;
-    behavior = SplitBehavior::MergedWithNext;
-  }
+struct Span {
+  size_t begin, end;
+  bool match;
+};
 
-  // Alternating (begin, end, is_delimiter) spans covering the text.
-  struct Span {
-    size_t begin, end;
-    bool delim;
-  };
+// Alternating (begin, end, match) byte ranges covering `text`, following
+// tokenizers' find_matches. Regex matches use the onig crate's find_iter: an
+// empty match right where the previous match ended is skipped by advancing
+// one character.
+std::vector<Span> find_matches(std::string_view text, const std::string& literal, const Regex* regex) {
   std::vector<Span> spans;
-  size_t pos = 0;
-  while (pos < text.size()) {
-    size_t found = text.find(pattern, pos);
-    if (found == std::string::npos) {
-      spans.push_back({pos, text.size(), false});
-      break;
+  size_t previous = 0;
+  auto add_match = [&](size_t begin, size_t end) {
+    if (begin != previous) spans.push_back({previous, begin, false});
+    spans.push_back({begin, end, true});
+    previous = end;
+  };
+  if (regex == nullptr) {
+    for (size_t found = text.find(literal); found != std::string_view::npos;
+         found = text.find(literal, found + literal.size())) {
+      add_match(found, found + literal.size());
     }
-    if (found > pos) spans.push_back({pos, found, false});
-    spans.push_back({found, found + pattern.size(), true});
-    pos = found + pattern.size();
+  } else {
+    std::u32string chars;
+    std::vector<size_t> offsets;  // byte offset of each character, plus the end
+    chars.reserve(text.size());
+    offsets.reserve(text.size() + 1);
+    for (size_t i = 0, len = 0; i < text.size(); i += len) {
+      offsets.push_back(i);
+      chars.push_back(unicode::decode_utf8_at(text, i, &len));
+    }
+    offsets.push_back(text.size());
+    size_t last_end = 0;
+    bool have_match = false;
+    size_t last_match_end = 0;
+    while (last_end <= chars.size()) {
+      size_t begin, end;
+      if (!regex->search(chars, last_end, &begin, &end)) break;
+      if (begin == end && have_match && last_match_end == end) {
+        ++last_end;
+        continue;
+      }
+      last_end = end;
+      have_match = true;
+      last_match_end = end;
+      add_match(offsets[begin], offsets[end]);
+    }
   }
+  if (previous != text.size()) spans.push_back({previous, text.size(), false});
+  return spans;
+}
 
+// Groups spans into pieces by delimiter behavior (tokenizers'
+// NormalizedString::split); empty pieces are dropped later.
+std::vector<std::pair<size_t, size_t>> apply_behavior(const std::vector<Span>& spans, Tokenizer::SplitBehavior behavior) {
+  using B = Tokenizer::SplitBehavior;
   std::vector<std::pair<size_t, size_t>> merged;
   switch (behavior) {
-    case SplitBehavior::Removed:
+    case B::Removed:
       for (const Span& s : spans)
-        if (!s.delim) merged.emplace_back(s.begin, s.end);
+        if (!s.match) merged.emplace_back(s.begin, s.end);
       break;
-    case SplitBehavior::Isolated:
+    case B::Isolated:
       for (const Span& s : spans) merged.emplace_back(s.begin, s.end);
       break;
-    case SplitBehavior::MergedWithPrevious: {
-      bool previous_delim = false;
+    case B::MergedWithPrevious: {
+      bool previous_match = false;
       for (const Span& s : spans) {
-        if (s.delim && !previous_delim && !merged.empty()) merged.back().second = s.end;
+        if (s.match && !previous_match && !merged.empty()) merged.back().second = s.end;
         else merged.emplace_back(s.begin, s.end);
-        previous_delim = s.delim;
+        previous_match = s.match;
       }
       break;
     }
-    case SplitBehavior::MergedWithNext: {
-      bool previous_delim = false;
+    case B::MergedWithNext: {
+      bool previous_match = false;
       for (auto it = spans.rbegin(); it != spans.rend(); ++it) {
-        if (it->delim && !previous_delim && !merged.empty()) merged.back().first = it->begin;
+        if (it->match && !previous_match && !merged.empty()) merged.back().first = it->begin;
         else merged.emplace_back(it->begin, it->end);
-        previous_delim = it->delim;
+        previous_match = it->match;
       }
       std::reverse(merged.begin(), merged.end());
       break;
     }
-    case SplitBehavior::Contiguous: {
-      bool previous_delim = false;
+    case B::Contiguous: {
+      bool previous_match = false;
       for (const Span& s : spans) {
-        if (s.delim && previous_delim && !merged.empty()) merged.back().second = s.end;
+        if (s.match && previous_match && !merged.empty()) merged.back().second = s.end;
         else merged.emplace_back(s.begin, s.end);
-        previous_delim = s.delim;
+        previous_match = s.match;
       }
       break;
     }
   }
-  for (const auto& [begin, end] : merged) {
-    if (end > begin) pieces.push_back(text.substr(begin, end - begin));
+  return merged;
+}
+
+}  // namespace
+
+std::vector<Tokenizer::Word> Tokenizer::pre_tokenize(std::vector<Word> words) const {
+  std::vector<Word> next;
+  // Splits every word and keeps the non-empty pieces; only a piece at the
+  // start of a word that starts the input still starts the input.
+  auto split = [&](const Word& word, const std::string& literal, const Regex* regex, SplitBehavior behavior) {
+    for (const auto& [begin, end] : apply_behavior(find_matches(word.text, literal, regex), behavior)) {
+      if (end > begin) next.push_back({word.text.substr(begin, end - begin), word.at_start && begin == 0});
+    }
+  };
+  for (const PreTokenizerStep& step : pre_tokenizer_) {
+    next.clear();
+    for (Word& word : words) {
+      switch (step.kind) {
+        case PreTokenizerStep::Kind::Split:
+          split(word, step.literal, step.regex.get(), step.behavior);
+          break;
+        case PreTokenizerStep::Kind::Metaspace: {
+          word.text = replace_all(word.text, " ", step.replacement);
+          const bool prepend = step.prepend == PrependScheme::Always ||
+                               (step.prepend == PrependScheme::First && word.at_start);
+          if (prepend && !starts_with(word.text, step.replacement)) word.text = step.replacement + word.text;
+          if (step.split) split(word, step.replacement, nullptr, SplitBehavior::MergedWithNext);
+          else next.push_back(std::move(word));
+          break;
+        }
+        case PreTokenizerStep::Kind::ByteLevel: {
+          if (step.add_prefix_space && !starts_with(word.text, " ")) word.text.insert(0, " ");
+          const size_t first = next.size();
+          if (step.use_regex) split(word, "", &gpt2_regex(), SplitBehavior::Isolated);
+          else next.push_back(std::move(word));
+          const ByteLevelAlphabet& alphabet = byte_level();
+          for (size_t k = first; k < next.size(); ++k) {
+            std::string mapped;
+            mapped.reserve(next[k].text.size() * 2);
+            for (unsigned char c : next[k].text) mapped += alphabet.encode[c];
+            next[k].text = std::move(mapped);
+          }
+          break;
+        }
+      }
+    }
+    words.swap(next);
   }
-  return pieces;
+  return words;
+}
+
+std::vector<std::string> Tokenizer::words(std::string_view text) const {
+  validate_utf8(text);
+  std::vector<std::string> out;
+  const std::string normalized = normalize(text);
+  if (normalized.empty()) return out;
+  for (Word& word : pre_tokenize({{normalized, true}})) out.push_back(std::move(word.text));
+  return out;
 }
 
 void Tokenizer::bpe(const std::string& word, std::vector<int32_t>& out) const {
@@ -514,58 +728,77 @@ std::vector<int32_t> Tokenizer::encode(std::string_view text, bool add_special_t
   std::vector<int32_t> out;
   if (add_special_tokens) out = prefix_ids_;
 
-  auto encode_segment = [&](size_t begin, size_t end) {
-    if (end <= begin) return;
-    const std::string normalized = normalize(text.substr(begin, end - begin));
-    for (const std::string& piece : pre_tokenize(normalized, begin == 0)) bpe(piece, out);
-  };
-
-  // Added tokens are matched on the raw text, leftmost-longest.
-  size_t segment_begin = 0;
-  size_t i = 0;
-  while (i < text.size()) {
-    int32_t node = 0;
-    int32_t matched = -1;
-    size_t matched_end = 0;
-    for (size_t j = i; j < text.size(); ++j) {
-      auto it = trie_[static_cast<size_t>(node)].next.find(static_cast<unsigned char>(text[j]));
-      if (it == trie_[static_cast<size_t>(node)].next.end()) break;
-      node = it->second;
-      if (trie_[static_cast<size_t>(node)].added >= 0) {
-        matched = trie_[static_cast<size_t>(node)].added;
-        matched_end = j + 1;
+  // Leftmost-longest added-token matches split `input`; the text between
+  // them goes to `on_text` as byte ranges.
+  auto split_added = [&](const Trie& trie, std::string_view input, auto&& on_text) {
+    size_t segment = 0;
+    for (size_t i = 0; !trie.empty() && i < input.size();) {
+      size_t end = 0;
+      const int32_t matched = trie.longest_match(input, i, &end);
+      if (matched < 0) {
+        ++i;
+        continue;
       }
+      if (i > segment) on_text(segment, i);
+      out.push_back(added_[static_cast<size_t>(matched)].id);
+      i = segment = end;
     }
-    if (matched < 0) {
-      ++i;
-      continue;
-    }
-    encode_segment(segment_begin, i);
-    out.push_back(added_[static_cast<size_t>(matched)].id);
-    i = matched_end;
-    segment_begin = i;
-  }
-  encode_segment(segment_begin, text.size());
+    if (input.size() > segment) on_text(segment, input.size());
+  };
+  // As in tokenizers: added tokens that are not normalized are matched in
+  // the input, each remaining piece is normalized on its own, normalized
+  // added tokens are matched in that, and the rest is pre-tokenized.
+  split_added(raw_trie_, text, [&](size_t begin, size_t end) {
+    const std::string normalized = normalize(text.substr(begin, end - begin));
+    split_added(normalized_trie_, normalized, [&](size_t b, size_t e) {
+      for (const Word& word : pre_tokenize({{normalized.substr(b, e - b), begin == 0 && b == 0}})) bpe(word.text, out);
+    });
+  });
   if (add_special_tokens) out.insert(out.end(), suffix_ids_.begin(), suffix_ids_.end());
   return out;
 }
 
 size_t Tokenizer::stable_prefix(const std::vector<int32_t>& ids, bool skip_special_tokens) const {
-  bool byte_fallback = false;
+  bool byte_fallback = false, byte_level = false;
   for (const DecoderStep& step : decoder_) {
     // Stripping trailing characters after Fuse depends on what comes later.
     if (step.kind == DecoderStep::Kind::Strip && step.stop > 0) return 0;
     byte_fallback = byte_fallback || step.kind == DecoderStep::Kind::ByteFallback;
+    byte_level = byte_level || step.kind == DecoderStep::Kind::ByteLevel;
   }
-  size_t n = ids.size();
-  if (!byte_fallback) return n;
-  auto is_byte = [&](int32_t id) {
-    if (id < 0 || static_cast<size_t>(id) >= id_to_token_.size()) return false;
-    const std::string& token = id_to_token_[static_cast<size_t>(id)];
-    return token.size() == 6 && token.compare(0, 3, "<0x") == 0 && token[5] == '>' && hex_digit(token[3]) >= 0 &&
-           hex_digit(token[4]) >= 0;
+  auto decoded = [&](int32_t id) -> const std::string* {
+    if (id < 0 || static_cast<size_t>(id) >= id_to_token_.size() || id_to_token_[static_cast<size_t>(id)].empty()) {
+      return nullptr;  // dropped by decode
+    }
+    if (skip_special_tokens && is_special(id)) return nullptr;
+    return &id_to_token_[static_cast<size_t>(id)];
   };
-  while (n > 0 && (is_byte(ids[n - 1]) || (skip_special_tokens && is_special(ids[n - 1])))) --n;
+  size_t n = ids.size();
+  if (byte_fallback) {
+    auto is_byte = [&](int32_t id) {
+      const std::string* token = decoded(id);
+      return token != nullptr && token->size() == 6 && token->compare(0, 3, "<0x") == 0 && (*token)[5] == '>' &&
+             hex_digit((*token)[3]) >= 0 && hex_digit((*token)[4]) >= 0;
+    };
+    // Trailing byte tokens, and ids decode drops between them, stay pending.
+    while (n > 0 && (is_byte(ids[n - 1]) || decoded(ids[n - 1]) == nullptr)) --n;
+  }
+  if (byte_level) {
+    // The longest prefix whose bytes do not end inside a UTF-8 sequence:
+    // lossy decoding of it cannot change when more bytes follow. Only the
+    // last three bytes decide that.
+    for (; n > 0; --n) {
+      std::string tail;
+      for (size_t k = n; k > 0 && tail.size() < 3; --k) {
+        if (const std::string* token = decoded(ids[k - 1])) {
+          std::string bytes;
+          append_byte_level_bytes(*token, bytes);
+          tail.insert(0, bytes);
+        }
+      }
+      if (!ends_inside_sequence(tail)) break;
+    }
+  }
   return n;
 }
 
@@ -590,13 +823,7 @@ std::string Tokenizer::decode(const std::vector<int32_t>& ids, bool skip_special
         std::string pending;
         auto flush = [&] {
           if (pending.empty()) return;
-          bool valid = true;
-          try {
-            validate_utf8(pending);
-          } catch (const Error&) {
-            valid = false;
-          }
-          if (valid) {
+          if (is_valid_utf8(pending)) {
             next.push_back(pending);
           } else {
             for (size_t k = 0; k < pending.size(); ++k) next.push_back("\xEF\xBF\xBD");  // U+FFFD
@@ -633,6 +860,12 @@ std::string Tokenizer::decode(const std::vector<int32_t>& ids, bool skip_special
           }
         }
         break;
+      case DecoderStep::Kind::ByteLevel: {
+        std::string bytes;
+        for (const std::string& token : tokens) append_byte_level_bytes(token, bytes);
+        tokens.assign(1, utf8_lossy(bytes));
+        break;
+      }
       case DecoderStep::Kind::Metaspace:
         // As in tokenizers, every replacement character of the first token is
         // dropped (not just a leading one) when a prefix space was prepended.

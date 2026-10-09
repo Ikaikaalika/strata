@@ -206,6 +206,22 @@ def test_legacy_string_merges_load_identically(native_cli, tmp_path):
     assert ours == [tok.encode(text).ids for text in TEXTS[:50]]
 
 
+def test_repeated_merges_keep_their_last_rank(native_cli, tmp_path):
+    # tokenizers builds its merge map from the list in order, so a repeated
+    # pair ends up with its last rank: here "a b" drops below "b c".
+    data = {
+        "version": "1.0", "added_tokens": [], "normalizer": None, "pre_tokenizer": None,
+        "post_processor": None, "decoder": None,
+        "model": {"type": "BPE", "vocab": {"a": 0, "b": 1, "c": 2, "ab": 3, "bc": 4},
+                  "merges": [["a", "b"], ["b", "c"], ["a", "b"]]},
+    }
+    (tmp_path / "tokenizer.json").write_text(json.dumps(data), encoding="utf-8")
+    reference = Tokenizer.from_file(str(tmp_path / "tokenizer.json"))
+    assert reference.encode("abc").tokens == ["a", "bc"]
+    ours = _cli(native_cli, "tokenize", "--model", str(tmp_path), "--text", "abcabc")["ids"]
+    assert ours == reference.encode("abcabc").ids == [0, 4, 0, 4]
+
+
 def test_added_token_ids_disagreeing_with_reference_fail_closed(native_cli, tmp_path):
     data = json.loads(gemma_style().to_str())
     data["added_tokens"][-1]["id"] += 3  # tokenizers would silently renumber this token
@@ -229,14 +245,50 @@ def test_unsupported_components_fail_closed(native_cli, tmp_path):
     assert "unsupported normalizer 'NFKC'" in result.stderr
 
 
-def test_invalid_utf8_is_rejected(native_cli, saved_tokenizer):
+@pytest.mark.parametrize(
+    "raw",
+    [b"bad \xff byte", b"overlong \xc0\x80", b"surrogate \xed\xa0\x80", b"too large \xf4\x90\x80\x80", b"cut \xe2\x82"],
+)
+def test_invalid_utf8_is_rejected(native_cli, saved_tokenizer, raw):
     directory, _ = saved_tokenizer
     result = subprocess.run(
-        [str(native_cli).encode(), b"tokenize", b"--model", str(directory).encode(), b"--text", b"bad \xff byte"],
+        [str(native_cli).encode(), b"tokenize", b"--model", str(directory).encode(), b"--text", raw],
         capture_output=True,
     )
     assert result.returncode != 0
     assert b"not valid UTF-8" in result.stderr
+
+
+def test_byte_fallback_rejects_ill_formed_utf8_like_the_reference(native_cli, tmp_path):
+    # Byte runs spelling a surrogate, an overlong form or a value above
+    # U+10FFFF are not UTF-8: the reference replaces every byte.
+    tok = gemma_style()
+    tok.save(str(tmp_path / "tokenizer.json"))
+    runs = [[0xED, 0xA0, 0x80], [0xC0, 0x80], [0xF4, 0x90, 0x80, 0x80], [0xE2, 0x82, 0xAC], [0xF0, 0x9F, 0x99, 0x82, 0xC3]]
+    id_lists = [[tok.token_to_id(f"<0x{value:02X}>") for value in run] for run in runs]
+    ids_file = tmp_path / "ids.json"
+    ids_file.write_text(json.dumps(id_lists), encoding="utf-8")
+    ours = _cli(native_cli, "detokenize", "--model", str(tmp_path), "--ids-file", str(ids_file))["texts"]
+    assert ours == [tok.decode(ids) for ids in id_lists]
+    assert ours[0] == "\ufffd" * 3 and ours[3] == "\u20ac"
+
+
+def test_normalized_added_tokens_match_the_normalized_text(native_cli, tmp_path):
+    # A normalized added token is matched against its own normalized form:
+    # with Llama 2's normalizer that is "\u2581hello\u2581world", which matches
+    # after a space or at the start of a piece but not glued to a word.
+    tok = llama2_style()
+    tok.add_tokens([AddedToken("hello world", normalized=True, special=False)])
+    tok.save(str(tmp_path / "tokenizer.json"))
+    texts = ["hello world", "say hello world", "<bos>hello world<eos>hello world", "hello worldhello world",
+             "sayhello world"]
+    texts_file = tmp_path / "texts.json"
+    texts_file.write_text(json.dumps(texts), encoding="utf-8")
+    ours = _cli(native_cli, "tokenize", "--model", str(tmp_path), "--texts-file", str(texts_file))["ids"]
+    expected = [tok.encode(text).ids for text in texts]
+    assert ours == expected
+    added = tok.token_to_id("hello world")
+    assert [ids.count(added) for ids in expected] == [1, 1, 2, 1, 0]
 
 
 @pytest.mark.skipif(not os.environ.get("LOKAHI_MODEL_ROOT"), reason="needs a staged Gemma 3 snapshot")

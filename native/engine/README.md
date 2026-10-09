@@ -12,6 +12,7 @@ cmake --build build/engine -j
 ./build/engine/lokahi run --model DIR --prompt "Explain unified memory in one paragraph."
 ./build/engine/lokahi generate --model DIR --prompt "Aloha" --max-new 64     # JSON: tokens + text
 ./build/engine/lokahi tokenize --model DIR --text "Aloha kākou"
+./build/engine/lokahi pretokenize --model DIR --text "Aloha kākou"          # words BPE runs on
 ./build/engine/lokahi bench --model DIR --tokens-file prompt.txt --max-new 128
 ```
 
@@ -23,7 +24,7 @@ cmake --build build/engine -j
 | Gemma 3 text decoder, Metal backend | Implemented, awaiting first hardware run | Builds on hosted macOS CI; execution and parity run on the self-hosted runner |
 | MLX affine 2/4/8-bit weights, BF16/F16 scales, per-module bit overrides | Implemented | Unit tests; MLX cross-check on Apple Silicon |
 | Tokenizer: SentencePiece-style BPE (Gemma, Llama 2, Mistral) from `tokenizer.json` | Implemented | Correctness: identical ids and text to Hugging Face `tokenizers` on trained fixtures (byte fallback, unknown fusion, added tokens, Metaspace) and a 262k-entry synthetic vocabulary (`tests/test_tokenizer.py`) |
-| Tokenizer: byte-level BPE (Llama 3, Qwen, GPT-OSS) | Not yet | Needs Unicode category tables for the split regex |
+| Tokenizer: byte-level BPE (Llama 3, Qwen, GPT-OSS, DeepSeek, GLM) | Implemented | Correctness: identical words, ids and text to Hugging Face `tokenizers` for the Qwen 3, Llama 3, GLM, GPT-OSS o200k, DeepSeek V3 and GPT-2 configurations on text from every Unicode plane (`tests/test_tokenizer_bytelevel.py`); regex engine fuzzed against the reference's Oniguruma |
 | Streaming text output (`lokahi run`) | Implemented | Emits only text later tokens cannot rewrite; property-tested |
 
 No throughput claim is made until the self-hosted runner records hardware
@@ -68,6 +69,19 @@ before its queries read the preceding window.
 **Numerics.** Activations, norms, attention and the KV cache are float32.
 Weights stay in their packed 4-bit or 8-bit form and are dequantized inside
 the kernels.
+
+**Tokenizer.** `tokenizer.json` is interpreted natively and must agree with
+Hugging Face `tokenizers` id for id; components it cannot reproduce exactly
+fail at load time. Byte-level models split text with their published regex,
+run by a backtracking engine for the Oniguruma subset those patterns use
+(Unicode property classes, lookahead, case-insensitive groups, lazy and
+possessive quantifiers) with leftmost-first semantics. The reference does not
+use one Unicode version: its regex classes follow Unicode 16 while its NFC
+follows older data. `tools/gen_unicode_tables.py` therefore extracts the
+category, combining-class and composition tables from the pinned reference
+release, so new code points classify and normalize exactly as it does.
+Streaming holds back tokens that end inside a UTF-8 sequence or a
+byte-fallback run, so emitted text is never rewritten.
 
 ## Checks on machines without Apple SDKs
 

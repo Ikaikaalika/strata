@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test dependencies
-        run: python -m pip install numpy pytest tokenizers
+        run: python -m pip install numpy pytest tokenizers==0.23.3
       - name: Build native engine
         run: |
           cmake -S native/engine -B build/engine -DCMAKE_BUILD_TYPE=Release
@@ -67,5 +67,5 @@ jobs:
           LOKAHI_NATIVE_BUILD_DIR: build/engine
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install numpy pytest tokenizers
-          PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_native_engine.py tests/test_tokenizer.py tests/test_c_abi.py
+          .venv/bin/pip install numpy pytest tokenizers==0.23.3
+          PYTHONPATH=src .venv/bin/python -m pytest -q tests/test_native_engine.py tests/test_tokenizer.py tests/test_tokenizer_bytelevel.py tests/test_c_abi.py
