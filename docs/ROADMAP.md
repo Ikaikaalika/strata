@@ -73,7 +73,7 @@ that work ran on the ANE.
 
 | Step | Work |
 |---|---|
-| C1 | Native tokenizer (Hugging Face `tokenizer.json`: SentencePiece-BPE with byte fallback, plus byte-level BPE) so the production path has no Python |
+| C1 | Native tokenizer so the production path has no Python. SentencePiece-style BPE (Gemma, Llama 2, Mistral) is done and matches Hugging Face `tokenizers`; byte-level BPE (Llama 3, Qwen, GPT-OSS) and faster `tokenizer.json` loading (about 1.2 s for a 262k vocabulary today) are next |
 | C2 | Sampling (temperature, top-k/p, min-p, repetition penalties) fused on the GPU, with CPU fallback |
 | C3 | Scheduler: separate prefill and decode queues, continuous batching, prefix cache, cancellation |
 | C4 | Matrix compute on the CPU: AMX on M1–M3 through Accelerate (BNNS / BLAS), and SME2 on M4 and later, for small-batch side work such as draft-model layers or embeddings, only where measured to help |

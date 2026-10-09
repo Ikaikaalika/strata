@@ -9,7 +9,9 @@ cmake -S native/engine -B build/engine -DCMAKE_BUILD_TYPE=Release   # Metal is o
 cmake --build build/engine -j
 ./build/engine/lokahi_engine_tests
 ./build/engine/lokahi info --model /path/to/mlx-snapshot
-./build/engine/lokahi generate --model DIR --tokens 2,4521,603 --max-new 64
+./build/engine/lokahi run --model DIR --prompt "Explain unified memory in one paragraph."
+./build/engine/lokahi generate --model DIR --prompt "Aloha" --max-new 64     # JSON: tokens + text
+./build/engine/lokahi tokenize --model DIR --text "Aloha kākou"
 ./build/engine/lokahi bench --model DIR --tokens-file prompt.txt --max-new 128
 ```
 
@@ -20,7 +22,9 @@ cmake --build build/engine -j
 | Gemma 3 text decoder, CPU backend | Implemented | Correctness: matches the NumPy oracle within 2e-4 relative; greedy tokens exact (`tests/test_native_engine.py`) |
 | Gemma 3 text decoder, Metal backend | Implemented, awaiting first hardware run | Builds on hosted macOS CI; execution and parity run on the self-hosted runner |
 | MLX affine 2/4/8-bit weights, BF16/F16 scales, per-module bit overrides | Implemented | Unit tests; MLX cross-check on Apple Silicon |
-| Tokenizer | Not yet native | Callers pass token ids; benchmarks tokenize with MLX-LM |
+| Tokenizer: SentencePiece-style BPE (Gemma, Llama 2, Mistral) from `tokenizer.json` | Implemented | Correctness: identical ids and text to Hugging Face `tokenizers` on trained fixtures (byte fallback, unknown fusion, added tokens, Metaspace) and a 262k-entry synthetic vocabulary (`tests/test_tokenizer.py`) |
+| Tokenizer: byte-level BPE (Llama 3, Qwen, GPT-OSS) | Not yet | Needs Unicode category tables for the split regex |
+| Streaming text output (`lokahi run`) | Implemented | Emits only text later tokens cannot rewrite; property-tested |
 
 No throughput claim is made until the self-hosted runner records hardware
 evidence against a fresh MLX-LM control.
