@@ -17,6 +17,7 @@
 #include "safetensors.h"
 #include "thread_pool.h"
 #include "tokenizer.h"
+#include "unicode.h"
 
 using namespace lokahi;
 
@@ -199,6 +200,38 @@ void test_thread_pool() {
   EXPECT(all);
 }
 
+void test_unicode() {
+  using namespace unicode;
+  auto length = [](std::string_view bytes) { return utf8_sequence_length(bytes, 0); };
+  EXPECT(length("A") == 1 && length("\xC3\xA9") == 2 && length("\xE2\x82\xAC") == 3);
+  EXPECT(length("\xF0\x9F\x99\x82") == 4 && length("\xF4\x8F\xBF\xBF") == 4);
+  EXPECT(length("\xC0\x80") == 0);          // overlong
+  EXPECT(length("\xE0\x80\x80") == 0);      // overlong
+  EXPECT(length("\xED\xA0\x80") == 0);      // surrogate
+  EXPECT(length("\xF4\x90\x80\x80") == 0);  // above U+10FFFF
+  EXPECT(length("\xE2\x82") == 0 && length("\x80") == 0 && length("\xFF") == 0);
+  EXPECT(throws([] { decode_utf8("a\xED\xBF\xBF" "b"); }));
+  EXPECT(decode_utf8("a\xC3\xA9\xF0\x9F\x99\x82") == std::u32string({'a', 0xE9, 0x1F642}));
+
+  EXPECT(category('A') == Lu && category('a') == Ll && category(0x01C5) == Lt && category('7') == Nd);
+  EXPECT(category(0x4E00) == Lo && category(0x0301) == Mn && category(0x00A0) == Zs && category(0x0378) == Cn);
+  EXPECT(category(0xE000) == Co && category(0x10FFFF) == Cn && category(0x200D) == Cf);
+  EXPECT(category(0x13460) == Lo);  // Egyptian Hieroglyphs Extended-A, as the reference's Unicode 16 data says
+  EXPECT(is_space('\t') && is_space(0x0B) && is_space(0x85) && is_space(0x3000) && is_space(0x2029));
+  EXPECT(!is_space(0x200B) && !is_space(0x180E) && !is_space('x'));
+
+  EXPECT(nfc("e\xCC\x81") == "\xC3\xA9");                            // e + U+0301 -> U+00E9
+  EXPECT(nfc("\xE2\x84\xAB") == "\xC3\x85");                        // U+212B ANGSTROM SIGN -> U+00C5
+  EXPECT(nfc("\xE1\x84\x80\xE1\x85\xA1\xE1\x86\xA8") == "\xEA\xB0\x81");  // jamo -> U+AC01
+  // a + U+0301 (230) + U+0316 (220): reordered, then the acute composes past
+  // the lower-class mark.
+  EXPECT(nfc("a\xCC\x81\xCC\x96") == "\xC3\xA1\xCC\x96");
+  // Dives Akuru U+11935 U+11930 compose in Unicode 13+, but not in the
+  // reference normalizer, so they stay apart.
+  EXPECT(nfc("\xF0\x91\xA4\xB5\xF0\x91\xA4\xB0") == "\xF0\x91\xA4\xB5\xF0\x91\xA4\xB0");
+  EXPECT(std::string(reference()).rfind("tokenizers ", 0) == 0);
+}
+
 // Streaming must never emit text that a later token rewrites: for every
 // prefix, decode(ids[0, stable_prefix)) must be a prefix of every later
 // full decode. Byte-fallback groups are the case that makes this nontrivial.
@@ -254,6 +287,7 @@ int main() {
   test_quant_config();
   test_safetensors();
   test_thread_pool();
+  test_unicode();
   test_tokenizer_stable_prefix();
   if (g_failures) {
     std::fprintf(stderr, "%d expectation(s) failed\n", g_failures);
