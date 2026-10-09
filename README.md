@@ -114,6 +114,10 @@ Dynamic whole-model and partial-weight SSD residency is specified in
 [docs/DYNAMIC_SSD_RESIDENCY.md](docs/DYNAMIC_SSD_RESIDENCY.md); it always stages
 weights into unified memory and never treats the checkout HDD as SSD.
 
+The native engine lives in [native/engine](native/engine/README.md); the
+build order for models and compute units is [docs/ROADMAP.md](docs/ROADMAP.md),
+and hardware CI setup is [docs/APPLE_SILICON_RUNNER.md](docs/APPLE_SILICON_RUNNER.md).
+
 See [docs/COMMON_COMPUTE_RUNTIME.md](docs/COMMON_COMPUTE_RUNTIME.md) for the
 canonical ownership map, XPC protocol, adaptation loop, migration waves, and
 acceptance gates.

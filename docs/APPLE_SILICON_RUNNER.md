@@ -104,3 +104,6 @@ the evidence notes.
 | `tests/test_mlx_crosscheck.py` | Correctness (oracle vs MLX and MLX-LM) |
 | Native Metal and ANE probes | Hardware qualification of single operators |
 | Benchmark suite | Hardware evidence for one pinned model, chip, OS build, and workload |
+
+Common Compute fleet runs (other chips) use the same evidence format; see
+[`ROADMAP.md`](ROADMAP.md).
