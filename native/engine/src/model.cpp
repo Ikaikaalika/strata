@@ -7,6 +7,10 @@
 #include "json.h"
 #include "safetensors.h"
 
+#if defined(LOKAHI_WITH_METAL)
+#include "metal/metal_gemma3.h"
+#endif
+
 namespace lokahi {
 
 int32_t argmax(const float* values, int count) {
@@ -46,8 +50,14 @@ std::unique_ptr<Model> load_model(const std::string& directory, const LoadOption
            "unsupported architecture '" + config.string_or("model_type", "?") +
                "'; this build supports Gemma 3 text models");
   auto weights = Gemma3Weights::load(directory);
-  std::string backend = options.backend == "auto" ? "cpu" : options.backend;
+  std::string backend = options.backend;
+#if defined(LOKAHI_WITH_METAL)
+  if (backend == "auto") backend = metal_available() ? "metal" : "cpu";
+  if (backend == "metal") return make_gemma3_metal(std::move(weights), options);
+#else
+  if (backend == "auto") backend = "cpu";
   LK_CHECK(backend != "metal", "this build has no Metal backend");
+#endif
   LK_CHECK(backend == "cpu", "unknown backend '" + backend + "'");
   return make_gemma3_cpu(std::move(weights), options);
 }
