@@ -14,6 +14,7 @@
 #include "half.h"
 #include "json.h"
 #include "quant.h"
+#include "regex.h"
 #include "safetensors.h"
 #include "thread_pool.h"
 #include "tokenizer.h"
@@ -232,6 +233,53 @@ void test_unicode() {
   EXPECT(std::string(reference()).rfind("tokenizers ", 0) == 0);
 }
 
+// All matches of `pattern` in `text`, as code-point [begin, end) pairs.
+std::vector<std::pair<size_t, size_t>> matches(const char* pattern, std::string_view text) {
+  const Regex regex = Regex::compile(pattern);
+  const std::u32string chars = unicode::decode_utf8(text);
+  std::vector<std::pair<size_t, size_t>> out;
+  size_t from = 0, begin = 0, end = 0;
+  while (from <= chars.size() && regex.search(chars, from, &begin, &end)) {
+    out.emplace_back(begin, end);
+    from = end > begin ? end : end + 1;
+  }
+  return out;
+}
+
+void test_regex() {
+  using M = std::vector<std::pair<size_t, size_t>>;
+  EXPECT(matches("a+?b", "aaab") == M({{0, 4}}));
+  EXPECT(matches("a*+a", "aaa").empty());  // possessive: never gives back
+  EXPECT(matches("(?:ab|a)+b", "abab") == M({{0, 4}}));
+  EXPECT(matches("(?:a|ab)(?:c|bcd)", "abcd") == M({{0, 4}}));  // leftmost-first, with backtracking
+  EXPECT(matches("x(?=y)", "xyxz") == M({{0, 1}}));
+  EXPECT(matches("x(?!y)", "xyxz") == M({{2, 3}}));
+  EXPECT(matches("a{2}", "aaaaa") == M({{0, 2}, {2, 4}}));
+  EXPECT(matches("a{,2}b", "aaab") == M({{1, 4}}));  // {,n} is {0,n}
+  EXPECT(matches("a{x", "a{x") == M({{0, 3}}));      // not an interval: literal
+  EXPECT(matches("(?i:'s|'ll)", "'S 'Ll '\xC5\xBF") == M({{0, 2}, {3, 6}, {7, 9}}));  // includes U+017F
+  EXPECT(matches("\\s+(?!\\S)|\\s+", "a   b") == M({{1, 3}, {3, 4}}));
+  EXPECT(matches("[^\\r\\n\\p{L}\\p{N}]?\\p{L}+", "\"Hello, w\xC3\xB6rld") == M({{0, 6}, {7, 13}}));
+  EXPECT(matches("\\p{N}{1,3}", "12345") == M({{0, 3}, {3, 5}}));
+  EXPECT(matches("[\\p{Lu}\\p{Lt}]+", "abCD\xC7\x85" "e") == M({{2, 5}}));
+  EXPECT(matches("\\p{Uppercase_Letter}", "aB") == M({{1, 2}}));
+  EXPECT(matches("\\P{L}+|\\p{^N}", "ab12") == M({{0, 1}, {1, 2}, {2, 4}}));
+  EXPECT(matches("[\\]\\-a-c]+", "]-abcd") == M({{0, 5}}));
+  EXPECT(matches("^ab|cd$", "ab\nab cd\ncd") == M({{0, 2}, {3, 5}, {6, 8}, {9, 11}}));
+  EXPECT(matches("\\x{1F642}|\\u00e9", "\xF0\x9F\x99\x82\xC3\xA9") == M({{0, 1}, {1, 2}}));
+
+  for (const char* bad : {"\\w", "(?<name>a)", "[[a]]", "[a&&b]", "\\p{Han}", "*a", "a)", "(a", "[a", "a{3,2}",
+                          "(?i:\\p{L})", "(?i:[a])", "(?i:\\u00e9)", "(?=a)*"}) {
+    EXPECT(throws([&] { Regex::compile(bad); }));
+  }
+  // Group repetition is capped well inside small thread stacks.
+  std::string under, over;
+  for (int i = 0; i < 200; ++i) under += "ab";
+  for (int i = 0; i < 300; ++i) over += "ab";
+  EXPECT(matches("(?:ab)+", under) == M({{0, 400}}));
+  EXPECT(throws([&] { matches("(?:ab)+", over); }));
+}
+
 // Streaming must never emit text that a later token rewrites: for every
 // prefix, decode(ids[0, stable_prefix)) must be a prefix of every later
 // full decode. Byte-fallback groups are the case that makes this nontrivial.
@@ -288,6 +336,7 @@ int main() {
   test_safetensors();
   test_thread_pool();
   test_unicode();
+  test_regex();
   test_tokenizer_stable_prefix();
   if (g_failures) {
     std::fprintf(stderr, "%d expectation(s) failed\n", g_failures);
