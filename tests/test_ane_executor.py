@@ -108,7 +108,9 @@ w = np.fromfile(weight_path, dtype=np.float16).reshape(256, 256)
 # Emulate the native logical [token,width] -> physical [channel,spatial]
 # IOSurface copy, convolution, and physical -> logical output copy.
 surface_input = x.T.copy()
-surface_output = w.astype(np.float32) @ surface_input.astype(np.float32)
+# Accumulate in float64 so the result does not depend on the BLAS summation
+# order for this transposed product (float32 differed by 1 FP16 ulp in CI).
+surface_output = w.astype(np.float64) @ surface_input.astype(np.float64)
 output = surface_output.T.astype(np.float16)
 if mode == "nonfinite_output":
     output.fill(np.nan)
@@ -193,7 +195,7 @@ class ANEProjectionExecutorTest(unittest.TestCase):
 
     def test_success_protocol_matches_cpu_reference(self):
         expected = (
-            self.input.astype(np.float32) @ self.weight.astype(np.float32).T
+            self.input.astype(np.float64) @ self.weight.astype(np.float64).T
         ).astype(np.float16)
         with _fake_worker("success") as worker:
             executor = ANEProjectionExecutor(worker, timeout_seconds=2)
