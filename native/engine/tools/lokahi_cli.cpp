@@ -7,6 +7,7 @@
 //                     [--warmups W] [--repetitions R]
 //   lokahi tokenize   --model DIR (--text TEXT | --texts-file F.json) [--no-special]
 //   lokahi detokenize --model DIR (--tokens 1,2 | --ids-file F.json) [--keep-special]
+//   lokahi pretokenize --model DIR (--text TEXT | --texts-file F.json)
 //   lokahi run        --model DIR --prompt TEXT [--max-new N]
 //
 // `run` streams generated text to stdout; every other command prints one
@@ -50,7 +51,7 @@ struct Args {
 
 Args parse_args(int argc, char** argv) {
   Args args;
-  LK_CHECK(argc >= 2, "usage: lokahi <info|logits|generate|bench|tokenize|detokenize|run> --model DIR ...");
+  LK_CHECK(argc >= 2, "usage: lokahi <info|logits|generate|bench|tokenize|detokenize|pretokenize|run> --model DIR ...");
   args.command = argv[1];
   for (int i = 2; i < argc; ++i) {
     std::string key = argv[i];
@@ -234,6 +235,30 @@ int cmd_detokenize(const Args& args) {
   return 0;
 }
 
+// The words BPE runs on (normalizer + pre-tokenizer), for diagnostics.
+int cmd_pretokenize(const Args& args) {
+  Tokenizer tokenizer = load_tokenizer(args);
+  auto words_json = [&](const std::string& text) {
+    std::string out = "[";
+    for (const std::string& word : tokenizer.words(text)) out += (out.size() > 1 ? "," : "") + json_string(word);
+    return out + "]";
+  };
+  if (args.has("texts-file")) {
+    Json texts = Json::parse(read_text_file(args.get("texts-file")));
+    std::string out = "{\"words\":[";
+    bool first = true;
+    for (const Json& text : texts.as_array()) {
+      out += (first ? "" : ",") + words_json(text.as_string());
+      first = false;
+    }
+    std::printf("%s]}\n", out.c_str());
+    return 0;
+  }
+  LK_CHECK(args.has("text"), "--text or --texts-file is required");
+  std::printf("{\"words\":%s}\n", words_json(args.get("text")).c_str());
+  return 0;
+}
+
 // Streams decoded text while generating. Only text that later tokens cannot
 // change is written, so the stream always equals the final decode.
 int cmd_run(const Args& args) {
@@ -321,6 +346,7 @@ int main(int argc, char** argv) {
     LK_CHECK(args.has("model"), "--model is required");
     if (args.command == "tokenize") return cmd_tokenize(args);
     if (args.command == "detokenize") return cmd_detokenize(args);
+    if (args.command == "pretokenize") return cmd_pretokenize(args);
     if (args.command == "run") return cmd_run(args);
     if (args.command == "info") return cmd_info(args);
     if (args.command == "logits") return cmd_logits(args);

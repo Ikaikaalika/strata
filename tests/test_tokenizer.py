@@ -273,6 +273,24 @@ def test_byte_fallback_rejects_ill_formed_utf8_like_the_reference(native_cli, tm
     assert ours[0] == "\ufffd" * 3 and ours[3] == "\u20ac"
 
 
+def test_normalized_added_tokens_match_the_normalized_text(native_cli, tmp_path):
+    # A normalized added token is matched against its own normalized form:
+    # with Llama 2's normalizer that is "\u2581hello\u2581world", which matches
+    # after a space or at the start of a piece but not glued to a word.
+    tok = llama2_style()
+    tok.add_tokens([AddedToken("hello world", normalized=True, special=False)])
+    tok.save(str(tmp_path / "tokenizer.json"))
+    texts = ["hello world", "say hello world", "<bos>hello world<eos>hello world", "hello worldhello world",
+             "sayhello world"]
+    texts_file = tmp_path / "texts.json"
+    texts_file.write_text(json.dumps(texts), encoding="utf-8")
+    ours = _cli(native_cli, "tokenize", "--model", str(tmp_path), "--texts-file", str(texts_file))["ids"]
+    expected = [tok.encode(text).ids for text in texts]
+    assert ours == expected
+    added = tok.token_to_id("hello world")
+    assert [ids.count(added) for ids in expected] == [1, 1, 2, 1, 0]
+
+
 @pytest.mark.skipif(not os.environ.get("LOKAHI_MODEL_ROOT"), reason="needs a staged Gemma 3 snapshot")
 def test_real_gemma3_tokenizer_matches_reference(native_cli, tmp_path):
     root = Path(os.environ["LOKAHI_MODEL_ROOT"])

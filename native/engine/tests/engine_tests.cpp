@@ -280,9 +280,32 @@ void test_regex() {
   EXPECT(throws([&] { matches("(?:ab)+", over); }));
 }
 
-// Streaming must never emit text that a later token rewrites: for every
-// prefix, decode(ids[0, stable_prefix)) must be a prefix of every later
-// full decode. Byte-fallback groups are the case that makes this nontrivial.
+// For every prefix of random id sequences, decode(ids[0, stable_prefix))
+// must be a prefix of every later full decode.
+bool streaming_is_prefix_stable(const Tokenizer& tokenizer, const std::vector<int32_t>& pool, unsigned seed) {
+  std::mt19937 rng(seed);
+  for (int trial = 0; trial < 400; ++trial) {
+    std::vector<int32_t> ids;
+    for (int i = 0; i < 12; ++i) ids.push_back(pool[rng() % pool.size()]);
+    for (bool skip : {true, false}) {
+      for (size_t n = 0; n <= ids.size(); ++n) {
+        std::vector<int32_t> head(ids.begin(), ids.begin() + static_cast<long>(n));
+        const size_t stable = tokenizer.stable_prefix(head, skip);
+        const std::string emitted =
+            tokenizer.decode(std::vector<int32_t>(head.begin(), head.begin() + static_cast<long>(stable)), skip);
+        for (size_t m = n; m <= ids.size(); ++m) {
+          const std::string later =
+              tokenizer.decode(std::vector<int32_t>(ids.begin(), ids.begin() + static_cast<long>(m)), skip);
+          if (later.compare(0, emitted.size(), emitted) != 0) return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+// Streaming must never emit text that a later token rewrites. Byte-fallback
+// groups are the case that makes this nontrivial for SentencePiece models.
 void test_tokenizer_stable_prefix() {
   std::string vocab = R"("<unk>": 0, "<s>": 1, "a": 258, "\u2581": 259, "b": 260)";
   for (int b = 0; b < 256; ++b) {
@@ -299,31 +322,51 @@ void test_tokenizer_stable_prefix() {
             {"type": "ByteFallback"}, {"type": "Fuse"}]}})");
   Tokenizer tokenizer = Tokenizer::from_json(root);
   // Bytes of "é" (C3 A9) and "€" (E2 82 AC) plus stray continuation bytes.
-  const std::vector<int32_t> pool = {258, 259, 260, 1, 0xC3 + 2, 0xA9 + 2, 0xE2 + 2, 0x82 + 2, 0xAC + 2, 0x91 + 2, 'Z' + 2};
-  std::mt19937 rng(5);
-  bool ok = true;
-  for (int trial = 0; trial < 400 && ok; ++trial) {
-    std::vector<int32_t> ids;
-    for (int i = 0; i < 12; ++i) ids.push_back(pool[rng() % pool.size()]);
-    for (bool skip : {true, false}) {
-      for (size_t n = 0; n <= ids.size() && ok; ++n) {
-        std::vector<int32_t> head(ids.begin(), ids.begin() + static_cast<long>(n));
-        const size_t stable = tokenizer.stable_prefix(head, skip);
-        const std::string emitted =
-            tokenizer.decode(std::vector<int32_t>(head.begin(), head.begin() + static_cast<long>(stable)), skip);
-        for (size_t m = n; m <= ids.size(); ++m) {
-          const std::string later =
-              tokenizer.decode(std::vector<int32_t>(ids.begin(), ids.begin() + static_cast<long>(m)), skip);
-          ok = ok && later.compare(0, emitted.size(), emitted) == 0;
-        }
-      }
-    }
-  }
-  EXPECT(ok);
+  EXPECT(streaming_is_prefix_stable(
+      tokenizer, {258, 259, 260, 1, 0xC3 + 2, 0xA9 + 2, 0xE2 + 2, 0x82 + 2, 0xAC + 2, 0x91 + 2, 'Z' + 2}, 5));
   // Without the hold-back, "Z" then 0x91 would rewrite "Z" as two U+FFFD.
   EXPECT(tokenizer.decode({'Z' + 2}, true) == "Z");
   EXPECT(tokenizer.decode({'Z' + 2, 0x91 + 2}, true) == "\xEF\xBF\xBD\xEF\xBF\xBD");
   EXPECT(tokenizer.stable_prefix({258, 'Z' + 2}, true) == 1);
+}
+
+// Byte-level tokens can end inside a UTF-8 sequence; decoding is lossy, so
+// a held-back incomplete sequence must not be emitted early.
+void test_byte_level_stable_prefix() {
+  // GPT-2's byte-to-character alphabet: id b is byte b; 256.. are merges.
+  std::string vocab;
+  int next = 256;
+  std::vector<std::string> chars(256);
+  for (int b = 0; b < 256; ++b) {
+    const bool printable = (b >= '!' && b <= '~') || (b >= 0xA1 && b <= 0xAC) || (b >= 0xAE && b <= 0xFF);
+    std::string utf8;
+    unicode::append_utf8(utf8, static_cast<char32_t>(printable ? b : next++));
+    chars[static_cast<size_t>(b)] = utf8;
+  }
+  for (int b = 0; b < 256; ++b) {
+    if (chars[static_cast<size_t>(b)] == "\"" || chars[static_cast<size_t>(b)] == "\\") {
+      vocab += (b ? ", " : "") + std::string("\"\\") + chars[static_cast<size_t>(b)] + "\": " + std::to_string(b);
+    } else {
+      vocab += (b ? ", " : "") + std::string("\"") + chars[static_cast<size_t>(b)] + "\": " + std::to_string(b);
+    }
+  }
+  const std::string e_acute = chars[0xC3] + chars[0xA9];  // "é" as one token, id 256
+  const std::string euro_head = chars[0xE2] + chars[0x82];  // first two bytes of "€", id 257
+  Json root = Json::parse(R"({"added_tokens": [{"id": 258, "content": "<s>", "special": true}],
+      "model": {"type": "BPE", "merges": [], "vocab": {)" + vocab + ", \"" + e_acute + "\": 256, \"" + euro_head +
+                          R"(": 257}}, "decoder": {"type": "ByteLevel"}})");
+  Tokenizer tokenizer = Tokenizer::from_json(root);
+  EXPECT(tokenizer.decode({256, 'a'}, true) == "\xC3\xA9" "a");
+  EXPECT(tokenizer.decode({257, 0xAC}, true) == "\xE2\x82\xAC");
+  EXPECT(tokenizer.decode({257, 'a'}, true) == "\xEF\xBF\xBD" "a");  // maximal subpart -> one U+FFFD
+  EXPECT(tokenizer.stable_prefix({'a', 257}, true) == 1);
+  EXPECT(tokenizer.stable_prefix({'a', 257, 0xAC}, true) == 3);
+  EXPECT(tokenizer.stable_prefix({'a', 0xE2, 258}, true) == 1);   // a skipped special does not end the run
+  EXPECT(tokenizer.stable_prefix({'a', 0xE2, 258}, false) == 3);  // "<s>" ends it when kept
+  EXPECT(tokenizer.stable_prefix({'a', 0x80}, true) == 2);        // a stray continuation is final
+  EXPECT(streaming_is_prefix_stable(tokenizer, {'a', 256, 257, 258, 0xC3, 0xA9, 0xE2, 0x82, 0xAC, 0xF0, 0x9F,
+                                                0x99, 0x80, 0xED, 0xA0, 0xC0},
+                                    9));
 }
 
 }  // namespace
@@ -338,6 +381,7 @@ int main() {
   test_unicode();
   test_regex();
   test_tokenizer_stable_prefix();
+  test_byte_level_stable_prefix();
   if (g_failures) {
     std::fprintf(stderr, "%d expectation(s) failed\n", g_failures);
     return 1;
